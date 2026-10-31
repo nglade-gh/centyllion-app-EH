@@ -16,6 +16,12 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+project.plugins.withType<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsPlugin> {
+    project.extensions
+        .getByType<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsEnvSpec>()
+        .download = false
+}
+
 repositories {
     mavenCentral()
 
