@@ -15,8 +15,11 @@ kotlin {
 
     js() {
         browser {
-            //distribution { directory = file(centyllionWebroot) }
-            //webpackTask { outputFileName = "centyllion.[contenthash].js" }
+            // JS tests require a browser (ChromeHeadless). Disabled by default;
+            // enable with -PenableJsTests=true (requires Chrome/Chromium).
+            testTask {
+                enabled = project.findProperty("enableJsTests") as Boolean? ?: false
+            }
         }
         binaries.library()
 

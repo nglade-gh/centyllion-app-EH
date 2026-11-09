@@ -15,9 +15,20 @@ Ce dépôt est une **extension** du projet `centyllion-app` (ajout de la génér
 | Node.js | 18+ (26 testé) | build web (Kotlin/JS) |
 | Kotlin | 2.1.0 | langage |
 
+> **Note** : le module `db` (serveur REST Ktor) est **optionnel** et commenté par défaut dans `settings.gradle.kts`. Pour l'utiliser, il faut un **JDK complet** (avec `javac`) :
+> ```bash
+> sudo apt-get install -y openjdk-21-jdk-headless
+> # puis décommenter include("db") dans settings.gradle.kts
+> ```
+
 Pour l'exécution **desktop dans un conteneur headless** :
 - `xvfb` (serveur X virtuel)
 - `libxtst6` (librairie X11 pour Java AWT)
+
+Pour les **tests JS** (désactivés par défaut, nécessitent un navigateur) :
+```bash
+./gradlew :core:jsBrowserTest -PenableJsTests=true   # nécessite Chrome/Chromium
+```
 
 ---
 
@@ -169,12 +180,18 @@ CentyllionExtend/
 ```bash
 # Tests JVM (modèle, simulation, expressions)
 ./gradlew :core:jvmTest
+
+# Tests JS (nécessite Chrome/Chromium — désactivés par défaut)
+./gradlew :core:jsBrowserTest -PenableJsTests=true
+
+# Build complet sans tests JS
+./gradlew build
 ```
 
 Tests couvrant :
 - Génération spontanée (`testGenerationBehaviour`)
 - Comptage de voisins (`testAgentCountPredicate`)
-- Expressions de condition (`testConditionExpression`)
+- Expressions de condition (`testConditionExpression`, `testConditionExpressionFalse`)
 - Validation des formules (`FormulaTest`)
 
 ---
