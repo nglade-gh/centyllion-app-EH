@@ -77,6 +77,12 @@ class SimulationRunController(
     val runButton = iconButton(Icon("play"), ElementColor.Primary, rounded = true) { run() }
     val stepButton = iconButton(Icon("step-forward"), ElementColor.Primary, rounded = true) { step() }
     val stopButton = iconButton(Icon("stop"), ElementColor.Warning, rounded = true) { stop() }
+    val parallelButton = iconButton(
+        Icon(if (data.parallelUpdate) "layer-group" else "list"),
+        ElementColor.Primary, rounded = true
+    ) {
+        data = data.copy(parallelUpdate = !data.parallelUpdate)
+    }
 
     val fpsSlider = Slider(
         fps.toString(), "1", "200", "1", color = ElementColor.Info, circle = true
@@ -120,6 +126,7 @@ class SimulationRunController(
                 center = listOf(
                     BField(
                         Control(rewindButton), Control(runButton), Control(stepButton), Control(stopButton),
+                        Control(parallelButton),
                         addons = true
                     ),
                     Control(stepLabel),

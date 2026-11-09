@@ -165,6 +165,24 @@ fun ToolBar(app: AppState) {
         )
 
         Spacer(Modifier.width(2.dp))
+
+        IconButton(
+            onClick = { app.toggleParallelUpdate() },
+            modifier = AppTheme.toolBarIconModifier
+        ) {
+            Icon(
+                imageVector = if (app.simulation.parallelUpdate)
+                    FontAwesomeIcons.Solid.LayerGroup
+                else
+                    FontAwesomeIcons.Solid.List,
+                contentDescription = if (app.simulation.parallelUpdate)
+                    "Parallel update"
+                else
+                    "Sequential update",
+            )
+        }
+
+        Spacer(Modifier.width(2.dp))
         Text("${app.step}")
     }
 }

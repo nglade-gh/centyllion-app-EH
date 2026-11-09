@@ -145,6 +145,54 @@ class SimulationTest {
     }
 
     @Test
+    fun testParallelUpdate() {
+        // B becomes C unconditionally; A becomes C when at least 1 B neighbour is present.
+        // Parallel mode: both are computed from the initial state, so A sees B and becomes C.
+        // Sequential mode: if B is transformed first, A no longer sees B and stays A.
+        val model = GrainModel(
+            "parallel", "Test parallel update",
+            grains = listOf(Grain(0, "A"), Grain(1, "B"), Grain(2, "C")),
+            behaviours = listOf(
+                Behaviour(
+                    "B becomes C",
+                    mainReactiveId = 1,
+                    mainProductId = 2
+                ),
+                Behaviour(
+                    "A becomes C near B",
+                    mainReactiveId = 0,
+                    mainProductId = 2,
+                    agentCountPredicates = listOf(
+                        AgentCountPredicate(grainId = 1, op = Operator.GreaterThanOrEquals, count = 1)
+                    )
+                )
+            )
+        )
+
+        val baseSimulation = createSimulation("Test parallel", size = 10) { index ->
+            when (index) {
+                0 -> 0  // A
+                1 -> 1  // B
+                else -> -1
+            }
+        }
+
+        // Parallel mode: A sees B at the start of the step, so both become C
+        val parallelSim = Simulator(model, baseSimulation.copy(parallelUpdate = true))
+        parallelSim.oneStep()
+        assertEquals(2, parallelSim.idAtIndex(0), "A should become C in parallel mode")
+        assertEquals(2, parallelSim.idAtIndex(1), "B should become C in parallel mode")
+
+        // Sequential mode: order matters; A may stay A if B is transformed first
+        val sequentialSim = Simulator(model, baseSimulation.copy(parallelUpdate = false))
+        sequentialSim.oneStep()
+        val pos0 = sequentialSim.idAtIndex(0)
+        val pos1 = sequentialSim.idAtIndex(1)
+        val valid = (pos0 == 2 && pos1 == 2) || (pos0 == 0 && pos1 == 2)
+        assertTrue(valid, "Sequential mode should give (C,C) or (A,C), got ($pos0,$pos1)")
+    }
+
+    @Test
     fun testAgentCountPredicate() {
         // Test: AgentA -> None only when AgentB count > 2
         val model = GrainModel(

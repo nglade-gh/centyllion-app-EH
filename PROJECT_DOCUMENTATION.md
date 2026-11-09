@@ -15,6 +15,7 @@
 | **Génération spontanée** | `mainReactiveId = -1` : un comportement peut créer un agent sur une case vide (`None → Agent`) |
 | **Compteurs de voisins** | `agentCountPredicates` : conditions sur le nombre de voisins d'un type (`Agent_B > 3`) |
 | **Expressions de condition** | `conditionExpression` : expressions booléennes avec parenthèses et opérateurs logiques (`count(1) > 2 && count(2) == 1`) |
+| **Mise à jour parallèle** | `Simulation.parallelUpdate` (défaut) : calculs depuis l'état initial du pas, adapté aux automates cellulaires |
 | **Validation corrigée** | `validateFormula` vérifie maintenant les références et signale les erreurs |
 | **Build standalone** | Application desktop autonome + site web statique, sans serveur |
 
@@ -230,7 +231,27 @@ Là où le simulateur est pertinent, les notions s'expriment ainsi :
 5. **Mise à jour des champs** : diffusion, production, perméabilité, formule, normalisation, historique sauvegardé (`grainCountHistory`, `fieldAmountHistory`).
 6. **Swap des tampons de champs** et incrémentation `step`.
 
-### 5.3 État et performances
+### 5.3 Mode de mise à jour : parallèle ou séquentiel
+
+`Simulation.parallelUpdate` (défaut : `true`) contrôle la façon dont les comportements
+sont appliqués pendant un pas.
+
+**Mode parallèle** (automates cellulaires) :
+- Au début de `oneStep()`, l'état courant est copié dans des tampons `nextAgents`/`nextAges`.
+- Les âges de tous les grains vivants sont pré-incrémentés dans `nextAges`.
+- Toutes les lectures (`currentAgents`, `ageAtIndex`, `neighbours`) utilisent l'état initial.
+- Toutes les écritures (`transform`) se font dans `nextAgents`/`nextAges`.
+- À la fin du pas, les tampons sont swappés : `agents` et `ages` deviennent le nouvel état.
+
+**Mode séquentiel** (ancien comportement) :
+- Les comportements sont appliqués immédiatement dans `agents`/`ages`.
+- Un comportement peut voir les changements des comportements précédents.
+
+Le drapeau `inStep` distingue les lectures pendant un pas (âges incrémentés) des lectures
+hors pas (âges courants). Le basculement se fait par un bouton dans la barre d'outils
+(desktop) ou dans la barre de contrôle (web).
+
+### 5.4 État et performances
 
 - `agents: IntArray`, `ages: IntArray` : stockage dense en mémoire, `oneStep()` itère sur `simulation.dataSize = width*height*depth`.
 - `grainIdArray` : cache pour résoudre un grain à partir de son id en O(1).
@@ -238,7 +259,7 @@ Là où le simulateur est pertinent, les notions s'expriment ainsi :
 - Les historiques (`grainCountHistory`, `fieldAmountHistory`) sont des listes par grain/champ, utilisées pour les graphiques.
 - `grainsCounts()` et `fieldAmounts()` sont des utilitaires d'agrégation.
 
-### 5.4 Erreurs et validation
+### 5.5 Erreurs et validation
 
 La méthode `diagnose(locale)` sur `GrainModel`, `Grain`, `Behaviour`, `Field` retourne une liste de `Problem` (source, propriété, message) pour valider la cohérence du modèle (valeurs hors bornes, IDs inexistants, directions vides, etc.). Les clients s'en servent pour afficher les messages en bas de l'éditeur (`problemsTable`).
 
@@ -571,6 +592,7 @@ Les tests couvrent notamment les nouvelles fonctionnalités de l'extension :
 - `testGenerationBehaviour` : génération spontanée (`None → Agent`)
 - `testAgentCountPredicate` : comptage de voisins structuré
 - `testConditionExpression`, `testConditionExpressionFalse` : expressions de condition
+- `testParallelUpdate` : mise à jour parallèle vs séquentielle
 
 ---
 

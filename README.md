@@ -128,7 +128,25 @@ count(1) > 2 && (count(2) == 1 || count(3) == 0)
 - Opérateurs : `&&`, `||`, `!`, comparaisons, parenthèses
 - Validation automatique dans l'interface et dans le diagnostic du modèle
 
-### 4.4 Exemples complets
+### 4.4 Mise à jour parallèle ou séquentielle
+
+Chaque simulation peut choisir son mode de mise à jour :
+
+- **Parallèle** (défaut) : tous les comportements sont calculés à partir de l'état au
+  début du pas, puis appliqués simultanément. C'est le mode adapté aux automates
+  cellulaires : le comptage des voisins ne dépend pas de l'ordre de mise à jour.
+- **Séquentiel** : les comportements sont appliqués immédiatement, dans un ordre
+  aléatoire. Un comportement peut donc voir les changements des comportements
+  précédents.
+
+Le basculement se fait par un bouton dans la barre d'outils (icône « couches » pour
+le mode parallèle, « liste » pour le mode séquentiel). Le changement réinitialise
+la simulation.
+
+L'implémentation utilise un double tampon : les lectures se font sur l'état courant,
+les écritures sur une copie, qui devient l'état courant à la fin du pas.
+
+### 4.5 Exemples complets
 
 **Prédation** (Agent_A mangé par Agent_B voisin) :
 ```
@@ -192,6 +210,7 @@ Tests couvrant :
 - Génération spontanée (`testGenerationBehaviour`)
 - Comptage de voisins (`testAgentCountPredicate`)
 - Expressions de condition (`testConditionExpression`, `testConditionExpressionFalse`)
+- Mise à jour parallèle vs séquentielle (`testParallelUpdate`)
 - Validation des formules (`FormulaTest`)
 
 ---
