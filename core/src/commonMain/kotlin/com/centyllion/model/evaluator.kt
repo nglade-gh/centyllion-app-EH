@@ -18,6 +18,21 @@ class NetbioDynEvaluator(
     var z: Value = 0.v
     var current: Value = 0f.v
 
+    /** Agent counts for the current position (grainId -> count) */
+    var agentCounts: Map<Int, Int> = emptyMap()
+
+    /** Names of functions provided by this evaluator (in addition to [functions]) */
+    private val dynamicFunctions = setOf("agent", "field", "count")
+
+    /** Names of variables provided by this evaluator (in addition to [variables]) */
+    private val dynamicVariables = setOf("step", "x", "y", "z", "current")
+
+    override fun hasFunction(name: String): Boolean =
+        dynamicFunctions.contains(name) || super.hasFunction(name)
+
+    override fun hasVariable(name: String): Boolean =
+        dynamicVariables.contains(name) || super.hasVariable(name)
+
     override fun variable(name: String): Value = when (name) {
         "step" -> step
         "x" -> x
@@ -45,6 +60,10 @@ class NetbioDynEvaluator(
                 } ?: Value.Zero
             } else Value.Zero
         }
+        "count" -> {
+            val grainId = args[0].int
+            (agentCounts[grainId] ?: 0).v
+        }
         else -> super.function(name, args)
     }
 }
@@ -57,7 +76,8 @@ fun validateFormula(formula: String): String? {
     val evaluator = createEvaluator()
     return try {
         val parsed = formula.parseExpression()
-        evaluator.check(parsed)
+        val errors = evaluator.check(parsed)
+        if (errors.isNotEmpty()) return errors.first().message
         evaluator.evaluate(parsed)
         null
     } catch (e: Exception) {

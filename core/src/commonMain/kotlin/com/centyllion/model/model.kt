@@ -2,6 +2,8 @@ package com.centyllion.model
 
 import com.benasher44.uuid.Uuid
 import com.benasher44.uuid.uuid4
+import com.centyllion.expression.parseExpression
+import com.centyllion.expression.v
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlin.math.pow
@@ -181,6 +183,26 @@ data class Reaction(
     val allowedDirection: Set<Direction> = Direction.default
 )
 
+/**
+ * Predicate on the number of neighbours of a given grain type.
+ * Used to express conditions like "number of Agent_B > 3".
+ */
+@Serializable
+data class AgentCountPredicate(
+    val grainId: Int = -1,
+    val op: Operator = Operator.GreaterThanOrEquals,
+    val count: Int = 0
+) {
+    fun check(actualCount: Int): Boolean = when (op) {
+        Operator.Equals -> actualCount == count
+        Operator.NotEquals -> actualCount != count
+        Operator.LessThan -> actualCount < count
+        Operator.LessThanOrEquals -> actualCount <= count
+        Operator.GreaterThan -> actualCount > count
+        Operator.GreaterThanOrEquals -> actualCount >= count
+    }
+}
+
 @Serializable
 data class Behaviour(
     override val name: String = "",
@@ -188,11 +210,18 @@ data class Behaviour(
     val probability: Double = 1.0,
     val agePredicate: Predicate<Int> = Predicate(Operator.GreaterThanOrEquals, 0),
     val fieldPredicates: List<Pair<Int, Predicate<Float>>> = emptyList(),
+    val agentCountPredicates: List<AgentCountPredicate> = emptyList(),
+    val conditionExpression: String = "",
     val mainReactiveId: Int = -1, val mainProductId: Int = -1, val sourceReactive: Int = -1,
     val fieldInfluences: Map<Int, Float> = emptyMap(),
     val reaction: List<Reaction> = emptyList(),
     @Transient override val uuid: Uuid = uuid4(),
 ) : ModelElement {
+
+    /** Parsed condition expression (cached) */
+    @Transient
+    var parsedCondition: com.centyllion.expression.Expression? = null
+        private set
 
     @Transient
     val reactiveGrainIds = buildList {
@@ -259,16 +288,64 @@ data class Behaviour(
         return copy(fieldInfluences = newFields)
     }
 
+    fun agentCountPredicateIndex(predicate: AgentCountPredicate) =
+        agentCountPredicates.identityFirstIndexOf(predicate)
+
+    fun updateAgentCountPredicate(old: AgentCountPredicate, new: AgentCountPredicate): Behaviour {
+        val index = agentCountPredicateIndex(old)
+        if (index < 0) return this
+
+        val newList = agentCountPredicates.toMutableList()
+        newList[index] = new
+        return copy(agentCountPredicates = newList)
+    }
+
+    fun dropAgentCountPredicate(predicate: AgentCountPredicate): Behaviour {
+        val index = agentCountPredicateIndex(predicate)
+        if (index < 0) return this
+
+        val newList = agentCountPredicates.toMutableList()
+        newList.removeAt(index)
+        return copy(agentCountPredicates = newList)
+    }
+
     /** Is behavior applicable for given [grain], [age] and [neighbours] ? */
     fun applicable(
-        grain: Grain, age: Int, fields: List<Pair<Int, Float>>, neighbours: List<Pair<Direction, Agent>>
+        grain: Grain?, age: Int, fields: List<Pair<Int, Float>>, neighbours: List<Pair<Direction, Agent>>
     ): Boolean {
         // checks main reactive and age
-        if (mainReactiveId != grain.id || !agePredicate.check(age)) return false
+        // mainReactiveId == -1 means the cell must be empty (None -> something)
+        if (mainReactiveId == -1) {
+            if (grain != null) return false
+        } else {
+            if (grain == null || mainReactiveId != grain.id) return false
+        }
+        if (!agePredicate.check(age)) return false
         // checks field predicate
         for (p in fieldPredicates) {
             val value = (fields.find { it.first == p.first }?.second ?: 0f).flatten(minFieldLevel)
             if (!p.second.check(value)) return false
+        }
+        // checks agent count predicates
+        for (p in agentCountPredicates) {
+            val actualCount = neighbours.count { it.second.reactiveId == p.grainId }
+            if (!p.check(actualCount)) return false
+        }
+        // checks condition expression if present
+        if (conditionExpression.isNotBlank()) {
+            try {
+                val counts = neighbours.groupingBy { it.second.reactiveId }.eachCount()
+                val evaluator = NetbioDynEvaluator(null)
+                evaluator.agentCounts = counts
+                evaluator.step = age.v
+                val expr: com.centyllion.expression.Expression =
+                    parsedCondition ?: conditionExpression.parseExpression()
+                parsedCondition = expr
+                val result = evaluator.evaluate(expr)
+                if (!result.boolean) return false
+            } catch (_: Exception) {
+                return false
+            }
         }
         // checks reactions
         for (r in reaction) {
@@ -280,7 +357,8 @@ data class Behaviour(
     }
 
     fun usedGrains(model: GrainModel) =
-        (reaction.flatMap { listOf(it.reactiveId, it.productId) } + mainReactiveId + mainProductId)
+        (reaction.flatMap { listOf(it.reactiveId, it.productId) } + mainReactiveId + mainProductId +
+                agentCountPredicates.map { it.grainId })
             .filter { it >= 0 }.mapNotNull { model.grainForId(it) }.toSet()
 
 }
@@ -369,6 +447,9 @@ data class GrainModel(
                         productId = if (grain.id == it.productId) -1 else it.productId
                     )
                     if (newReaction == it) it else newReaction
+                },
+                agentCountPredicates = behaviour.agentCountPredicates.map {
+                    if (it.grainId == grain.id) it.copy(grainId = -1) else it
                 }
             )
             if (new == behaviour) behaviour else new

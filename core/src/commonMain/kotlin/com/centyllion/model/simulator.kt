@@ -244,6 +244,67 @@ class Simulator(
                         }
                     }
                 }
+            } else {
+                // empty cell: check for generation behaviours (mainReactiveId == -1)
+                val fieldValues = fieldsAtIndex(i)
+                val neighbours = neighbours(i)
+
+                // for generation, use the simulation step as the "age" value
+                val applicable = allBehaviours.filter {
+                    it.mainReactiveId == -1 && it.applicable(null, step, fieldValues, neighbours) && random.nextDouble() < speeds[it]!!
+                }
+
+                if (applicable.isNotEmpty()) {
+                    // selects one at random
+                    val behaviour = applicable[random.nextInt(applicable.size)]
+
+                    // for each reaction, find all possible reactives
+                    val possibleReactions = behaviour.reaction
+                        .map { reaction ->
+                            neighbours.filter { (d, a) ->
+                                reaction.reactiveId == a.reactiveId && reaction.allowedDirection.contains(d)
+                            }
+                        }
+
+                    // combines possibilities
+                    val allCombinations = possibleReactions.allCombinations()
+
+                    val chosenCombination = when {
+                        model.fields.isEmpty() || !behaviour.fieldInfluenced -> {
+                            random.nextInt(allCombinations.size)
+                        }
+                        else -> {
+                            val influence = FloatArray(allCombinations.size) { c ->
+                                var sum = 0f
+                                allCombinations[c].forEach { (_, agent) ->
+                                    behaviour.fieldInfluences.forEach { influence ->
+                                        val sourceField = fieldValues
+                                            .find { it.first == influence.key }?.second
+                                            ?: 0f
+                                        val delta = log10(agent.fields[influence.key]) - log10(sourceField)
+                                        sum += delta * influence.value
+                                    }
+                                }
+                                sum
+                            }
+
+                            val min = influence.minOrNull() ?: 0f
+                            var current = 0f
+                            for (index in influence.indices) {
+                                val translated = (influence[index] - min + 1f).pow(6)
+                                influence[index] = current + translated
+                                current += translated
+                            }
+
+                            val probability = random.nextDouble(current.toDouble())
+                            influence.indexOfFirst { probability < it }
+                        }
+                    }
+                    val usedNeighbours = allCombinations[chosenCombination].map { it.second }
+                    val behavior = ApplicableBehavior(i, 0, behaviour, usedNeighbours)
+                    all.getOrPut(i) { mutableListOf() }.add(behavior)
+                    usedNeighbours.forEach { all.getOrPut(it.index) { mutableListOf() }.add(behavior) }
+                }
             }
 
             // compute fields values for step

@@ -49,7 +49,7 @@ class CheckVisitor(val evaluator: Evaluator): Visitor {
     override fun visitFunctionCall(node: FunctionCall) {
         visitChildren(node)
         val name = node.name.content
-        if (!evaluator.functions.containsKey(name)) {
+        if (!evaluator.hasFunction(name)) {
             addError(node.name,"Function '$name' doesn't exist")
         }
     }
@@ -57,7 +57,7 @@ class CheckVisitor(val evaluator: Evaluator): Visitor {
     override fun visitVariableCall(node: VariableCall) {
         visitChildren(node)
         val name = node.name.content
-        if (!evaluator.variables.containsKey(name)) {
+        if (!evaluator.hasVariable(name)) {
             addError(node.name,"Variable '$name' doesn't exist")
         }
     }

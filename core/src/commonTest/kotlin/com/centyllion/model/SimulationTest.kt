@@ -2,6 +2,7 @@ package com.centyllion.model
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class SimulationTest {
 
@@ -28,6 +29,160 @@ class SimulationTest {
         simulator.grainsCounts().let { counts ->
             assertEquals(0, counts[0] ?: 0)
             assertEquals(500, counts[1] ?: 0)
+        }
+    }
+
+    @Test
+    fun testGenerationBehaviour() {
+        // Test: None -> Agent (spontaneous generation)
+        val model = GrainModel(
+            "generation", "Test generation behaviour",
+            grains = listOf(Grain(0, "AgentA"), Grain(1, "AgentB")),
+            behaviours = listOf(
+                Behaviour(
+                    "generate A",
+                    mainReactiveId = -1,  // None
+                    mainProductId = 0,    // AgentA
+                    agentCountPredicates = listOf(
+                        AgentCountPredicate(grainId = 1, op = Operator.GreaterThan, count = 2)
+                    )
+                )
+            )
+        )
+
+        // Create a simulation with some AgentB but no AgentA
+        val simulation = createSimulation("Test generation", size = 10) { index ->
+            // Place AgentB at positions 0, 1, 2 (neighbours of position 5)
+            when (index) {
+                0, 1, 2 -> 1
+                else -> -1
+            }
+        }
+
+        val simulator = Simulator(model, simulation)
+        simulator.grainsCounts().let { counts ->
+            assertEquals(0, counts[0] ?: 0)
+            assertEquals(3, counts[1] ?: 0)
+        }
+
+        // Run the simulator - AgentA should be generated where there are > 2 AgentB neighbours
+        simulator.oneStep()
+
+        simulator.grainsCounts().let { counts ->
+            // Some AgentA should have been generated
+            val agentACount = counts[0] ?: 0
+            assertTrue(agentACount > 0, "Expected some AgentA to be generated, but got $agentACount")
+        }
+    }
+
+    @Test
+    fun testConditionExpression() {
+        // Test: AgentA -> None only when count(1) > 2 AND count(2) == 1
+        val model = GrainModel(
+            "condition expression", "Test condition expression",
+            grains = listOf(Grain(0, "AgentA"), Grain(1, "AgentB"), Grain(2, "AgentC")),
+            behaviours = listOf(
+                Behaviour(
+                    "A dies near B and C",
+                    mainReactiveId = 0,  // AgentA
+                    mainProductId = -1,  // None (dies)
+                    conditionExpression = "count(1) > 2 && count(2) == 1"
+                )
+            )
+        )
+
+        // AgentA at 0, AgentB at 1,10,11, AgentC at 19 (neighbour LeftDown of 0)
+        val simulation = createSimulation("Test condition expression", size = 10) { index ->
+            when (index) {
+                0 -> 0    // AgentA
+                1, 10, 11 -> 1  // AgentB (3 neighbours)
+                19 -> 2  // AgentC (1 neighbour: LeftDown)
+                else -> -1
+            }
+        }
+
+        val simulator = Simulator(model, simulation)
+        simulator.oneStep()
+
+        simulator.grainsCounts().let { counts ->
+            assertEquals(0, counts[0] ?: 0)  // AgentA should be dead
+            assertEquals(3, counts[1] ?: 0)  // AgentB unchanged
+            assertEquals(1, counts[2] ?: 0)  // AgentC unchanged
+        }
+    }
+
+    @Test
+    fun testConditionExpressionFalse() {
+        // Same but condition is false: count(2) == 5 (false)
+        val model = GrainModel(
+            "condition expression false", "Test condition expression false",
+            grains = listOf(Grain(0, "AgentA"), Grain(1, "AgentB"), Grain(2, "AgentC")),
+            behaviours = listOf(
+                Behaviour(
+                    "A dies near many C",
+                    mainReactiveId = 0,
+                    mainProductId = -1,
+                    conditionExpression = "count(2) == 5"
+                )
+            )
+        )
+
+        val simulation = createSimulation("Test condition false", size = 10) { index ->
+            when (index) {
+                0 -> 0
+                1, 10, 11 -> 1
+                19 -> 2
+                else -> -1
+            }
+        }
+
+        val simulator = Simulator(model, simulation)
+        simulator.oneStep()
+
+        simulator.grainsCounts().let { counts ->
+            assertEquals(1, counts[0] ?: 0)  // AgentA should survive (condition false)
+        }
+    }
+
+    @Test
+    fun testAgentCountPredicate() {
+        // Test: AgentA -> None only when AgentB count > 2
+        val model = GrainModel(
+            "count predicate", "Test agent count predicate",
+            grains = listOf(Grain(0, "AgentA"), Grain(1, "AgentB")),
+            behaviours = listOf(
+                Behaviour(
+                    "A dies near many B",
+                    mainReactiveId = 0,  // AgentA
+                    mainProductId = -1,  // None (dies)
+                    agentCountPredicates = listOf(
+                        AgentCountPredicate(grainId = 1, op = Operator.GreaterThan, count = 2)
+                    )
+                )
+            )
+        )
+
+        // Create a simulation with AgentA at position 0 and AgentB at its 3 neighbours (indices 1, 10, 11)
+        val simulation = createSimulation("Test count predicate", size = 10) { index ->
+            when (index) {
+                0 -> 0  // AgentA
+                1, 10, 11 -> 1  // AgentB (neighbours of 0: Right, Down, RightDown)
+                else -> -1
+            }
+        }
+
+        val simulator = Simulator(model, simulation)
+        simulator.grainsCounts().let { counts ->
+            assertEquals(1, counts[0] ?: 0)
+            assertEquals(3, counts[1] ?: 0)
+        }
+
+        // Run the simulator - AgentA should die because it has 3 AgentB neighbours (> 2)
+        simulator.oneStep()
+
+        simulator.grainsCounts().let { counts ->
+            assertEquals(0, counts[0] ?: 0)  // AgentA should be dead
+            assertEquals(3, counts[1] ?: 0)  // AgentB unchanged
         }
     }
 
