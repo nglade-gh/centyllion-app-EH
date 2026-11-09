@@ -56,7 +56,7 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "com.centyllion.ui.NetbiodynKt"
+        mainClass = "MainKt"
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Centyllion"

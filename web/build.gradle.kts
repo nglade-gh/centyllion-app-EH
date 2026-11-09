@@ -44,6 +44,10 @@ kotlin {
 
     js(IR) {
         browser {
+            // Serve webroot static files (index.html, css) during development
+            commonWebpackConfig {
+                devServer?.static = mutableListOf("$projectDir/webroot")
+            }
             //distribution { directory = file(centyllionWebroot) }
             //webpackTask { outputFileName = "centyllion.[contenthash].js" }
         }
