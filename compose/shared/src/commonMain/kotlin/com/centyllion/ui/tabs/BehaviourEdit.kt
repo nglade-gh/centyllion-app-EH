@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.centyllion.model.AgentCountPredicate
 import com.centyllion.model.Behaviour
 import com.centyllion.model.Grain
 import com.centyllion.model.GrainModel
@@ -52,6 +53,81 @@ fun BehaviourEdit(appContext: AppContext, behaviour: Behaviour) {
             appContext.modelAndSimulation = appContext.modelAndSimulation.updateBehaviour(behaviour, new)
         }
 
+        // Condition expression (expert mode)
+        SingleLineTextEditRow(
+            appContext, behaviour, "Condition", behaviour.conditionExpression,
+            validationProperty = "Condition expression"
+        ) {
+            val new = behaviour.copy(conditionExpression = it)
+            appContext.modelAndSimulation =
+                appContext.modelAndSimulation.updateBehaviour(behaviour, new)
+        }
+
+        // Agent count predicates
+        MainTitleRow(appContext.locale.i18n("Neighbour counts"))
+        behaviour.agentCountPredicates.forEach { predicate ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val grain = appContext.model.grainForId(predicate.grainId)
+                GrainCombo(grain, true, appContext.model) {
+                    val new = behaviour.updateAgentCountPredicate(
+                        predicate, predicate.copy(grainId = it?.id ?: -1)
+                    )
+                    appContext.modelAndSimulation =
+                        appContext.modelAndSimulation.updateBehaviour(behaviour, new)
+                }
+                PredicateOpCombo(predicate.op) {
+                    val new = behaviour.updateAgentCountPredicate(
+                        predicate, predicate.copy(op = it)
+                    )
+                    appContext.modelAndSimulation =
+                        appContext.modelAndSimulation.updateBehaviour(behaviour, new)
+                }
+                IntTextField(
+                    value = predicate.count,
+                    onValueChange = {
+                        val new = behaviour.updateAgentCountPredicate(
+                            predicate, predicate.copy(count = it)
+                        )
+                        appContext.modelAndSimulation =
+                            appContext.modelAndSimulation.updateBehaviour(behaviour, new)
+                    }
+                )
+                IconButton(
+                    modifier = Modifier.defaultMinSize(16.dp, 16.dp),
+                    onClick = {
+                        val new = behaviour.dropAgentCountPredicate(predicate)
+                        appContext.modelAndSimulation =
+                            appContext.modelAndSimulation.updateBehaviour(behaviour, new)
+                    }
+                ) {
+                    Icon(
+                        imageVector = FontAwesomeIcons.Solid.Minus,
+                        contentDescription = "Remove Count Predicate",
+                        modifier = AppTheme.buttonIconModifier
+                    )
+                }
+            }
+        }
+        Row {
+            IconButton(
+                modifier = Modifier.defaultMinSize(16.dp, 16.dp),
+                onClick = {
+                    val new = behaviour.copy(
+                        agentCountPredicates = behaviour.agentCountPredicates +
+                                AgentCountPredicate(grainId = appContext.model.grains.firstOrNull()?.id ?: -1)
+                    )
+                    appContext.modelAndSimulation =
+                        appContext.modelAndSimulation.updateBehaviour(behaviour, new)
+                }
+            ) {
+                Icon(
+                    imageVector = FontAwesomeIcons.Solid.Plus,
+                    contentDescription = "Add Count Predicate",
+                    modifier = AppTheme.buttonIconModifier
+                )
+            }
+        }
+
         MainTitleRow(appContext.locale.i18n("Reactions"))
 
         val rows = buildList<List<@Composable (() -> Unit)>> {
@@ -64,12 +140,10 @@ fun BehaviourEdit(appContext: AppContext, behaviour: Behaviour) {
             add(listOf(
                     {
                         val mainReactive = appContext.model.grainForId(behaviour.mainReactiveId)
-                        GrainCombo(mainReactive, false, appContext.model) {
-                            if (it != null) {
-                                val new = behaviour.copy(mainReactiveId = it.id)
-                                appContext.modelAndSimulation =
-                                    appContext.modelAndSimulation.updateBehaviour(behaviour, new)
-                            }
+                        GrainCombo(mainReactive, true, appContext.model) {
+                            val new = behaviour.copy(mainReactiveId = it?.id ?: -1)
+                            appContext.modelAndSimulation =
+                                appContext.modelAndSimulation.updateBehaviour(behaviour, new)
                         }
                     },
                     { },

@@ -3,6 +3,7 @@ package com.centyllion.model
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class FormulaTest {
 
@@ -25,13 +26,14 @@ class FormulaTest {
 
     @Test
     fun testFormulaCheck() {
-        assertNull(validateFormula("field0(x, y)"))
+        assertNull(validateFormula("field(0, x, y)"))
         assertNull(validateFormula("agent(x, y)"))
         assertNull(validateFormula( "step"))
-        assertEquals("Could not resolve variable 'toto'", validateFormula("toto"))
-        assertEquals("Could not resolve variable 'toto'", validateFormula("0.0 + toto"))
-        assertEquals("Expression expected", validateFormula("agent +"))
-        assertEquals("malformed expression", validateFormula("agent )"))
+        assertNull(validateFormula( "count(0)"))
+        assertEquals("Variable 'toto' doesn't exist", validateFormula("toto"))
+        assertEquals("Variable 'toto' doesn't exist", validateFormula("0.0 + toto"))
+        assertTrue(validateFormula("agent +")!!.contains("Expecting"))
+        assertTrue(validateFormula("agent )")!!.contains("Expecting"))
     }
 
 

@@ -22,6 +22,7 @@ class BehaviourEditController(
             descriptionController.data = new.description
             probabilityController.data = "${new.probability}"
             agePredicateController.data = new.agePredicate
+            conditionExpressionController.data = new.conditionExpression
             mainReactiveController.data = context.grainForId(new.mainReactiveId)
             mainDirection.context = null to context.grainForId(new.mainReactiveId)?.color
             mainProductController.data = context.grainForId(new.mainProductId)
@@ -114,9 +115,23 @@ class BehaviourEditController(
     val agePredicateLine = HorizontalField(Label(page.i18n("When age")), agePredicateController.container)
         .apply { hidden = !expertMode }
 
+    val conditionExpressionController = EditableStringController(
+        initialData = data.conditionExpression,
+        placeHolder = page.i18n("Condition (e.g. count(1) > 2 && count(2) == 1)"),
+        columns = 40,
+        isValid = { value -> if (value.isBlank()) null else validateFormula(value) },
+        onUpdate = { _, new, _ ->
+            data = data.copy(conditionExpression = new)
+        }
+    )
+
+    val conditionExpressionLine = HorizontalField(
+        Label(page.i18n("Condition")), conditionExpressionController.container
+    ).apply { hidden = !expertMode }
+
 
     val mainReactiveController = GrainSelectController(
-        context.grainForId(data.mainReactiveId), context.grains, page, allowNone = false
+        context.grainForId(data.mainReactiveId), context.grains, page, allowNone = true
     ) { _, new, _ -> this.data = this.data.copy(mainReactiveId = new?.id ?: -1) }
 
     val mainProductController = GrainSelectController(context.grainForId(data.mainProductId), context.grains, page)
@@ -270,6 +285,7 @@ class BehaviourEditController(
         HorizontalField(Label(page.i18n("Description")), descriptionController.container),
         HorizontalField(Label(page.i18n("Speed")), probabilityController.container),
         agePredicateLine,
+        conditionExpressionLine,
         HtmlWrapper(createHr()),
         Label(page.i18n("Reactions")), reactionsController,
         fieldsConfiguration,
@@ -282,6 +298,7 @@ class BehaviourEditController(
         descriptionController.refresh()
         probabilityController.refresh()
         agePredicateController.refresh()
+        conditionExpressionController.refresh()
         mainReactiveController.refresh()
         mainProductController.refresh()
         reactionsController.refresh()

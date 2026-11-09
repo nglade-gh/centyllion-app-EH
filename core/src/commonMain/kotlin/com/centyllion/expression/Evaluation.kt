@@ -247,6 +247,12 @@ open class Evaluator(
         return check.errors.toList()
     }
 
+    /** True if a function with the given name is available (including dynamic functions) */
+    open fun hasFunction(name: String): Boolean = functions.containsKey(name)
+
+    /** True if a variable with the given name is available (including dynamic variables) */
+    open fun hasVariable(name: String): Boolean = variables.containsKey(name)
+
     open fun function(name: String, args: List<Value>): Value =
         functions[name]?.let { it(args) } ?: throw EvaluationException("Can't find function '$name'")
 

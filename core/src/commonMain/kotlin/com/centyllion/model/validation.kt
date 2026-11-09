@@ -51,7 +51,7 @@ fun Behaviour.hasNoError(model: GrainModel, locale: Locale) =
     buildList { diagnose(model,locale, this) }.isEmpty()
 
 fun Behaviour.diagnose(model: GrainModel, locale: Locale, result: MutableList<Problem>) {
-    if (mainReactiveId < 0) {
+    if (mainReactiveId < -1) {
         result.add(Problem(this, "Main Reactive", locale.i18n("Behaviour must have a main reactive")))
     }
 
@@ -70,8 +70,29 @@ fun Behaviour.diagnose(model: GrainModel, locale: Locale, result: MutableList<Pr
         }
     }
 
+    agentCountPredicates.forEach { predicate ->
+        if (predicate.grainId >= 0 && model.grainForId(predicate.grainId) == null) {
+            result.add(Problem(this, "Agent Count", locale.i18n("Grain with id %0 doesn't exist for agent count predicate", predicate.grainId)))
+        }
+        if (predicate.count < 0) {
+            result.add(Problem(this, "Agent Count", locale.i18n("Agent count predicate value must be positive or zero")))
+        }
+    }
+
+    if (conditionExpression.isNotBlank()) {
+        val error = com.centyllion.model.validateFormula(conditionExpression)
+        if (error != null) {
+            result.add(Problem(this, "Condition expression", error))
+        }
+    }
+
     reaction.forEachIndexed { index, reaction ->
         reaction.diagnose(model, this, index+1, locale, result)
+    }
+
+    // Check for meaningless behaviour: None -> None
+    if (mainReactiveId == -1 && mainProductId == -1 && reaction.all { it.reactiveId == -1 && it.productId == -1 }) {
+        result.add(Problem(this, "Meaningless", locale.i18n("Behaviour has no effect (None -> None)")))
     }
 }
 
