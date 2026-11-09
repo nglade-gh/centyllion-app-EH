@@ -130,8 +130,8 @@ tasks {
         group = "build"
         doLast {
             // find js distributed file
-            val jsFile = project.layout.buildDirectory.file("dist/js/productionExecutable/web.js")
-            val mapFile = project.layout.buildDirectory.file("dist/js/productionExecutable/web.js.map")
+            val jsFile = project.layout.buildDirectory.file("kotlin-webpack/js/productionExecutable/web.js")
+            val mapFile = project.layout.buildDirectory.file("kotlin-webpack/js/productionExecutable/web.js.map")
 
             // Adds md5 sum in file name for cache purposes
             val base = "centyllion"
