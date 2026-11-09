@@ -40,6 +40,12 @@ repositories {
 
 val centyllionWebroot = file("$projectDir/webroot/js/centyllion")
 
+// Use the system Node.js instead of downloading one.
+// The JetBrains repository (maven.pkg.jetbrains.space) is often unavailable.
+rootProject.extensions.configure<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension>("kotlinNodeJs") {
+    download = false
+}
+
 kotlin {
 
     js(IR) {

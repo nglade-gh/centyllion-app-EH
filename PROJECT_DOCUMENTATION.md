@@ -418,6 +418,12 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 
 ## 9. Serveur / API (module `db/` — Ktor + SQLDelight)
 
+> **Module optionnel** : le module `db` est **commenté par défaut** dans `settings.gradle.kts`. Il nécessite un **JDK complet** (avec `javac`), pas seulement un JRE. Pour l'inclure :
+> ```bash
+> sudo apt-get install -y openjdk-21-jdk-headless
+> # puis décommenter include("db") dans settings.gradle.kts
+> ```
+
 Le serveur Ktor sert l'API REST utilisée par la page web :
 
 | Route | Méthode | Description |
@@ -552,6 +558,19 @@ Chaque étape est une classe `TutorialStep` avec `title`, `content`, `selector` 
 ## 13. Tests
 
 Le module `core` possède des tests communs (`commonTest`) : `CombinationTest`, `FormulaTest`, `PerformanceTest`, `PositionTest`, `PredicateTest`, `SimulationTest`, `models.kt`. Ils utilisent le bundle de test Kotlin `test` (common + jvm + js).
+
+```bash
+# Tests JVM (modèle, simulation, expressions)
+./gradlew :core:jvmTest
+
+# Tests JS — désactivés par défaut (nécessitent Chrome/Chromium)
+./gradlew :core:jsBrowserTest -PenableJsTests=true
+```
+
+Les tests couvrent notamment les nouvelles fonctionnalités de l'extension :
+- `testGenerationBehaviour` : génération spontanée (`None → Agent`)
+- `testAgentCountPredicate` : comptage de voisins structuré
+- `testConditionExpression`, `testConditionExpressionFalse` : expressions de condition
 
 ---
 
