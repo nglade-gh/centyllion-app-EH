@@ -51,8 +51,23 @@ class Simulator(
     val random = Random.Default
 
     val initialAgents: IntArray = IntArray(simulation.agents.size) { simulation.agents[it] }
-    val agents: IntArray = initialAgents.copyOf()
-    val ages: IntArray = IntArray(initialAgents.size) { if (initialAgents[it] >= 0) 0 else -1 }
+    var agents: IntArray = initialAgents.copyOf()
+        private set
+    var ages: IntArray = IntArray(initialAgents.size) { if (initialAgents[it] >= 0) 0 else -1 }
+        private set
+
+    /** Double-buffering for parallel updates: behaviours are computed from the
+     *  state at the start of the step and written into these copies. */
+    private var nextAgents: IntArray = agents.copyOf()
+    private var nextAges: IntArray = ages.copyOf()
+
+    /** True while [oneStep] is running, so reads use the incremented ages. */
+    private var inStep: Boolean = false
+
+    private val parallelUpdate: Boolean get() = simulation.parallelUpdate
+
+    /** Ages used for reading during a step (incremented copy in parallel mode). */
+    private val readAges: IntArray get() = if (parallelUpdate && inStep) nextAges else ages
 
     val currentAgents get() = if (step == 0) initialAgents else agents
 
@@ -125,6 +140,27 @@ class Simulator(
 
     /** Executes one step and returns the applied behaviours and the dead indexes. */
     fun oneStep(): Pair<Collection<ApplicableBehavior>, Collection<Int>> {
+        // In parallel mode, prepare the next-state buffers and pre-increment ages
+        // so that all behaviours are computed from the state at the start of the step.
+        if (parallelUpdate) {
+            agents.copyInto(nextAgents)
+            ages.copyInto(nextAges)
+            for (i in nextAgents.indices) {
+                if (nextAgents[i] >= 0) nextAges[i] += 1
+            }
+            inStep = true
+        }
+
+        try {
+            return oneStepInternal()
+        } finally {
+            if (parallelUpdate) {
+                inStep = false
+            }
+        }
+    }
+
+    private fun oneStepInternal(): Pair<Collection<ApplicableBehavior>, Collection<Int>> {
         // applies agents dying process
         val currentCount = mutableMapOf<Grain, Int>().apply {
             model.grains.forEach { this[it] = 0 }
@@ -236,7 +272,7 @@ class Simulator(
                             }
                             // registers behaviour for concurrency
                             val usedNeighbours = allCombinations[chosenCombination].map { it.second }
-                            val behavior = ApplicableBehavior(i, ages[i], behaviour, usedNeighbours)
+                            val behavior = ApplicableBehavior(i, readAges[i], behaviour, usedNeighbours)
                             // adds applicable to current agent
                             all.getOrPut(i) { mutableListOf() }.add(behavior)
                             // adds applicable to neighbours
@@ -372,6 +408,16 @@ class Simulator(
         // swap fields
         currentFields = !currentFields
 
+        // In parallel mode, swap the agent/age buffers so the next state becomes current
+        if (parallelUpdate) {
+            val tmpAgents = agents
+            agents = nextAgents
+            nextAgents = tmpAgents
+            val tmpAges = ages
+            ages = nextAges
+            nextAges = tmpAges
+        }
+
         // count a step
         step += 1
 
@@ -384,6 +430,9 @@ class Simulator(
             ages[i] = if (agents[i] != -1) 0 else -1
             fields.forEach { it.value[i] = minField }
         }
+        // Also reset the parallel buffers so they don't hold stale state
+        agents.copyInto(nextAgents)
+        ages.copyInto(nextAges)
 
         step = 0
         resetCount()
@@ -409,19 +458,24 @@ class Simulator(
 
     fun idAtIndex(index: Int) = currentAgents[index]
 
-    fun ageAtIndex(index: Int) = ages[index]
+    fun ageAtIndex(index: Int): Int = readAges[index]
 
     fun ageGrain(index: Int) {
-        ages[index] += 1
+        // In parallel mode, ages are pre-incremented at the start of the step.
+        if (!parallelUpdate) {
+            ages[index] += 1
+        }
     }
 
     fun fieldsAtIndex(index: Int) = fields.map { it.key to it.value[index] }
 
     fun transform(sourceIndex: Int, targetIndex: Int, newId: Int?, newAge: Int = -1) {
-        agents[sourceIndex] = -1
-        ages[sourceIndex] = -1
-        agents[targetIndex] = newId ?: -1
-        ages[targetIndex] = when {
+        val targetAgents = if (parallelUpdate) nextAgents else agents
+        val targetAges = if (parallelUpdate) nextAges else ages
+        targetAgents[sourceIndex] = -1
+        targetAges[sourceIndex] = -1
+        targetAgents[targetIndex] = newId ?: -1
+        targetAges[targetIndex] = when {
             newId != null -> newAge
             else -> -1
         }
@@ -445,7 +499,7 @@ class Simulator(
             direction to simulation.moveIndex(index, direction).let { id ->
                 val fieldValues = if (model.fields.isEmpty()) emptyFloatArray
                 else FloatArray(fieldMaxId + 1) { field(it).getOrNull(id) ?: 0f }
-                Agent(id, direction, currentAgents[id], ages[id], fieldValues)
+                Agent(id, direction, currentAgents[id], readAges[id], fieldValues)
             }
         }
     }

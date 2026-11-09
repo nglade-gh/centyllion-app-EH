@@ -583,6 +583,9 @@ data class Simulation(
     val width: Int = settings.size,
     val height: Int = settings.size,
     val depth: Int = 1,
+    /** If true, all behaviours are computed from the state at the start of the step (parallel update).
+     *  If false, behaviours are applied immediately, so later behaviours see earlier changes. */
+    val parallelUpdate: Boolean = true,
 ) {
     val label: String
         get() = when {
@@ -702,7 +705,8 @@ data class Simulation(
             description = description,
             settings = newSettings,
             assets = assets,
-            agents = newAgents
+            agents = newAgents,
+            parallelUpdate = parallelUpdate
         )
     }
 

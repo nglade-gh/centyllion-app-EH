@@ -158,6 +158,15 @@ open class AppState(
         fieldAmountsState.value = simulator.fieldAmounts()
     }
 
+    /** Toggles between parallel and sequential agent updates. */
+    fun toggleParallelUpdate() {
+        simulation = simulation.copy(parallelUpdate = !simulation.parallelUpdate)
+        simulator = Simulator(model, simulation)
+        step = 0
+        grainCountsState.value = simulator.grainsCounts()
+        fieldAmountsState.value = simulator.fieldAmounts()
+    }
+
     fun emptyModel() = ModelAndSimulation(GrainModel.new(locale.i18n("Model")), Simulation.empty)
 
     /** Load model for given path. */
