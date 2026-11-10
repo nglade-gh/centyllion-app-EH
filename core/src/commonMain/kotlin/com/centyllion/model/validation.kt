@@ -79,10 +79,10 @@ fun Behaviour.diagnose(model: GrainModel, locale: Locale, result: MutableList<Pr
         }
     }
 
-    if (conditionExpression.isNotBlank()) {
-        val error = com.centyllion.model.validateFormula(conditionExpression)
+    if (formula.isNotBlank()) {
+        val error = com.centyllion.model.validateFormula(formula)
         if (error != null) {
-            result.add(Problem(this, "Condition expression", error))
+            result.add(Problem(this, "Formula", error))
         }
     }
 

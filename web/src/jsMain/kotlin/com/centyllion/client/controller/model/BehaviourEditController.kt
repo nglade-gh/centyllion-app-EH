@@ -21,8 +21,7 @@ class BehaviourEditController(
             nameController.data = new.name
             descriptionController.data = new.description
             probabilityController.data = "${new.probability}"
-            agePredicateController.data = new.agePredicate
-            conditionExpressionController.data = new.conditionExpression
+            formulaController.data = new.formula
             mainReactiveController.data = context.grainForId(new.mainReactiveId)
             mainDirection.context = null to context.grainForId(new.mainReactiveId)?.color
             mainProductController.data = context.grainForId(new.mainProductId)
@@ -54,7 +53,6 @@ class BehaviourEditController(
 
     var expertMode: Boolean by observable(expertMode) { _, old, new ->
         if (old != new) {
-            agePredicateLine.hidden = !new
             sourceHeader.hidden = !new
             sourceReactiveController.hidden = !new
             reactionsController.dataControllers
@@ -70,7 +68,7 @@ class BehaviourEditController(
             nameController.readOnly = new
             descriptionController.readOnly = new
             probabilityController.readOnly = new
-            agePredicateController.readOnly = new
+            formulaController.readOnly = new
             mainReactiveController.readOnly = new
             mainProductController.readOnly = new
             sourceReactiveController.readOnly = new
@@ -102,32 +100,19 @@ class BehaviourEditController(
         }
     )
 
-    val agePredicateController = IntPredicateController(
-        locale = page.appContext.locale,
-        predicate = data.agePredicate,
-        placeHolder = page.i18n("Age"),
-        minValue = 0,
-        onUpdate = { _, new, _ ->
-            this.data = this.data.copy(agePredicate = new)
-        }
-    )
-
-    val agePredicateLine = HorizontalField(Label(page.i18n("When age")), agePredicateController.container)
-        .apply { hidden = !expertMode }
-
-    val conditionExpressionController = EditableStringController(
-        initialData = data.conditionExpression,
-        placeHolder = page.i18n("Condition (e.g. count(1) > 2 && count(2) == 1)"),
+    val formulaController = EditableStringController(
+        initialData = data.formula,
+        placeHolder = page.i18n("Formula (e.g. count(1) > 2 && count(2) == 1)"),
         columns = 40,
         isValid = { value -> if (value.isBlank()) null else validateFormula(value) },
         onUpdate = { _, new, _ ->
-            data = data.copy(conditionExpression = new)
+            data = data.copy(formula = new)
         }
     )
 
-    val conditionExpressionLine = HorizontalField(
-        Label(page.i18n("Condition")), conditionExpressionController.container
-    ).apply { hidden = !expertMode }
+    val formulaLine = HorizontalField(
+        Label(page.i18n("Formula")), formulaController.container
+    )
 
 
     val mainReactiveController = GrainSelectController(
@@ -284,8 +269,7 @@ class BehaviourEditController(
         HorizontalField(Label(page.i18n("Name")), nameController.container),
         HorizontalField(Label(page.i18n("Description")), descriptionController.container),
         HorizontalField(Label(page.i18n("Speed")), probabilityController.container),
-        agePredicateLine,
-        conditionExpressionLine,
+        formulaLine,
         HtmlWrapper(createHr()),
         Label(page.i18n("Reactions")), reactionsController,
         fieldsConfiguration,
@@ -297,8 +281,7 @@ class BehaviourEditController(
         nameController.refresh()
         descriptionController.refresh()
         probabilityController.refresh()
-        agePredicateController.refresh()
-        conditionExpressionController.refresh()
+        formulaController.refresh()
         mainReactiveController.refresh()
         mainProductController.refresh()
         reactionsController.refresh()

@@ -48,17 +48,12 @@ fun BehaviourEdit(appContext: AppContext, behaviour: Behaviour) {
             )
         }
 
-        IntPredicateRow(appContext, behaviour, behaviour.agePredicate, "When age") {
-            val new = behaviour.copy(agePredicate = it)
-            appContext.modelAndSimulation = appContext.modelAndSimulation.updateBehaviour(behaviour, new)
-        }
-
-        // Condition expression (expert mode)
+        // Condition formula
         SingleLineTextEditRow(
-            appContext, behaviour, "Condition", behaviour.conditionExpression,
-            validationProperty = "Condition expression"
+            appContext, behaviour, "Formula", behaviour.formula,
+            validationProperty = "Formula"
         ) {
-            val new = behaviour.copy(conditionExpression = it)
+            val new = behaviour.copy(formula = it)
             appContext.modelAndSimulation =
                 appContext.modelAndSimulation.updateBehaviour(behaviour, new)
         }
