@@ -116,6 +116,7 @@ open class AppState(
         get() = simulatorState.value
         set(value) {
             running = false
+            simulatorState.value.close()
             simulatorState.value = value
         }
 
