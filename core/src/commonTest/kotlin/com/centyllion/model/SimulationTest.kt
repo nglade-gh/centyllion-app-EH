@@ -114,7 +114,7 @@ class SimulationTest {
                     "A dies near B and C",
                     mainReactiveId = 0,  // AgentA
                     mainProductId = -1,  // None (dies)
-                    conditionExpression = "count(1) > 2 && count(2) == 1"
+                    formula = "count(1) > 2 && count(2) == 1"
                 )
             )
         )
@@ -150,7 +150,7 @@ class SimulationTest {
                     "A dies near many C",
                     mainReactiveId = 0,
                     mainProductId = -1,
-                    conditionExpression = "count(2) == 5"
+                    formula = "count(2) == 5"
                 )
             )
         )

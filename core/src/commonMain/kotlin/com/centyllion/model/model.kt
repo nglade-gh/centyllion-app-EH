@@ -213,9 +213,10 @@ data class Behaviour(
     override val description: String = "",
     val probability: Double = 1.0,
     val agePredicate: Predicate<Int> = Predicate(Operator.GreaterThanOrEquals, 0),
+    /** Optional condition formula (e.g. "count(0)>=3 && count(0)<5"). Serialized as "formula". */
+    val formula: String = "",
     val fieldPredicates: List<Pair<Int, Predicate<Float>>> = emptyList(),
     val agentCountPredicates: List<AgentCountPredicate> = emptyList(),
-    val conditionExpression: String = "",
     val mainReactiveId: Int = -1, val mainProductId: Int = -1, val sourceReactive: Int = -1,
     val fieldInfluences: Map<Int, Float> = emptyMap(),
     val reaction: List<Reaction> = emptyList(),
@@ -335,15 +336,15 @@ data class Behaviour(
             val actualCount = neighbours.count { it.second.reactiveId == p.grainId }
             if (!p.check(actualCount)) return false
         }
-        // checks condition expression if present
-        if (conditionExpression.isNotBlank()) {
+        // checks condition formula if present
+        if (formula.isNotBlank()) {
             try {
                 val counts = neighbours.groupingBy { it.second.reactiveId }.eachCount()
                 val evaluator = NetbioDynEvaluator(null)
                 evaluator.agentCounts = counts
                 evaluator.step = age.v
                 val expr: com.centyllion.expression.Expression =
-                    parsedCondition ?: conditionExpression.parseExpression()
+                    parsedCondition ?: formula.parseExpression()
                 parsedCondition = expr
                 val result = evaluator.evaluate(expr)
                 if (!result.boolean) return false
