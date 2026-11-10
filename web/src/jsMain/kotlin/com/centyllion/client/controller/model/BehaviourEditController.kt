@@ -9,6 +9,7 @@ import com.centyllion.client.page.BulmaPage
 import com.centyllion.model.*
 import com.centyllion.model.Field
 import kotlin.properties.Delegates.observable
+import bulma.Field as BField
 
 class BehaviourEditController(
     initialData: Behaviour, model: GrainModel, val page: BulmaPage, expertMode: Boolean,
@@ -111,7 +112,19 @@ class BehaviourEditController(
     )
 
     val formulaLine = HorizontalField(
-        Label(page.i18n("Formula")), formulaController.container
+        Label(page.i18n("Formula")),
+        BField(Control(Button("", Icon("question-circle"), size = Size.Small, color = ElementColor.Info) {
+            page.modalDialog(
+                page.i18n("Formula"),
+                listOf(
+                    p(page.i18n("Evaluated for each agent that could apply the behaviour.")),
+                    p(page.i18n("Variables: step (age), x, y, z. Function: count(grainId).")),
+                    p(page.i18n("Example: step >= 10 && count(0) >= 3"))
+                ),
+                Button(page.i18n("Close"), color = ElementColor.Primary) {}
+            )
+        })),
+        formulaController.container
     )
 
 

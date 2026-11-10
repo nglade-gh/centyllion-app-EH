@@ -1,7 +1,10 @@
 package com.centyllion.ui.tabs
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.centyllion.model.Field
 import com.centyllion.model.colorNameList
@@ -13,7 +16,18 @@ fun FieldEdit(app: AppContext, field: Field) {
         title = { MainTitleRow(app.locale.i18n("Field")) }
     ) {
 
-        SingleLineTextEditRow(app, field, "Name", field.name) {
+        SingleLineTextEditRow(
+            app, field, "Name", field.name,
+            trailingContent = {
+                Text(
+                    "ID = ${field.id}",
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        ) {
             app.modelAndSimulation = app.modelAndSimulation.updateField(field, field.copy(name = it))
         }
 
@@ -37,6 +51,16 @@ fun FieldEdit(app: AppContext, field: Field) {
             },
         ) {
             app.modelAndSimulation = app.modelAndSimulation.updateField(field, field.copy(speed = it))
+        }
+
+        SingleLineTextEditRow(
+            app, field, "Formula", field.formula,
+            validationProperty = "Formula",
+            trailingContent = {
+                HelpPopup("Formula") { FieldFormulaHelp() }
+            }
+        ) {
+            app.modelAndSimulation = app.modelAndSimulation.updateField(field, field.copy(formula = it))
         }
 
         TitleRow(app.locale.i18n("Display"))

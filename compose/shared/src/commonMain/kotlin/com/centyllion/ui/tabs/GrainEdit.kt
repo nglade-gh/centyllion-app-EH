@@ -2,6 +2,7 @@ package com.centyllion.ui.tabs
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.Slider
 import androidx.compose.material.Text
@@ -25,7 +26,18 @@ fun GrainEdit(app: AppContext, grain: Grain) {
     Properties(
         title = { MainTitleRow(app.locale.i18n("Grain")) }
     ) {
-        SingleLineTextEditRow(app, grain, "Name", grain.name) {
+        SingleLineTextEditRow(
+            app, grain, "Name", grain.name,
+            trailingContent = {
+                Text(
+                    "ID = ${grain.id}",
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        ) {
             app.modelAndSimulation = app.modelAndSimulation.updateGrain(grain, grain.copy(name = it))
         }
 

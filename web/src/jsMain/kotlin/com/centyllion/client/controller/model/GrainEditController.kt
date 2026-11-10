@@ -169,7 +169,8 @@ class GrainEditController(
     override val container = editorBox(page.i18n("Grain"), grainIcon,
         HorizontalField(
             Label(page.i18n("Name")),
-            nameController.container
+            nameController.container,
+            BField(Control(Label("ID = ${data.id}")))
         ),
         HorizontalField(
             Label(page.i18n("Display")),

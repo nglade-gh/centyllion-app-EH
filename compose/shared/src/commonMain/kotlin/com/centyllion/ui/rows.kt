@@ -103,7 +103,10 @@ fun propertyRow(
         if (trailingContent != null) {
             Spacer(Modifier.width(8.dp))
             Column(
-                modifier = Modifier.weight(trailingRatio).align(Alignment.CenterVertically),
+                modifier = Modifier
+                    .weight(trailingRatio)
+                    .widthIn(min = 96.dp)
+                    .align(Alignment.CenterVertically),
                 content = trailingContent
             )
         }
@@ -185,7 +188,7 @@ fun TextEditRow(
 ) = propertyRow(appContext, element, property, validationProperty, trailingContent, trailingRatio) {
     BasicTextField(
         modifier = Modifier
-            .fillMaxWidth()
+            .weight(1f)
             .background(color = AppTheme.colors.background, shape = RoundedCornerShape(3.dp))
             .padding(4.dp),
         value = value,

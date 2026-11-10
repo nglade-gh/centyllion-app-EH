@@ -152,10 +152,21 @@ class FieldEditController (
         )
     )
 
+    val formulaHelpButton = Button(
+        "", Icon("question-circle"), size = Size.Small, color = ElementColor.Info
+    ) {
+        page.modalDialog(
+            page.i18n("Formula"),
+            listOf(help),
+            Button(page.i18n("Close"), color = ElementColor.Primary) {}
+        )
+    }
+
     override val container = editorBox(page.i18n("Field"), fieldIcon,
         HorizontalField(
             Label(page.i18n("Name")),
-            nameController.container
+            nameController.container,
+            BField(Control(Label("ID = ${data.id}")))
         ),
         HorizontalField(
             Label(page.i18n("Display")),
@@ -171,8 +182,7 @@ class FieldEditController (
             BField(Control(Value(page.i18n("Speed"))), speedController.container, grouped = true),
             BField(Control(directionController)),
         ),
-        HorizontalField(Label(page.i18n("Formula")), formulaController.container),
-        help
+        HorizontalField(Label(page.i18n("Formula")), BField(Control(formulaHelpButton)), formulaController.container)
     )
 
     override fun refresh() {

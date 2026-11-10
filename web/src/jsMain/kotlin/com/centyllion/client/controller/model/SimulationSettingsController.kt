@@ -5,6 +5,8 @@ import bulma.extension.Switch
 import com.centyllion.client.controller.utils.EditableStringController
 import com.centyllion.client.controller.utils.editorBox
 import com.centyllion.client.page.BulmaPage
+import com.centyllion.model.PARALLEL_UPDATE_PLAN
+import com.centyllion.model.SEQUENTIAL_UPDATE_PLAN
 import com.centyllion.model.SimulationSettings
 import com.centyllion.model.availableSimulationSizes
 import org.w3c.dom.events.Event
@@ -12,6 +14,8 @@ import kotlin.properties.Delegates.observable
 
 class SimulationSettingsController (
     initialData: SimulationSettings, val page: BulmaPage,
+    initialUpdatePlan: String = PARALLEL_UPDATE_PLAN,
+    var onUpdatePlan: (String) -> Unit = { },
     var onUpdate: (old: SimulationSettings, new: SimulationSettings, controller: SimulationSettingsController) -> Unit = { _, _, _ -> }
 ) : NoContextController<SimulationSettings, Div>() {
 
@@ -32,7 +36,17 @@ class SimulationSettingsController (
             colorController.readOnly = new
             showGridSwitch.disabled = new
             gridTextureUrlController.readOnly = new
+            updatePlanSelect.disabled = new
         }
+    }
+
+    val updatePlanSelect = Select(
+        options = listOf(Option(page.i18n("Parallel")), Option(page.i18n("Sequential"))),
+        rounded = true,
+        selectedIndex = if (initialUpdatePlan == SEQUENTIAL_UPDATE_PLAN) 1 else 0
+    ) { _, value: List<Option> ->
+        val newPlan = if (value.firstOrNull()?.value == page.i18n("Sequential")) SEQUENTIAL_UPDATE_PLAN else PARALLEL_UPDATE_PLAN
+        onUpdatePlan(newPlan)
     }
 
     val sizeController = Select(
@@ -70,6 +84,10 @@ class SimulationSettingsController (
         Field(
             Label(page.i18n("Grid")),
             showGridSwitch
+        ),
+        Field(
+            Label(page.i18n("Update Plan")),
+            Control(updatePlanSelect)
         ),
         Field(
             Label(page.i18n("Image URL")),

@@ -1,7 +1,6 @@
 package com.centyllion.client
 
 import com.centyllion.model.ModelAndSimulation
-import kotlinx.serialization.json.Json
 import org.w3c.xhr.XMLHttpRequest
 import kotlin.js.Promise
 
@@ -35,13 +34,13 @@ class Api(val dbUrl: String) {
 
     fun searchQuery(query: String): Promise<List<String>> =
         fetch("GET", "${dbUrl}/search/$query")
-            .then { json -> Json.decodeFromString<List<String>>(json) }
+            .then { json -> netbiodynJson.decodeFromString<List<String>>(json) }
 
     fun simulationGet(id: String): Promise<ModelAndSimulation> =
         fetch("GET", "${dbUrl}/simulation/$id")
-            .then { json -> Json.decodeFromString<ModelAndSimulation>(json) }
+            .then { json -> netbiodynJson.decodeFromString<ModelAndSimulation>(json) }
 
     fun fetchVersion() =
-        fetch("GET", "/version.json").then { Json.decodeFromString(Version.serializer(), it) }
+        fetch("GET", "/version.json").then { netbiodynJson.decodeFromString(Version.serializer(), it) }
 
 }

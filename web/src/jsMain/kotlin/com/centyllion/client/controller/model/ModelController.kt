@@ -286,7 +286,13 @@ class ModelController(
 
     var editorController: Controller<*, dynamic, dynamic>? = null
 
-    val settingsController = SimulationSettingsController(model.simulation.settings, page) { _, new, _ ->
+    val settingsController = SimulationSettingsController(
+        model.simulation.settings, page,
+        initialUpdatePlan = model.model.updatePlan,
+        onUpdatePlan = { newPlan ->
+            data = data.copy(model = data.model.copy(updatePlan = newPlan))
+        }
+    ) { _, new, _ ->
         data = data.copy(simulation = data.simulation.updateSettings(new))
     }
 
