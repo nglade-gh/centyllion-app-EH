@@ -218,6 +218,7 @@ fun GrainItem(appState: AppState, grain: Grain, ) {
         GrainSquare(grain)
 
         val text = buildAnnotatedString {
+            append("#${grain.id} ")
             append(grain.name)
             if (appState.centerSelectedTab == SimulationTab) {
                 val count = appState.grainCounts[grain.id]?.toString() ?: "0"
