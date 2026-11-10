@@ -13,7 +13,10 @@ import io.github.vinceglb.filekit.core.FileKit
 import io.github.vinceglb.filekit.core.PickerMode
 import io.github.vinceglb.filekit.core.PickerType
 import io.github.vinceglb.filekit.core.PlatformFile
+import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.pow
+import kotlin.math.roundToInt
 
 suspend fun openFileDialog(
     title: String,
@@ -61,8 +64,11 @@ val allIcons = buildMap {
 
 fun Double.toFixedString(decimals: Int = 2): String {
     val intPart = floor(this).toInt()
-    val decimalPart = this - intPart
-    return "$intPart.${decimalPart.toString().substring(2, 2+decimals)}"
+    // Digits after the decimal point, zero-padded to `decimals`.
+    val digits = (abs(this - intPart) * 10.0.pow(decimals)).roundToInt()
+        .toString()
+        .padStart(decimals, '0')
+    return "$intPart.$digits"
 }
 
 fun Float.toFixedString(decimals: Int = 2): String = toDouble().toFixedString(decimals)

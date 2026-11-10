@@ -15,6 +15,12 @@ import org.w3c.dom.HTMLElement
 import org.w3c.dom.url.URL
 import org.w3c.files.Blob
 
+val netbiodynJson = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+    coerceInputValues = true
+}
+
 inline fun <reified T> Any?.takeInstance(): T? = if (this is T) this else null
 
 external fun encodeURI(parameter: String): String
@@ -103,13 +109,19 @@ fun renderMarkdown(source: String): String {
 }
 
 fun loadFromStorage(): ModelAndSimulation? =
-    window.localStorage.getItem("model")?.let {
-        Json.decodeFromString(ModelAndSimulation.serializer(), it)
+    try {
+        window.localStorage.getItem("model")?.let {
+            netbiodynJson.decodeFromString(ModelAndSimulation.serializer(), it)
+        }
+    } catch (_: Throwable) {
+        // A model stored by an older version may no longer deserialize: ignore it.
+        console.warn("Could not load the model from local storage, ignoring it.")
+        null
     }
 
 fun saveToStorage(model: ModelAndSimulation) {
     window.setTimeout({
-        val value = Json.encodeToString(ModelAndSimulation.serializer(), model)
+        val value = netbiodynJson.encodeToString(ModelAndSimulation.serializer(), model)
         window.localStorage.setItem("model", value)
     }, 25)
 }

@@ -277,6 +277,13 @@ uniquement lorsque sa valeur est `"Sequential"` (le défaut `"Parallel"` n'est p
 `Simulation.parallelUpdate` est `@Transient` et dérivé du plan (`Simulator` lit
 `model.isSequentialUpdate`). Au chargement, `ModelAndSimulation.applyUpdatePlan()` synchronise.
 
+**Réglage dans l'UI** : le plan se choisit dans l'onglet **Environment**
+(`Update Plan`, liste `Parallel` / `Sequential`) ou via la bascule de la barre d'outils.
+
+**IDs des agents et des champs** : affichés uniquement dans les zones de définition,
+jamais sur la grille. Dans la liste : `NOM (ID)`. Dans l'onglet Model, à droite du
+nom : `ID = ID`.
+
 ### 5.4 État et performances
 
 - `agents: IntArray`, `ages: IntArray` : stockage dense en mémoire, `oneStep()` itère sur `simulation.dataSize = width*height*depth`.

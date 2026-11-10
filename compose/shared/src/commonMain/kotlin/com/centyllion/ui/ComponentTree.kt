@@ -149,9 +149,10 @@ fun FieldItem(
 
         val text = buildAnnotatedString {
             append(field.name)
+            append(" (${field.id})")
             if (appState.centerSelectedTab == SimulationTab) {
                 val count = appState.fieldAmounts[field.id]?.toFixedString(1) ?: "0.0"
-                append(" ($count)")
+                append(" [$count]")
             }
         }
         Text(
@@ -218,11 +219,11 @@ fun GrainItem(appState: AppState, grain: Grain, ) {
         GrainSquare(grain)
 
         val text = buildAnnotatedString {
-            append("#${grain.id} ")
             append(grain.name)
+            append(" (${grain.id})")
             if (appState.centerSelectedTab == SimulationTab) {
                 val count = appState.grainCounts[grain.id]?.toString() ?: "0"
-                append(" ($count)")
+                append(" [$count]")
             }
         }
         Text(

@@ -51,7 +51,10 @@ fun BehaviourEdit(appContext: AppContext, behaviour: Behaviour) {
         // Condition formula
         SingleLineTextEditRow(
             appContext, behaviour, "Formula", behaviour.formula,
-            validationProperty = "Formula"
+            validationProperty = "Formula",
+            trailingContent = {
+                HelpPopup("Formula") { BehaviourFormulaHelp() }
+            }
         ) {
             val new = behaviour.copy(formula = it)
             appContext.modelAndSimulation =

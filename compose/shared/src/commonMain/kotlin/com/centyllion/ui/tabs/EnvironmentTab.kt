@@ -1,6 +1,8 @@
 package com.centyllion.ui.tabs
 
 import androidx.compose.runtime.Composable
+import com.centyllion.model.PARALLEL_UPDATE_PLAN
+import com.centyllion.model.SEQUENTIAL_UPDATE_PLAN
 import com.centyllion.ui.*
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
@@ -24,6 +26,14 @@ object EnvironmentTab : Tab {
             }
 
             TitleRow(app.locale.i18n("Simulation"))
+
+            ComboRow(
+                app, app.model, "Update Plan", app.model.updatePlan,
+                listOf(PARALLEL_UPDATE_PLAN, SEQUENTIAL_UPDATE_PLAN)
+            ) {
+                app.modelAndSimulation =
+                    app.modelAndSimulation.copy(model = app.model.copy(updatePlan = it))
+            }
         }
     }
 }

@@ -10,7 +10,6 @@ import com.centyllion.client.tutorial.BacteriasTutorial
 import com.centyllion.client.tutorial.TutorialLayer
 import com.centyllion.model.ModelAndSimulation
 import kotlinx.browser.window
-import kotlinx.serialization.json.Json
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.url.URLSearchParams
 import org.w3c.files.FileList
@@ -73,6 +72,10 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         i18n("Tutorial"), Icon("question-circle"), color = ElementColor.Primary
     ) { startTutorial() })
 
+    val helpControl = Control(Button(
+        i18n("Help"), Icon("info-circle"), color = ElementColor.Primary
+    ) { window.open("help.html", "_blank") })
+
     val expertModeSwitch = Switch(
         text = i18n("Expert Mode"),
         color =  ElementColor.Primary,
@@ -86,6 +89,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         Control(fileInput),
         exportControl,
         tutorialControl,
+        helpControl,
         Control(undoRedo.undoButton), Control(undoRedo.redoButton),
         // TODO hide tutorial for now tutorialControl,
         grouped = true, groupedMultiline = true
@@ -138,7 +142,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
             val reader = FileReader()
             reader.onload = {
                 val text: String = reader.result as String
-                setModel(Json.decodeFromString(text))
+                setModel(netbiodynJson.decodeFromString(text))
             }
             reader.readAsText(selectedFile)
         }
@@ -147,7 +151,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     val needsSaving get() = undoRedo.changed(model)
 
     fun export(after: () -> Unit = {}) {
-        val href = stringHref(Json.encodeToString(ModelAndSimulation.serializer(), model))
+        val href = stringHref(netbiodynJson.encodeToString(ModelAndSimulation.serializer(), model))
         val name = if (model.model.name.isNotBlank()) model.model.name else "model"
         download("$name.netbiodyn", href)
         after()
@@ -193,7 +197,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         if (modelUrl != null) {
             appContext.api.fetch("GET", modelUrl)
                 .then(
-                    onFulfilled = { setModel(Json.decodeFromString(it)) },
+                    onFulfilled = { setModel(netbiodynJson.decodeFromString(it)) },
                     onRejected = { notification("Can't load model at $modelUrl", ElementColor.Danger) },
                 )
         } else {

@@ -183,6 +183,18 @@ fun ToolBar(app: AppState) {
         }
 
         Spacer(Modifier.width(2.dp))
+
+        IconButton(
+            onClick = { scope.launch { openHelpPage() } },
+            modifier = AppTheme.toolBarIconModifier
+        ) {
+            Icon(
+                imageVector = FontAwesomeIcons.Solid.QuestionCircle,
+                contentDescription = "Help",
+            )
+        }
+
+        Spacer(Modifier.width(2.dp))
         Text("${app.step}")
     }
 }
