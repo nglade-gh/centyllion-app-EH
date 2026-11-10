@@ -251,6 +251,26 @@ Le drapeau `inStep` distingue les lectures pendant un pas (âges incrémentés) 
 hors pas (âges courants). Le basculement se fait par un bouton dans la barre d'outils
 (desktop) ou dans la barre de contrôle (web).
 
+### 5.3bis Parallélisation CPU du pas
+
+Quand `parallelUpdate` est actif et que `simulation.dataSize >= 10_000` (grille ≥ 100×100),
+`oneStepInternal()` répartit le travail sur plusieurs threads :
+
+- `recommendedThreads()` = 80 % des processeurs disponibles (`availableProcessors()`).
+- `splitIntoBlocks()` découpe la grille en blocs contigus.
+- Chaque bloc construit ses propres accumulateurs (`all`, `currentCount`,
+  `currentFieldAmounts`, `dead`) et son propre `Random`.
+- Les résultats sont fusionnés à la fin du pas.
+
+L'évaluateur est étatique (`x`, `y`, `z`, `step`, `current`), donc chaque thread possède
+son propre `ThreadContext` (évaluateur + evaluateurs de champs).
+
+Abstraction multiplateforme (`expect/actual`) :
+- **JVM** : `ParallelExecutor` utilise un `ExecutorService` à pool fixe (threads daemon).
+- **JS** : exécution séquentielle (Kotlin/JS est mono-thread).
+
+`Simulator.close()` libère le pool de threads quand le simulateur est remplacé.
+
 ### 5.4 État et performances
 
 - `agents: IntArray`, `ages: IntArray` : stockage dense en mémoire, `oneStep()` itère sur `simulation.dataSize = width*height*depth`.

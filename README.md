@@ -146,6 +146,12 @@ la simulation.
 L'implémentation utilise un double tampon : les lectures se font sur l'état courant,
 les écritures sur une copie, qui devient l'état courant à la fin du pas.
 
+**Parallélisation CPU** : quand le mode parallèle est actif et que la grille fait au
+moins 100×100, le calcul du pas est réparti sur plusieurs threads (80 % des
+processeurs disponibles). Chaque bloc de cellules possède ses propres accumulateurs,
+qui sont fusionnés à la fin du pas. L'exécution est séquentielle sur Kotlin/JS
+(mono-thread) et parallèle sur JVM.
+
 ### 4.5 Exemples complets
 
 **Prédation** (Agent_A mangé par Agent_B voisin) :
