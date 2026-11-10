@@ -271,6 +271,12 @@ Abstraction multiplateforme (`expect/actual`) :
 
 `Simulator.close()` libère le pool de threads quand le simulateur est remplacé.
 
+**Champ `updatePlan`** : le plan est stocké sur le modèle (`GrainModel.updatePlan`),
+pas sur la simulation. Sérialisé dans `model`, après `description` et avant `grains`,
+uniquement lorsque sa valeur est `"Sequential"` (le défaut `"Parallel"` n'est pas écrits).
+`Simulation.parallelUpdate` est `@Transient` et dérivé du plan (`Simulator` lit
+`model.isSequentialUpdate`). Au chargement, `ModelAndSimulation.applyUpdatePlan()` synchronise.
+
 ### 5.4 État et performances
 
 - `agents: IntArray`, `ages: IntArray` : stockage dense en mémoire, `oneStep()` itère sur `simulation.dataSize = width*height*depth`.

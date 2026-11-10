@@ -64,7 +64,7 @@ class Simulator(
     /** True while [oneStep] is running, so reads use the incremented ages. */
     private var inStep: Boolean = false
 
-    private val parallelUpdate: Boolean get() = simulation.parallelUpdate
+    private val parallelUpdate: Boolean get() = !model.isSequentialUpdate
 
     /** Ages used for reading during a step (incremented copy in parallel mode). */
     private val readAges: IntArray get() = if (parallelUpdate && inStep) nextAges else ages

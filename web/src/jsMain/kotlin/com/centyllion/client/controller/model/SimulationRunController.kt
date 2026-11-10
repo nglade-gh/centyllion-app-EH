@@ -5,6 +5,8 @@ import bulma.extension.Slider
 import com.centyllion.client.page.BulmaPage
 import com.centyllion.client.toggleElementToFullScreen
 import com.centyllion.model.GrainModel
+import com.centyllion.model.PARALLEL_UPDATE_PLAN
+import com.centyllion.model.SEQUENTIAL_UPDATE_PLAN
 import com.centyllion.model.Simulation
 import com.centyllion.model.Simulator
 import kotlinx.browser.window
@@ -78,10 +80,11 @@ class SimulationRunController(
     val stepButton = iconButton(Icon("step-forward"), ElementColor.Primary, rounded = true) { step() }
     val stopButton = iconButton(Icon("stop"), ElementColor.Warning, rounded = true) { stop() }
     val parallelButton = iconButton(
-        Icon(if (data.parallelUpdate) "layer-group" else "list"),
+        Icon(if (context.isSequentialUpdate) "list" else "layer-group"),
         ElementColor.Primary, rounded = true
     ) {
-        data = data.copy(parallelUpdate = !data.parallelUpdate)
+        val newPlan = if (context.isSequentialUpdate) PARALLEL_UPDATE_PLAN else SEQUENTIAL_UPDATE_PLAN
+        context = context.copy(updatePlan = newPlan)
     }
 
     val fpsSlider = Slider(
