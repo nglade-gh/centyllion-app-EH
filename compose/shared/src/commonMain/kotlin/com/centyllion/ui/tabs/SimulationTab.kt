@@ -103,6 +103,23 @@ object SimulationTab : Tab {
                                     ?: drawRect(info.color, Offset.Zero, stepSize)
                             }
                         }
+
+                        // draw the grain ID when the cell is large enough to stay readable
+                        if (step >= 10f) {
+                            val idFont = Font().also { it.size = (step * 0.45f).coerceAtMost(24f) }
+                            val textLine = TextLine.make(id.toString(), idFont)
+                            val tx = (step - textLine.width) / 2f
+                            val ty = (step + textLine.height) / 2f
+                            val luminance = 0.299f * info.color.red + 0.587f * info.color.green + 0.114f * info.color.blue
+                            val textColor = if (luminance > 0.5f)
+                                org.jetbrains.skia.Color.BLACK
+                            else
+                                org.jetbrains.skia.Color.WHITE
+                            drawIntoCanvas { canvas ->
+                                val paint = Paint().apply { color = textColor }
+                                canvas.nativeCanvas.drawTextLine(textLine, tx, ty, paint)
+                            }
+                        }
                     }
                 }
 
