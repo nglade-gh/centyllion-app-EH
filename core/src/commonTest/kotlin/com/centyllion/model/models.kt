@@ -12,7 +12,7 @@ fun dendriteModel(): GrainModel {
         mainReactiveId = mc.id, mainProductId = mc.id, reaction = listOf(Reaction(ms.id, mc.id))
     )
 
-    return GrainModel("Dendrite", "test model", listOf(ms, mc), listOf(r1))
+    return GrainModel(name = "Dendrite", description = "test model", grains = listOf(ms, mc), behaviours = listOf(r1))
 }
 
 fun dendriteSimulation(size: Int = 100) = createSimulation(size = 100) {

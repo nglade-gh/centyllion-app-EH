@@ -152,6 +152,22 @@ processeurs disponibles). Chaque bloc de cellules possède ses propres accumulat
 qui sont fusionnés à la fin du pas. L'exécution est séquentielle sur Kotlin/JS
 (mono-thread) et parallèle sur JVM.
 
+**Champ `updatePlan`** : le plan de mise à jour est stocké dans le modèle, sous forme
+d'un champ optionnel `updatePlan` (après `description`, avant `grains`) :
+
+```json
+{
+  "name": "Fourmis",
+  "description": "Agent bleus et rouges",
+  "updatePlan": "Sequential",
+  "grains": [ ... ]
+}
+```
+
+- Valeurs : `"Parallel"` (défaut) ou `"Sequential"`.
+- Le champ n'est écrits que lorsque le plan est `"Sequential"`.
+- Au chargement, `ModelAndSimulation.applyUpdatePlan()` applique le plan à la simulation.
+
 ### 4.5 Exemples complets
 
 **Prédation** (Agent_A mangé par Agent_B voisin) :

@@ -171,14 +171,14 @@ fun ToolBar(app: AppState) {
             modifier = AppTheme.toolBarIconModifier
         ) {
             Icon(
-                imageVector = if (app.simulation.parallelUpdate)
-                    FontAwesomeIcons.Solid.LayerGroup
+                imageVector = if (app.model.isSequentialUpdate)
+                    FontAwesomeIcons.Solid.List
                 else
-                    FontAwesomeIcons.Solid.List,
-                contentDescription = if (app.simulation.parallelUpdate)
-                    "Parallel update"
+                    FontAwesomeIcons.Solid.LayerGroup,
+                contentDescription = if (app.model.isSequentialUpdate)
+                    "Sequential update"
                 else
-                    "Sequential update",
+                    "Parallel update",
             )
         }
 

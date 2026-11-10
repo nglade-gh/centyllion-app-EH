@@ -161,8 +161,8 @@ open class AppState(
 
     /** Toggles between parallel and sequential agent updates. */
     fun toggleParallelUpdate() {
-        simulation = simulation.copy(parallelUpdate = !simulation.parallelUpdate)
-        simulator = Simulator(model, simulation)
+        val newPlan = if (model.isSequentialUpdate) PARALLEL_UPDATE_PLAN else SEQUENTIAL_UPDATE_PLAN
+        modelAndSimulation = modelAndSimulation.copy(model = model.copy(updatePlan = newPlan))
         step = 0
         grainCountsState.value = simulator.grainsCounts()
         fieldAmountsState.value = simulator.fieldAmounts()
@@ -174,7 +174,7 @@ open class AppState(
     private suspend fun loadModel(path: PlatformFile): ModelAndSimulation =
         try {
             val source = path.readBytes().decodeToString()
-            Json.decodeFromString(ModelAndSimulation.serializer(), source)
+            Json.decodeFromString(ModelAndSimulation.serializer(), source).applyUpdatePlan()
         } catch (e: Throwable) {
             alert("Couldn't load model: $e")
             emptyModel()

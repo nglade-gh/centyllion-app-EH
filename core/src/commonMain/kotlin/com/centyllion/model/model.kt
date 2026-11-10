@@ -8,6 +8,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlin.math.pow
 
+/** Update plan values for [GrainModel.updatePlan]. */
+const val PARALLEL_UPDATE_PLAN = "Parallel"
+const val SEQUENTIAL_UPDATE_PLAN = "Sequential"
+
 enum class Direction {
     Left, Right, Up, Down, LeftUp, RightUp, LeftDown, RightDown;
 
@@ -383,11 +387,17 @@ data class Position(
 data class GrainModel(
     override val name: String = "",
     override val description: String = "",
+    /** Update plan for simulations using this model: "Parallel" (default) or "Sequential".
+     *  Serialized only when it differs from the default. */
+    val updatePlan: String = "Parallel",
     val grains: List<Grain> = emptyList(),
     val behaviours: List<Behaviour> = emptyList(),
     val fields: List<Field> = emptyList(),
     @Transient override val uuid: Uuid = uuid4(),
 ) : ModelElement {
+
+    /** True when the update plan is "Sequential". */
+    val isSequentialUpdate: Boolean get() = updatePlan == SEQUENTIAL_UPDATE_PLAN
 
     val label: String
         get() = when {
@@ -584,7 +594,9 @@ data class Simulation(
     val height: Int = settings.size,
     val depth: Int = 1,
     /** If true, all behaviours are computed from the state at the start of the step (parallel update).
-     *  If false, behaviours are applied immediately, so later behaviours see earlier changes. */
+     *  If false, behaviours are applied immediately, so later behaviours see earlier changes.
+     *  Derived from [GrainModel.updatePlan]; not serialized (the plan is stored on the model). */
+    @Transient
     val parallelUpdate: Boolean = true,
 ) {
     val label: String
@@ -721,6 +733,14 @@ data class ModelAndSimulation(
     val simulation: Simulation,
     val thumbnail: String = ""
 ) {
+
+    /** Returns a copy where [Simulation.parallelUpdate] reflects [GrainModel.updatePlan].
+     *  Call after loading a file. */
+    fun applyUpdatePlan(): ModelAndSimulation {
+        val parallel = !model.isSequentialUpdate
+        return if (simulation.parallelUpdate == parallel) this
+        else copy(simulation = simulation.copy(parallelUpdate = parallel))
+    }
 
     /**
      * Model needs expert mode if:

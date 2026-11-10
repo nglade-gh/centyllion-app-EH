@@ -1,10 +1,38 @@
 package com.centyllion.model
 
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class SimulationTest {
+
+    @Test
+    fun testUpdatePlanSerialization() {
+        val model = GrainModel(
+            name = "Fourmis",
+            description = "Agent bleus et rouges",
+            updatePlan = SEQUENTIAL_UPDATE_PLAN
+        )
+        val simulation = Simulation.empty
+
+        // Sequential is serialized in the model section
+        val sequentialJson = Json.encodeToString(ModelAndSimulation.serializer(), ModelAndSimulation(model, simulation))
+        assertTrue(sequentialJson.contains("\"updatePlan\":\"Sequential\""), "Sequential plan should be serialized")
+
+        // Parallel (default) is not serialized
+        val parallelJson = Json.encodeToString(
+            ModelAndSimulation.serializer(),
+            ModelAndSimulation(model.copy(updatePlan = PARALLEL_UPDATE_PLAN), simulation)
+        )
+        assertFalse(parallelJson.contains("updatePlan"), "Parallel plan should not be serialized")
+
+        // Loading applies the plan to the simulation
+        val loaded = Json.decodeFromString(ModelAndSimulation.serializer(), sequentialJson).applyUpdatePlan()
+        assertTrue(loaded.model.isSequentialUpdate)
+        assertFalse(loaded.simulation.parallelUpdate)
+    }
 
     @Test
     fun testBugSimpleOne2OneTransfo() {
@@ -178,13 +206,13 @@ class SimulationTest {
         }
 
         // Parallel mode: A sees B at the start of the step, so both become C
-        val parallelSim = Simulator(model, baseSimulation.copy(parallelUpdate = true))
+        val parallelSim = Simulator(model.copy(updatePlan = PARALLEL_UPDATE_PLAN), baseSimulation)
         parallelSim.oneStep()
         assertEquals(2, parallelSim.idAtIndex(0), "A should become C in parallel mode")
         assertEquals(2, parallelSim.idAtIndex(1), "B should become C in parallel mode")
 
         // Sequential mode: order matters; A may stay A if B is transformed first
-        val sequentialSim = Simulator(model, baseSimulation.copy(parallelUpdate = false))
+        val sequentialSim = Simulator(model.copy(updatePlan = SEQUENTIAL_UPDATE_PLAN), baseSimulation)
         sequentialSim.oneStep()
         val pos0 = sequentialSim.idAtIndex(0)
         val pos1 = sequentialSim.idAtIndex(1)
