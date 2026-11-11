@@ -140,7 +140,7 @@ class FieldEditController (
     )
 
     val formulaHelpButton = Button(
-        "", Icon("question-circle"), size = Size.Small, color = ElementColor.Info
+        page.i18n("Help"), size = Size.Small, color = ElementColor.Info
     ) {
         page.modalDialog(
             page.i18n("Formula"),

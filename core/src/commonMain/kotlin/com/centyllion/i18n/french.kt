@@ -185,6 +185,7 @@ object French: Locale {
         "Min and max functions" -> "Fonctions min et max"
         "Trigonometry functions (also asin, acos, atan)" -> "Fonctions trigonométriques (aussi asin, acos, atan)"
         "Number of neighbour agents with the given id (8 adjacent cells)" -> "Nombre d'agents voisins de l'ID donné (8 cases adjacentes)"
+        "Help" -> "Help"
         "Value of field id at the current cell" -> "Valeur du champ d'ID id sur la case courante"
         "Value of field id at offset (dx, dy) from the current cell (e.g. 1, 0 = east neighbour)" -> "Valeur du champ d'ID id à l'offset (dx, dy) depuis la case courante (ex. 1, 0 = voisin à l'est)"
         "Agent id at position (x, y), -1 if none" -> "ID de l'agent à la position (x, y), -1 s'il n'y en a pas"

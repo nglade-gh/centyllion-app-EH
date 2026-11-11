@@ -185,6 +185,7 @@ object English: Locale {
         "Min and max functions" -> "Min and max functions"
         "Trigonometry functions (also asin, acos, atan)" -> "Trigonometry functions (also asin, acos, atan)"
         "Number of neighbour agents with the given id (8 adjacent cells)" -> "Number of neighbour agents with the given id (8 adjacent cells)"
+        "Help" -> "Help"
         "Value of field id at the current cell" -> "Value of field id at the current cell"
         "Value of field id at offset (dx, dy) from the current cell (e.g. 1, 0 = east neighbour)" -> "Value of field id at offset (dx, dy) from the current cell (e.g. 1, 0 = east neighbour)"
         "Agent id at position (x, y), -1 if none" -> "Agent id at position (x, y), -1 if none"

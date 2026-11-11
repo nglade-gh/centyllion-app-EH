@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.DropdownMenu
-import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
@@ -13,12 +12,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import compose.icons.FontAwesomeIcons
-import compose.icons.fontawesomeicons.Solid
-import compose.icons.fontawesomeicons.solid.QuestionCircle
 
 /**
- * A small "?" button that opens a popup with local help.
+ * A small "Help" button that opens a popup with local help.
  * The popup is dismissed by clicking outside or on the close button.
  */
 @Composable
@@ -31,13 +27,9 @@ fun HelpPopup(
     Box(modifier) {
         IconButton(
             onClick = { expanded = true },
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(38.dp)
         ) {
-            Icon(
-                imageVector = FontAwesomeIcons.Solid.QuestionCircle,
-                contentDescription = "Help",
-                modifier = Modifier.size(16.dp)
-            )
+            Text("Help", fontSize = 11.sp)
         }
         DropdownMenu(
             expanded = expanded,
