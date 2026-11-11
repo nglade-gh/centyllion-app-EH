@@ -159,19 +159,27 @@ fun Parser.readTerminal(): Expression = when {
 
     peekIdentifier() -> {
         val identifier = readIdentifier()
-        if (lexer.peekToken("(")) buildNode(FunctionCallBuilder()) {
-            name = identifier
-            add(readToken("("))
-            if (!lexer.peekToken(")")) {
-                argument(readExpression())
-                while (lexer.peekToken(",")) {
-                    add(readToken(","))
-                    argument(readExpression())
-                }
+        when {
+            identifier.content in booleanTokens -> buildNode(BooleanLiteralBuilder()) {
+                literal = TokenNode(identifier.position, identifier.previousSpace, identifier.content)
             }
-            add(readToken(")"))
-        } else buildNode(VariableCallBuilder()) {
-            name = identifier
+
+            lexer.peekToken("(") -> buildNode(FunctionCallBuilder()) {
+                name = identifier
+                add(readToken("("))
+                if (!lexer.peekToken(")")) {
+                    argument(readExpression())
+                    while (lexer.peekToken(",")) {
+                        add(readToken(","))
+                        argument(readExpression())
+                    }
+                }
+                add(readToken(")"))
+            }
+
+            else -> buildNode(VariableCallBuilder()) {
+                name = identifier
+            }
         }
     }
 

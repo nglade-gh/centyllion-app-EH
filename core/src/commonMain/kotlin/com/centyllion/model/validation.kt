@@ -80,7 +80,7 @@ fun Behaviour.diagnose(model: GrainModel, locale: Locale, result: MutableList<Pr
     }
 
     if (formula.isNotBlank()) {
-        val error = com.centyllion.model.validateFormula(formula)
+        val error = validatePredicateFormula(formula)
         if (error != null) {
             result.add(Problem(this, "Formula", error))
         }
@@ -115,6 +115,13 @@ fun Field.diagnose(model: GrainModel, locale: Locale, result: MutableList<Proble
 
     if (speed < 0.0 || speed > 1.0) {
         result.add(Problem(this, "Speed", locale.i18n("Speed must be between 0 and 1")))
+    }
+
+    if (formula.isNotBlank()) {
+        val error = validateNumericFormula(formula)
+        if (error != null) {
+            result.add(Problem(this, "Formula", error))
+        }
     }
 }
 

@@ -34,7 +34,6 @@ class FieldEditController (
     override var context: GrainModel by observable(initialContext) { _, old, new ->
         if (old != new) {
             refresh()
-            functionsTable.body = helpBody()
         }
     }
 
@@ -84,7 +83,7 @@ class FieldEditController (
         initialData = data.formula,
         placeHolder = page.i18n("Formula"),
         columns = 40,
-        isValid = { validateFormula(it) },
+        isValid = { validateNumericFormula(it) },
         onUpdate =  { _, new, _ ->
             data = data.copy(formula = new)
         }
@@ -92,16 +91,6 @@ class FieldEditController (
     fun helpLine(name: String, description: String, vararg items: Any) = TableRow(
         TableCell(name).apply { root.classList.add("has-text-weight-bold") },
         TableCell(page.i18n(description, *items)),
-    )
-
-    fun fieldFunction(field: Field) = TableRow(
-        TableCell("field${field.id}(index)").apply { root.classList.add("has-text-weight-bold") },
-        TableCell().apply {
-            body = listOfNotNull(
-                span(page.i18n("Previous value for field %0 at given index", field.label(true))),
-                Icon("square-full").apply { root.style.color = field.color }
-            )
-        }
     )
 
     val parametersTable = Table(
@@ -115,12 +104,11 @@ class FieldEditController (
         striped = true
     )
 
-
-    fun helpBody() =
-        listOf(helpLine("agent(index)", "Agent id at given index")) +
-        context.fields
-            .sortedBy { it.id }
-            .map { fieldFunction(it) }
+    fun helpBody() = listOf(
+        helpLine("count(grainId)", "Number of neighbour agents with the given id (8 adjacent cells)"),
+        helpLine("field(id, x, y)", "Value of field id at position (x, y)"),
+        helpLine("agent(x, y)", "Agent id at position (x, y), -1 if none"),
+    )
 
     val functionsTable = Table(body = helpBody(), fullWidth = true, striped = true)
 
@@ -141,12 +129,10 @@ class FieldEditController (
                 helpLine("a ? b : c", "If else ternary operator"),
                 helpLine("pi, e", "PI and E constants"),
                 helpLine("abs(x)", "Absolute value"),
-                helpLine("avg(a1, ..., an)", "Average of n values"),
-                helpLine("cos(x), sin(x), tan(x)", "Trigonometry function including arc (acos, asin, atan) and hyperbolic (cosh, sinh, tanh)"),
+                helpLine("cos(x), sin(x), tan(x)", "Trigonometry functions (also asin, acos, atan)"),
                 helpLine("floor(x), ceil(x), round(x)", "Floor, ceil and round functions"),
                 helpLine("ln(x), log(x, base)", "Logarithmic functions"),
                 helpLine("min(a1, ..., an), max(a1, ..., an)", "Min and max functions"),
-                helpLine("sum(a1, ..., an)", "Summation function"),
             ),
             fullWidth = true, striped = true
         )

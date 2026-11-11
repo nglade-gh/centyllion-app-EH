@@ -213,8 +213,8 @@ tr:hover td { background: var(--panel-2); }
     <h4>Identifiant (ID)</h4>
     <p>
       Chaque grain possède un <strong>numéro d'ID</strong> unique, affiché dans la liste des grains
-      et sur les agents de la grille (quand la case est assez grande). C'est cet ID qu'on utilise
-      dans les formules, par exemple <code>count(0)</code> compte les voisins de l'agent d'ID 0.
+      et dans le panneau d'édition (champ « ID »). C'est cet ID qu'on utilise dans les formules,
+      par exemple <code>count(0)</code> compte les voisins de l'agent d'ID 0.
     </p>
   </div>
 </section>
@@ -375,10 +375,10 @@ Voisin (C)   : C → C</code></pre>
   </table>
   <h3>Fonctions spécifiques à la simulation</h3>
   <table>
-    <tr><th>Fonction</th><th>Description</th><th>Exemple</th></tr>
-    <tr><td><code>count(grainId)</code></td><td>Nombre de voisins de ce type (dans le voisinage de la case).</td><td><code>count(0) &gt;= 3</code></td></tr>
-    <tr><td><code>agent(x, y)</code></td><td>ID de l'agent à la position (x, y), ou <code>-1</code> si vide.</td><td><code>agent(1,0) == 0</code></td></tr>
-    <tr><td><code>field(id, x, y)</code></td><td>Valeur du champ <code>id</code> à la position (x, y).</td><td><code>field(0, 1, 0) &gt; 0.1</code></td></tr>
+    <tr><th>Fonction</th><th>Description</th><th>Disponible dans</th></tr>
+    <tr><td><code>count(grainId)</code></td><td>Nombre de voisins de ce type (les 8 cases adjacentes).</td><td>Champs et comportements</td></tr>
+    <tr><td><code>agent(x, y)</code></td><td>ID de l'agent à la position (x, y), ou <code>-1</code> si vide.</td><td>Champs uniquement</td></tr>
+    <tr><td><code>field(id, x, y)</code></td><td>Valeur du champ <code>id</code> à la position (x, y).</td><td>Champs uniquement</td></tr>
   </table>
 </section>
 
@@ -396,8 +396,16 @@ Voisin (C)   : C → C</code></pre>
     <tr><th>Variable</th><th>Description</th></tr>
     <tr><td><code>step</code></td><td>Âge de l'agent (pour une condition sur l'âge, utiliser <code>step</code>).</td></tr>
     <tr><td><code>x</code>, <code>y</code>, <code>z</code></td><td>Coordonnées de la case centrale.</td></tr>
-    <tr><td><code>current</code></td><td>Valeur du champ (si la formule est évaluée dans un contexte de champ).</td></tr>
   </table>
+  <div class="card tip">
+    <h4>Prédicat logique</h4>
+    <p>
+      La formule d'un comportement est un <strong>prédicat logique</strong> : elle doit renvoyer
+      <code>true</code> ou <code>false</code>. Une formule qui renvoie un nombre (par ex.
+      <code>sin(step)</code>) est refusée par la validation ; si elle était quand même exécutée,
+      le comportement ne s'appliquerait jamais.
+    </p>
+  </div>
   <div class="card tip">
     <h4>Âge d'un agent</h4>
     <p>
@@ -422,6 +430,9 @@ Voisin (C)   : C → C</code></pre>
   <h4>Exemple 4 : diffusion conditionnelle</h4>
   <pre><code>current &gt; 0.1 ? current * 0.8 : 0</code></pre>
   <p>Au-dessus de 0.1, le champ décroît ; en dessous, il s'annule.</p>
+  <h4>Exemple 5 : influence du voisinage</h4>
+  <pre><code>count(0) &gt; 2 ? current * 0.95 : current</code></pre>
+  <p>Le champ décroît seulement quand il y a plus de 2 agents de type 0 autour de la case.</p>
 </section>
 
 <section id="exemples-comportements">
@@ -437,8 +448,11 @@ Voisin (C)   : C → C</code></pre>
   <pre><code>step &gt; 10 &amp;&amp; (count(1) &gt; 3 || count(2) == 5)</code></pre>
   <p>Le comportement s'applique si l'agent a plus de 10 pas et s'il y a plus de 3 voisins de type 1 ou exactement 5 de type 2.</p>
   <h4>Exemple 4 : condition sur un champ</h4>
-  <pre><code>field(0, x, y) &gt; 0.05</code></pre>
-  <p>Le comportement s'applique si le champ 0 est supérieur à 0.05 sur la case.</p>
+  <p>
+    Les fonctions <code>field(...)</code> et <code>agent(...)</code> ne sont pas disponibles dans
+    les formules de comportement. Pour conditionner sur la valeur d'un champ, utilisez les
+    <strong>seuils de champ</strong> (« Field thresholds ») du comportement.
+  </p>
   <h4>Exemple 5 : condition de position</h4>
   <pre><code>x == 0 || x == 99</code></pre>
   <p>Le comportement s'applique uniquement sur les bords gauche et droit de la grille.</p>
@@ -457,7 +471,7 @@ Comportement "Survie"   : 1 → 1,   formule : count(1) == 2 || count(1) == 3</c
 Comportement "Reproduction" : 0 → 0, voisin (1) : 1 → 1, formule : count(0) &gt; 5</code></pre>
   <h3>Chimiotaxie</h3>
   <p>Grains : <code>0</code> = bactérie ; Champ : <code>0</code> = nutriment.</p>
-  <pre><code>Comportement "Avancer vers le nutriment" : 0 → 0, voisin (vide) : vide → 0, formule : field(0, x, y) &gt; 0.1</code></pre>
+  <pre><code>Comportement "Avancer vers le nutriment" : 0 → 0, avec seuil de champ 0 (valeur &gt; 0.1)</code></pre>
   <div class="card tip">
     <h4>Conseil</h4>
     <p>

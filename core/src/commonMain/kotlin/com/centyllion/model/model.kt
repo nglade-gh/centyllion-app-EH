@@ -316,7 +316,8 @@ data class Behaviour(
 
     /** Is behavior applicable for given [grain], [age] and [neighbours] ? */
     fun applicable(
-        grain: Grain?, age: Int, fields: List<Pair<Int, Float>>, neighbours: List<Pair<Direction, Agent>>
+        grain: Grain?, age: Int, fields: List<Pair<Int, Float>>,
+        neighbours: List<Pair<Direction, Agent>>, position: Position
     ): Boolean {
         // checks main reactive and age
         // mainReactiveId == -1 means the cell must be empty (None -> something)
@@ -343,6 +344,9 @@ data class Behaviour(
                 val evaluator = NetbioDynEvaluator(null)
                 evaluator.agentCounts = counts
                 evaluator.step = age.v
+                evaluator.x = position.x.v
+                evaluator.y = position.y.v
+                evaluator.z = position.z.v
                 val expr: com.centyllion.expression.Expression =
                     parsedCondition ?: formula.parseExpression()
                 parsedCondition = expr

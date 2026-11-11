@@ -85,6 +85,43 @@ fun validateFormula(formula: String): String? {
     }
 }
 
+/**
+ * Validates a behaviour condition formula: it must parse, reference only
+ * known functions and variables, and evaluate to a boolean (logical predicate).
+ * Returns an error message, or null when valid.
+ */
+fun validatePredicateFormula(formula: String): String? {
+    val error = validateFormula(formula)
+    if (error != null) return error
+    return try {
+        val parsed = formula.parseExpression()
+        if (parsed.containsFunctionCall("field") || parsed.containsFunctionCall("agent")) {
+            "field(...) and agent(...) are not available in behaviour formulas (use the field thresholds)"
+        } else if (parsed.inferType() != ExprType.Boolean) {
+            "Formula must be a logical predicate returning true or false (e.g. count(0) >= 3 && step > 10)"
+        } else null
+    } catch (e: Exception) {
+        e.message
+    }
+}
+
+/**
+ * Validates a field formula: it must parse, reference only known functions
+ * and variables, and evaluate to a number.
+ * Returns an error message, or null when valid.
+ */
+fun validateNumericFormula(formula: String): String? {
+    val error = validateFormula(formula)
+    if (error != null) return error
+    return try {
+        if (formula.parseExpression().inferType() != ExprType.Number) {
+            "Formula must return a number (e.g. current * 0.9)"
+        } else null
+    } catch (e: Exception) {
+        e.message
+    }
+}
+
 object SimpleFieldEvaluator : FieldEvaluator {
     override fun evaluateField(/*step: Int, position: Position, */current: Float): Float = current
 
@@ -97,6 +134,9 @@ class FormulaFieldEvaluator(
 ) : FieldEvaluator {
 
     private val expression = formula.parseExpression()
+
+    /** True when the formula uses the count() function (needs neighbour agent counts). */
+    val usesCount: Boolean = expression.containsFunctionCall("count")
 
     override fun evaluateField(/*step: Int, position: Position, */current: Float): Float {
         evaluator.current = current.v

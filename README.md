@@ -118,14 +118,17 @@ Quand : Agent_B > 3 AND Agent_C == 5
 
 ### 4.3 Expressions de condition
 
-Expressions booléennes avec parenthèses et opérateurs logiques :
+Expressions logiques avec parenthèses et opérateurs :
 
 ```
 count(1) > 2 && (count(2) == 1 || count(3) == 0)
 ```
 
-- `count(grainId)` : nombre de voisins du type donné
+- `count(grainId)` : nombre de voisins du type donné (les 8 cases adjacentes)
+- Variables : `step` (âge de l'agent), `x`, `y`, `z` (position)
 - Opérateurs : `&&`, `||`, `!`, comparaisons, parenthèses
+- La formule doit être un **prédicat logique** (renvoyer `true`/`false`) : `sin(step)` est refusé par la validation
+- `field(...)` et `agent(...)` ne sont pas disponibles dans les formules de comportement
 - Validation automatique dans l'interface et dans le diagnostic du modèle
 
 ### 4.4 Mise à jour parallèle ou séquentielle
