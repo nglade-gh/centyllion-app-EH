@@ -111,6 +111,20 @@ open class AppState(
     override var step: Int by mutableStateOf(0)
     var speed: Float by mutableStateOf(.75f)
 
+    private val hiddenGrainIdsState = mutableStateOf<Set<Int>>(emptySet())
+    override var hiddenGrainIds: Set<Int>
+        get() = hiddenGrainIdsState.value
+        set(value) {
+            hiddenGrainIdsState.value = value
+        }
+
+    private val hiddenFieldIdsState = mutableStateOf<Set<Int>>(emptySet())
+    override var hiddenFieldIds: Set<Int>
+        get() = hiddenFieldIdsState.value
+        set(value) {
+            hiddenFieldIdsState.value = value
+        }
+
     private val simulatorState = mutableStateOf(Simulator(modelAndSimulation.model, modelAndSimulation.simulation))
     override var simulator: Simulator
         get() = simulatorState.value

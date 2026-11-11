@@ -48,12 +48,12 @@ fun BehaviourEdit(appContext: AppContext, behaviour: Behaviour) {
             )
         }
 
-        // Condition formula
+        // Condition formula (predicate)
         SingleLineTextEditRow(
-            appContext, behaviour, "Formula", behaviour.formula,
-            validationProperty = "Formula",
+            appContext, behaviour, "Predicate", behaviour.formula,
+            validationProperty = "Predicate",
             trailingContent = {
-                HelpPopup("Formula") { BehaviourFormulaHelp() }
+                HelpPopup("Predicate") { BehaviourFormulaHelp() }
             }
         ) {
             val new = behaviour.copy(formula = it)
@@ -233,6 +233,19 @@ fun BehaviourEdit(appContext: AppContext, behaviour: Behaviour) {
             columns = listOf(.24f, .24f, .24f, .24f, .04f),
             rows
         )
+
+        // Actions formula (imperative effects: agent production/destruction/movement, field modifications)
+        SingleLineTextEditRow(
+            appContext, behaviour, "Actions", behaviour.actions,
+            validationProperty = "Actions",
+            trailingContent = {
+                HelpPopup("Actions") { ActionsHelp() }
+            }
+        ) {
+            val new = behaviour.copy(actions = it)
+            appContext.modelAndSimulation =
+                appContext.modelAndSimulation.updateBehaviour(behaviour, new)
+        }
     }
 }
 

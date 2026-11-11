@@ -1,9 +1,12 @@
 package com.centyllion.model
 
+import com.centyllion.expression.Expression
 import com.centyllion.expression.v
+import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.random.Random
 
 const val minField = 1e-15f
@@ -41,6 +44,9 @@ class ApplicableBehavior(
             val newAge = ageForSource(reaction.sourceReactive)
             simulator.transform(reactive.index, reactive.index, reaction.productId, newAge)
         }
+
+        // applies actions (agent production/destruction/movement and field modifications)
+        simulator.applyActions(behaviour, index)
     }
 }
 
@@ -608,6 +614,128 @@ class Simulator(
         targetAges[targetIndex] = when {
             newId != null -> newAge
             else -> -1
+        }
+    }
+
+    /** Parsed actions formulas, cached per behaviour (a Simulator is recreated on model change). */
+    private val parsedActions = mutableMapOf<Behaviour, List<Action>>()
+
+    private fun actionsFor(behaviour: Behaviour): List<Action> = parsedActions.getOrPut(behaviour) {
+        runCatching { behaviour.actions.parseActionFormula() }.getOrDefault(emptyList())
+    }
+
+    /** Target index at offset (dx, dy) from [index], toroidal (consistent with [com.centyllion.model.Simulation.moveIndex]). */
+    private fun offsetIndex(index: Int, dx: Int, dy: Int): Int {
+        var target = index
+        if (dx != 0) {
+            target = simulation.moveIndex(target, if (dx < 0) Direction.Left else Direction.Right, abs(dx))
+        }
+        if (dy != 0) {
+            target = simulation.moveIndex(target, if (dy < 0) Direction.Up else Direction.Down, abs(dy))
+        }
+        return target
+    }
+
+    private fun Expression.evalInt(evaluator: NetbioDynEvaluator): Int =
+        evaluator.evaluate(this).float.roundToInt()
+
+    private fun Expression.evalFloat(evaluator: NetbioDynEvaluator): Float =
+        evaluator.evaluate(this).float
+
+    /**
+     * Executes the [behaviour]'s actions (if any) at [index].
+     *
+     * Agent mutations follow the same double-buffering rules as [transform];
+     * field mutations are written into the next fields buffer (which becomes
+     * current at the end of the step). Offsets are relative to the behaviour
+     * cell and wrap around the grid (toroidal).
+     *
+     * An action failing at runtime (e.g. a negative field id) is ignored:
+     * invalid formulas are reported as model problems in the editor.
+     */
+    fun applyActions(behaviour: Behaviour, index: Int) {
+        val actions = actionsFor(behaviour)
+        if (actions.isEmpty()) return
+
+        val evaluator = expressionEvaluator
+        val position = simulation.toPosition(index)
+        evaluator.step = step.v
+        evaluator.x = position.x.v
+        evaluator.y = position.y.v
+        evaluator.z = position.z.v
+        evaluator.agentCounts = emptyMap()
+
+        val targetAgents = if (parallelUpdate) nextAgents else agents
+        val targetAges = if (parallelUpdate) nextAges else ages
+
+        for (action in actions) {
+            try {
+                when (action) {
+                    is Action.Add -> {
+                        val id = action.grain.evalInt(evaluator)
+                        if (grainForId(id) == null) continue
+                        val target = offsetIndex(index, action.dx.evalInt(evaluator), action.dy.evalInt(evaluator))
+                        if (targetAgents[target] < 0) {
+                            targetAgents[target] = id
+                            targetAges[target] = 0
+                        }
+                    }
+
+                    is Action.Remove -> {
+                        val id = action.grain.evalInt(evaluator)
+                        val target = offsetIndex(index, action.dx.evalInt(evaluator), action.dy.evalInt(evaluator))
+                        if (targetAgents[target] == id) {
+                            targetAgents[target] = -1
+                            targetAges[target] = -1
+                        }
+                    }
+
+                    is Action.Move -> {
+                        val id = action.grain.evalInt(evaluator)
+                        val source = offsetIndex(index, action.dx1.evalInt(evaluator), action.dy1.evalInt(evaluator))
+                        val target = offsetIndex(index, action.dx2.evalInt(evaluator), action.dy2.evalInt(evaluator))
+                        if (targetAgents[source] == id) {
+                            val movedAge = targetAges[source]
+                            when {
+                                targetAgents[target] < 0 -> {
+                                    targetAgents[target] = id
+                                    targetAges[target] = movedAge
+                                    targetAgents[source] = -1
+                                    targetAges[source] = -1
+                                }
+                                targetAgents[target] == id -> {
+                                    // same type on the target: swap the two agents (and their ages)
+                                    val targetAge = targetAges[target]
+                                    targetAges[target] = movedAge
+                                    targetAges[source] = targetAge
+                                }
+                            }
+                        }
+                    }
+
+                    is Action.SetField -> {
+                        val fieldId = action.field.evalInt(evaluator)
+                        val target = offsetIndex(index, action.dx.evalInt(evaluator), action.dy.evalInt(evaluator))
+                        nextFields[fieldId]?.set(target, action.value.evalFloat(evaluator).coerceIn(0f, 1f))
+                    }
+
+                    is Action.AddField -> {
+                        val fieldId = action.field.evalInt(evaluator)
+                        val target = offsetIndex(index, action.dx.evalInt(evaluator), action.dy.evalInt(evaluator))
+                        nextFields[fieldId]?.let { array ->
+                            array[target] = (array[target] + action.delta.evalFloat(evaluator)).coerceIn(0f, 1f)
+                        }
+                    }
+
+                    is Action.ClearField -> {
+                        val fieldId = action.field.evalInt(evaluator)
+                        val target = offsetIndex(index, action.dx.evalInt(evaluator), action.dy.evalInt(evaluator))
+                        nextFields[fieldId]?.set(target, 0f)
+                    }
+                }
+            } catch (e: Exception) {
+                // invalid argument at runtime: ignore the action (diagnosed in the editor)
+            }
         }
     }
 

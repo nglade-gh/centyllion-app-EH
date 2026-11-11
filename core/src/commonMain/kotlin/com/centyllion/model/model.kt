@@ -215,6 +215,9 @@ data class Behaviour(
     val agePredicate: Predicate<Int> = Predicate(Operator.GreaterThanOrEquals, 0),
     /** Optional condition formula (e.g. "count(0)>=3 && count(0)<5"). Serialized as "formula". */
     val formula: String = "",
+    /** Optional imperative actions executed when the behaviour is applied
+     *  (e.g. "Add(0, 1, 0), Remove(1, 0, 0), Move(0, 0, 0, 1, 0)"). */
+    val actions: String = "",
     val fieldPredicates: List<Pair<Int, Predicate<Float>>> = emptyList(),
     val agentCountPredicates: List<AgentCountPredicate> = emptyList(),
     val mainReactiveId: Int = -1, val mainProductId: Int = -1, val sourceReactive: Int = -1,

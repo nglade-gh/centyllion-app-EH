@@ -697,6 +697,7 @@ class Simulator3dViewController(
             mesh.material = material
             mesh.rotate(Axis.X, PI / 2)
             mesh.alphaIndex = field.id + 1
+            mesh.setEnabled(!page.appContext.hiddenFieldIds.contains(field.id))
 
             scene.addMesh(mesh)
             field.id to FieldSupport(mesh, texture, alpha)
@@ -741,7 +742,10 @@ class Simulator3dViewController(
 
     fun createMesh(index: Int, grainId: Int, x: Double, y: Double) {
         val agent = data.grainForId(grainId)
-        if (selectedTool != EditTool.Move || (agent?.invisible != true) ) {
+        if (
+            (selectedTool != EditTool.Move || (agent?.invisible != true)) &&
+            !page.appContext.hiddenGrainIds.contains(grainId)
+        ) {
             sourceMeshes[grainId]?.createInstance("$index")?.also {
                 it.metadata = grainId
 
@@ -803,10 +807,12 @@ class Simulator3dViewController(
         dead.forEach { transformMesh(it, -1) }
 
         // updates field
-        fieldSupports.forEach {
-            it.value?.let { support ->
-                data.field(it.key).alpha(support.alpha)
-                support.texture.update(support.alpha)
+        fieldSupports.forEach { (id, support) ->
+            support?.let {
+                if (!page.appContext.hiddenFieldIds.contains(id)) {
+                    data.field(id).alpha(it.alpha)
+                    it.texture.update(it.alpha)
+                }
             }
         }
 
@@ -817,6 +823,21 @@ class Simulator3dViewController(
         scene.render()
     }
 
+    /** Re-applies the visibility toggles from the side panel (hidden grain types and fields). */
+    fun refreshVisibility() {
+        // force re-transform of all cells: hidden grain meshes are dropped, others recreated
+        for (i in data.currentAgents.indices) {
+            transformMesh(i, data.idAtIndex(i), force = true)
+        }
+
+        // toggles field support visibility
+        fieldSupports.forEach { (id, support) ->
+            support?.mesh?.setEnabled(!page.appContext.hiddenFieldIds.contains(id))
+        }
+
+        render()
+    }
+
     override fun refresh() = refresh(true)
 
     fun refresh(force: Boolean) {
@@ -825,10 +846,12 @@ class Simulator3dViewController(
             transformMesh(i, data.idAtIndex(i), force)
         }
 
-        fieldSupports.forEach {
-            it.value?.let { support ->
-                data.field(it.key).alpha(support.alpha)
-                support.texture.update(support.alpha)
+        fieldSupports.forEach { (id, support) ->
+            support?.let {
+                if (!page.appContext.hiddenFieldIds.contains(id)) {
+                    data.field(id).alpha(it.alpha)
+                    it.texture.update(it.alpha)
+                }
             }
         }
 

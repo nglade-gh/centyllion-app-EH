@@ -32,6 +32,14 @@ class GrainDisplayController(val page: BulmaPage, grain: Grain, model: GrainMode
         hidden = data.hasNoError(context, page.appContext.locale)
     }
 
+    /** Visibility toggle callback (wired by the ModelController to the 3D view). */
+    var onVisibilityChange: ((Boolean) -> Unit)? = null
+
+    /** Checkbox left of the grain icon: unchecked hides this grain type in the simulation view. */
+    val visibilityCheckbox = Checkbox("", true) { _, value ->
+        onVisibilityChange?.invoke(value)
+    }
+
     val icon = Icon(grain.icon).apply {
         root.style.color = data.color
     }
@@ -43,7 +51,7 @@ class GrainDisplayController(val page: BulmaPage, grain: Grain, model: GrainMode
 
     val status = Span(invisibleIcon, movingIcon, deathIcon)
 
-    val body = Level(left=listOf(errorIcon), center = listOf(icon, titleLabel, status), mobile = true)
+    val body = Level(left=listOf(errorIcon), center = listOf(visibilityCheckbox, icon, titleLabel, status), mobile = true)
 
     val deleteCallbackProperty = DeleteCallbackProperty(null,this) { old, new ->
         old?.let { body.right -= it }

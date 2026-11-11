@@ -130,6 +130,7 @@ count(1) > 2 && (count(2) == 1 || count(3) == 0)
 - La formule doit être un **prédicat logique** (renvoyer `true`/`false`) : `sin(step)` est refusé par la validation
 - `field(id)` / `field(id, dx, dy)` (case courante ou offset) et `agent(x, y)` sont disponibles dans les formules de comportement
 - Validation automatique dans l'interface et dans le diagnostic du modèle
+- Dans l'interface, la ligne de formule est libellée **Predicate**
 
 ### 4.4 Mise à jour parallèle ou séquentielle
 
@@ -171,7 +172,35 @@ d'un champ optionnel `updatePlan` (après `description`, avant `grains`) :
 - Le champ n'est écrits que lorsque le plan est `"Sequential"`.
 - Au chargement, `ModelAndSimulation.applyUpdatePlan()` applique le plan à la simulation.
 
-### 4.5 Exemples complets
+### 4.5 Actions de comportement (`actions`)
+
+Un comportement peut définir des actions exécutées **après** les réactions, dans la
+ligne **Actions** (après « Reactions », avant les effets de champs) :
+
+```
+Add(0, 1, 0), Remove(1, 0, 0), Move(0, 0, 0, 1, 0), SetField(2, 0, 0, 0.5)
+```
+
+- `Add(id, dx, dy)` : crée un agent de type `id` à l'offset (dx, dy) (case cible vide uniquement)
+- `Remove(id, dx, dy)` : détruit l'agent de type `id` à l'offset (dx, dy)
+- `Move(id, dx1, dy1, dx2, dy2)` : déplace l'agent de type `id` de (dx1, dy1) à (dx2, dy2)
+  (cible vide, ou même type : échange de cases)
+- `SetField(id, dx, dy, valeur)` : fixe la valeur du champ `id` (bornée [0, 1])
+- `AddField(id, dx, dy, delta)` : ajoute `delta` à la valeur du champ `id` (résultat borné [0, 1])
+- `ClearField(id, dx, dy)` : remet la valeur du champ `id` à 0
+- Les offsets sont relatifs à la case du comportement et **toriques** (modulo, comme `moveIndex`)
+- Les arguments sont des expressions numériques (`step`, `x`, `y`, `field(id, dx, dy)`, fonctions mathématiques)
+- Validation automatique dans l'interface (champ **Actions** + aide) et dans le diagnostic du modèle
+
+### 4.6 Visibilité des agents et des champs
+
+Dans le panneau latéral (liste des agents, comportements et champs), chaque grain et
+chaque champ possède une **case à cocher** (cochée par défaut) à gauche de sa couleur :
+- décocher masque l'affichage de ce type d'agent ou de ce champ dans la simulation
+  (desktop et web) ;
+- la visibilité est session-only (non persistée dans le modèle).
+
+### 4.7 Exemples complets
 
 **Prédation** (Agent_A mangé par Agent_B voisin) :
 ```

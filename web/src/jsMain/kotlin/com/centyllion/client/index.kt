@@ -32,4 +32,7 @@ fun index() {
 class BrowserContext(
     override val locale: Locale,
     override val api: Api,
-) : AppContext
+) : AppContext {
+    override val hiddenGrainIds = mutableSetOf<Int>()
+    override val hiddenFieldIds = mutableSetOf<Int>()
+}

@@ -96,6 +96,32 @@ fun BehaviourFormulaHelp() {
     HelpCode("count(0) > 3 && field(1) < 0.5")
 }
 
+/** Complete help content for a behaviour actions formula. */
+@Composable
+fun ActionsHelp() {
+    HelpText(
+        "Exécutées quand le comportement est appliqué, après les réactions. " +
+                "Liste d'actions séparées par des virgules."
+    )
+    HelpSection("Actions")
+    HelpLine("Add(id, dx, dy)", "Ajoute un agent de type id à l'offset (dx, dy) (uniquement si la case cible est vide)")
+    HelpLine("Remove(id, dx, dy)", "Supprime l'agent de type id à l'offset (dx, dy)")
+    HelpLine("Move(id, dx1, dy1, dx2, dy2)", "Déplace l'agent de type id de l'offset (dx1, dy1) à l'offset (dx2, dy2) (case cible vide ou même type)")
+    HelpLine("SetField(id, dx, dy, valeur)", "Fixe la valeur du champ id à l'offset (dx, dy) (bornée entre 0 et 1)")
+    HelpLine("AddField(id, dx, dy, delta)", "Ajoute delta à la valeur du champ id à l'offset (dx, dy) (résultat borné entre 0 et 1)")
+    HelpLine("ClearField(id, dx, dy)", "Remet la valeur du champ id à l'offset (dx, dy) à 0")
+    HelpSection("Règles")
+    HelpText(
+        "Les offsets sont relatifs à la case du comportement et enroulent sur la grille (torique). " +
+                "Les variables (step, x, y) et field(id, dx, dy) peuvent être utilisées dans les arguments."
+    )
+    HelpSection("Exemples")
+    HelpCode("Add(0, 1, 0), Remove(1, 0, 0)")
+    HelpCode("Move(0, 0, 0, 1, 0)")
+    HelpCode("SetField(1, 0, 0, 1), ClearField(1, 1, 0)")
+    HelpCode("Add(0, x % 2, 0), AddField(1, 0, 0, 0.1)")
+}
+
 /** Shared operators and math functions block. */
 @Composable
 private fun HelpOperators() {

@@ -71,7 +71,7 @@ object SimulationTab : Tab {
                     // draw fields
                     for (pair in app.simulator.fields) {
                         val field = model.fieldForId(pair.key)
-                        if (field != null && !field.invisible) {
+                        if (field != null && !field.invisible && !app.hiddenFieldIds.contains(field.id)) {
                             val fieldValue = simulator.field(field.id)[i]
                             val alpha = (fieldValue.alpha * 0.6).roundToInt()
                             if (alpha > 0f) {
@@ -85,7 +85,7 @@ object SimulationTab : Tab {
                     // draw grains
                     val id = simulator.idAtIndex(i)
                     val grain = app.model.grainForId(id)
-                    if (grain != null && !grain.invisible) {
+                    if (grain != null && !grain.invisible && !app.hiddenGrainIds.contains(grain.id)) {
                         val info = grainInfos[grain.id] ?: defaultInfo
 
                         // TODO search for grain color only once

@@ -251,6 +251,62 @@ Voisin (C)   : C → C</code></pre>
   <p>
     Un agent <code>A</code> se transforme en <code>B</code> en présence d'un catalyseur <code>C</code>.
   </p>
+  <h3>Le prédicat</h3>
+  <p>
+    La ligne <strong>Predicate</strong> (formule) définit la condition d'application du comportement.
+    Si elle est vide, le comportement s'applique dès que le réactif principal est présent et que les
+    réactions voisines sont satisfaites. Les variables <code>step</code>, <code>x</code>, <code>y</code>
+    et les fonctions (<code>count</code>, <code>field</code>, <code>agent</code>, …) y sont autorisées.
+  </p>
+  <h3>Les actions</h3>
+  <p>
+    La ligne <strong>Actions</strong> définit des effets supplémentaires, exécutés
+    <em>après</em> les réactions lorsque le comportement s'applique. C'est une liste
+    d'actions séparées par des virgules :
+  </p>
+  <table>
+    <tr><th>Action</th><th>Effet</th></tr>
+    <tr>
+      <td><code>Add(id, dx, dy)</code></td>
+      <td>Crée un agent de type <code>id</code> à l'offset (dx, dy) depuis la case du comportement (case cible vide uniquement).</td>
+    </tr>
+    <tr>
+      <td><code>Remove(id, dx, dy)</code></td>
+      <td>Détruit l'agent de type <code>id</code> à l'offset (dx, dy).</td>
+    </tr>
+    <tr>
+      <td><code>Move(id, dx1, dy1, dx2, dy2)</code></td>
+      <td>Déplace l'agent de type <code>id</code> de l'offset (dx1, dy1) à l'offset (dx2, dy2) (case cible vide ou occupée par le même type, auquel cas les deux agents échangent leurs cases).</td>
+    </tr>
+    <tr>
+      <td><code>SetField(id, dx, dy, valeur)</code></td>
+      <td>Fixe la valeur du champ <code>id</code> à l'offset (dx, dy) (bornée entre 0 et 1).</td>
+    </tr>
+    <tr>
+      <td><code>AddField(id, dx, dy, delta)</code></td>
+      <td>Ajoute <code>delta</code> à la valeur du champ <code>id</code> à l'offset (dx, dy) (résultat borné entre 0 et 1).</td>
+    </tr>
+    <tr>
+      <td><code>ClearField(id, dx, dy)</code></td>
+      <td>Remet la valeur du champ <code>id</code> à l'offset (dx, dy) à 0.</td>
+    </tr>
+  </table>
+  <p>
+    Les offsets sont relatifs à la case du comportement et la grille est
+    <strong>torique</strong> : un offset qui sort de la grille revient sur le bord opposé
+    (comme dans <code>field(id, dx, dy)</code> et <code>count</code>).
+    Les arguments peuvent être des expressions numériques utilisant
+    <code>step</code>, <code>x</code>, <code>y</code> ou <code>field(id, dx, dy)</code>.
+  </p>
+  <div class="card example">
+    <h4>Exemple : émission d'un signal</h4>
+    <pre><code>Predicate : count(1) &gt; 2
+Actions   : AddField(0, 0, 0, 0.2), Add(1, 0, 1)</code></pre>
+    <p>
+      Si un agent <code>A</code> compte plus de deux voisins <code>B</code>, il augmente le champ
+      <code>0</code> de 0,2 dans sa case et crée un agent <code>B</code> au-dessus de lui.
+    </p>
+  </div>
 </section>
 
 <section id="fields">

@@ -23,6 +23,7 @@ class BehaviourEditController(
             descriptionController.data = new.description
             probabilityController.data = "${new.probability}"
             formulaController.data = new.formula
+            actionsController.data = new.actions
             mainReactiveController.data = context.grainForId(new.mainReactiveId)
             mainDirection.context = null to context.grainForId(new.mainReactiveId)?.color
             mainProductController.data = context.grainForId(new.mainProductId)
@@ -70,6 +71,7 @@ class BehaviourEditController(
             descriptionController.readOnly = new
             probabilityController.readOnly = new
             formulaController.readOnly = new
+            actionsController.readOnly = new
             mainReactiveController.readOnly = new
             mainProductController.readOnly = new
             sourceReactiveController.readOnly = new
@@ -103,11 +105,21 @@ class BehaviourEditController(
 
     val formulaController = EditableStringController(
         initialData = data.formula,
-        placeHolder = page.i18n("Formula (e.g. count(1) > 2 && count(2) == 1)"),
+        placeHolder = page.i18n("Predicate (e.g. count(1) > 2 && count(2) == 1)"),
         columns = 40,
         isValid = { value -> if (value.isBlank()) null else validatePredicateFormula(value) },
         onUpdate = { _, new, _ ->
             data = data.copy(formula = new)
+        }
+    )
+
+    val actionsController = EditableStringController(
+        initialData = data.actions,
+        placeHolder = page.i18n("Actions (e.g. Add(0, 1, 0), Remove(1, 0, 0))"),
+        columns = 40,
+        isValid = { value -> if (value.isBlank()) null else validateActionFormula(value) },
+        onUpdate = { _, new, _ ->
+            data = data.copy(actions = new)
         }
     )
 
@@ -169,15 +181,46 @@ class BehaviourEditController(
     )
 
     val formulaLine = HorizontalField(
-        Label(page.i18n("Formula")),
+        Label(page.i18n("Predicate")),
         BField(Control(Button(page.i18n("Help"), size = Size.Small, color = ElementColor.Info) {
             page.modalDialog(
-                page.i18n("Formula"),
+                page.i18n("Predicate"),
                 listOf(formulaHelp),
                 Button(page.i18n("Close"), color = ElementColor.Primary) {}
             )
         })),
         formulaController.container
+    )
+
+    val actionsHelp = Section(
+        p(page.i18n("Actions are executed when the behaviour is applied, after the reactions.")),
+        p(page.i18n("Offsets are relative to the behaviour cell and wrap around the grid (toroidal).")),
+        SubTitle(page.i18n("Actions")),
+        Table(
+            body = listOf(
+                helpLine("Add(id, dx, dy)", "Adds an agent of type id at offset (dx, dy) from the behaviour cell (only if the target cell is empty)"),
+                helpLine("Remove(id, dx, dy)", "Removes the agent of type id at offset (dx, dy) from the behaviour cell"),
+                helpLine("Move(id, dx1, dy1, dx2, dy2)", "Moves the agent of type id from offset (dx1, dy1) to offset (dx2, dy2) of the behaviour cell (empty target or same type)"),
+                helpLine("SetField(id, dx, dy, value)", "Sets the value of field id at offset (dx, dy) to value (clamped between 0 and 1)"),
+                helpLine("AddField(id, dx, dy, delta)", "Adds delta to the value of field id at offset (dx, dy) (result clamped between 0 and 1)"),
+                helpLine("ClearField(id, dx, dy)", "Sets the value of field id at offset (dx, dy) to 0"),
+            ),
+            fullWidth = true, striped = true
+        ),
+        SubTitle(page.i18n("Arguments")),
+        p(page.i18n("Variables (step, x, y) and field(id, dx, dy) can be used in the arguments.")),
+    )
+
+    val actionsLine = HorizontalField(
+        Label(page.i18n("Actions")),
+        BField(Control(Button(page.i18n("Help"), size = Size.Small, color = ElementColor.Info) {
+            page.modalDialog(
+                page.i18n("Actions"),
+                listOf(actionsHelp),
+                Button(page.i18n("Close"), color = ElementColor.Primary) {}
+            )
+        })),
+        actionsController.container
     )
 
 
@@ -338,6 +381,8 @@ class BehaviourEditController(
         formulaLine,
         HtmlWrapper(createHr()),
         Label(page.i18n("Reactions")), reactionsController,
+        HtmlWrapper(createHr()),
+        actionsLine,
         fieldsConfiguration,
     )
 
@@ -348,6 +393,7 @@ class BehaviourEditController(
         descriptionController.refresh()
         probabilityController.refresh()
         formulaController.refresh()
+        actionsController.refresh()
         mainReactiveController.refresh()
         mainProductController.refresh()
         reactionsController.refresh()
