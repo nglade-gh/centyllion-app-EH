@@ -15,6 +15,14 @@ open class FieldDisplayController(field: Field): NoContextController<Field, Box>
         if (old != new) deleteCallbackProperty.readOnly = new
     }
 
+    /** Visibility toggle callback (wired by the ModelController to the 3D view). */
+    var onVisibilityChange: ((Boolean) -> Unit)? = null
+
+    /** Checkbox left of the field icon: unchecked hides this field in the simulation view. */
+    val visibilityCheckbox = Checkbox("", true) { _, value ->
+        onVisibilityChange?.invoke(value)
+    }
+
     val icon = Icon("square-full").apply {
         root.style.color = data.color
     }
@@ -26,7 +34,7 @@ open class FieldDisplayController(field: Field): NoContextController<Field, Box>
 
     val status = Span(invisibleIcon, movingIcon, deathIcon)
 
-    val body = Level(center = listOf(icon, titleLabel, status), mobile = true)
+    val body = Level(center = listOf(visibilityCheckbox, icon, titleLabel, status), mobile = true)
 
     val deleteCallbackProperty = DeleteCallbackProperty(null, this) { old, new ->
         old?.let { body.right -= it }

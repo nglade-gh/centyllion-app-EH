@@ -182,6 +182,8 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `sourceReactive` (0 = l'âge du grain lui-même ; >0 = âge du voisin de réactif `sourceReactive`) → pour "éclosion" avec âge différent
 - `fieldInfluences` : `Map<Int, Float>` → influence pondérée des champs voisins
 - `reaction` : `List<Reaction>` → réactions secondaires : `reactiveId`, `productId`, `sourceReactive`, `allowedDirection`
+- `formula` : chaîne (libellée **Predicate** dans l'interface) → condition logique d'application (voir 6.4)
+- `actions` : chaîne → liste d'actions exécutées après les réactions (voir 6.5)
 
 Une **réaction** s'exécute lorsque un grain voisin (dans `allowedDirection`) possède le `reactiveId` spécifié.
 
@@ -360,9 +362,31 @@ count(1) > 2 && (count(2) == 1 || count(3) == 0)
 - Les variables `step` (âge de l'agent, pas courant pour la génération spontanée) et `x`, `y`, `z` (coordonnées de la case) sont disponibles
 - Les fonctions `field(id)` / `field(id, dx, dy)` (valeur du champ sur la case courante ou à un offset) et `agent(x, y)` (ID de l'agent en une position) sont disponibles : le simulateur passe l'état de la grille à `applicable()`
 - Le résultat doit être un **prédicat logique** (`true`/`false`) : `validatePredicateFormula` rejette toute formule non booléenne (par ex. `sin(step)`), ainsi que les ternaires aux branches de types différents
-- Validation automatique dans l'interface (champ "Formula" + aide "?") et dans `validation.kt`
+- Validation automatique dans l'interface (champ "Predicate" + aide "Help") et dans `validation.kt` (propriété du problème : `Predicate`)
 
 > **Remarque** : les formules de comportement sont évaluées avec l'état de la grille au début du pas (double buffering en mode parallèle). `field(id, dx, dy)` est relatif à la case de l'agent ; `field(...)` et `agent(...)` utilisent des **coordonnées toriques** (modulo de la taille de la grille), comme `count()`/`moveIndex` : un offset qui sort de la grille ressort de l'autre côté.
+
+### 6.5 Actions de comportement (`actions`)
+
+Un `Behaviour` possède un champ `actions` : une liste d'actions séparées par des virgules, exécutées **après** les réactions lorsque le comportement s'applique :
+
+```
+Add(0, 1, 0), Remove(1, 0, 0), Move(0, 0, 0, 1, 0), SetField(2, 0, 0, 0.5)
+```
+
+| Action | Effet |
+|---|---|
+| `Add(id, dx, dy)` | Crée un agent de type `id` à l'offset (dx, dy) (case cible vide uniquement) |
+| `Remove(id, dx, dy)` | Détruit l'agent de type `id` à l'offset (dx, dy) |
+| `Move(id, dx1, dy1, dx2, dy2)` | Déplace l'agent de type `id` de l'offset (dx1, dy1) à (dx2, dy2) (cible vide ou même type : échange) |
+| `SetField(id, dx, dy, valeur)` | Fixe la valeur du champ `id` à l'offset (dx, dy) (bornée [0, 1]) |
+| `AddField(id, dx, dy, delta)` | Ajoute `delta` à la valeur du champ `id` à l'offset (dx, dy) (résultat borné [0, 1]) |
+| `ClearField(id, dx, dy)` | Remet la valeur du champ `id` à l'offset (dx, dy) à 0 |
+
+- Les offsets sont **relatifs à la case du comportement** et **toriques** (modulo, comme `moveIndex`)
+- Les arguments sont des expressions numériques évaluées dans le contexte de la case (`step`, `x`, `y`, `z`, `field(id, dx, dy)`, fonctions mathématiques)
+- Parsing : `parseActionFormula()` ; validation : `validateActionFormula()` (propriété du problème : `Actions`)
+- Exécution : `ApplicableBehavior.apply()` → `applyActions()` dans `simulator.kt`
 
 ---
 

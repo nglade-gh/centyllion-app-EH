@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
+import androidx.compose.material.Checkbox
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -144,6 +145,16 @@ fun FieldItem(
         verticalAlignment = Alignment.CenterVertically
 
     ) {
+        // visibility toggle (uncheck to hide this field in the simulation view)
+        Checkbox(
+            checked = !appState.hiddenFieldIds.contains(field.id),
+            onCheckedChange = { visible ->
+                appState.hiddenFieldIds =
+                    if (visible) appState.hiddenFieldIds - field.id else appState.hiddenFieldIds + field.id
+            },
+            colors = AppTheme.checkboxColors(),
+            modifier = Modifier.padding(horizontal = 2.dp)
+        )
         ColoredSquare(field.color)
 
 
@@ -216,6 +227,16 @@ fun GrainItem(appState: AppState, grain: Grain, ) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // visibility toggle (uncheck to hide this grain type in the simulation view)
+        Checkbox(
+            checked = !appState.hiddenGrainIds.contains(grain.id),
+            onCheckedChange = { visible ->
+                appState.hiddenGrainIds =
+                    if (visible) appState.hiddenGrainIds - grain.id else appState.hiddenGrainIds + grain.id
+            },
+            colors = AppTheme.checkboxColors(),
+            modifier = Modifier.padding(horizontal = 2.dp)
+        )
         GrainSquare(grain)
 
         val text = buildAnnotatedString {

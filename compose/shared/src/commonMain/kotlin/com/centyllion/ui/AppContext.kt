@@ -39,6 +39,12 @@ interface AppContext {
     var simulator: Simulator
     var selection: List<ModelElement>
 
+    /** Ids of grain types hidden in the simulation view (visibility toggle in the side panel). */
+    val hiddenGrainIds: Set<Int> get() = emptySet()
+
+    /** Ids of fields hidden in the simulation view (visibility toggle in the side panel). */
+    val hiddenFieldIds: Set<Int> get() = emptySet()
+
     fun showPrimarySelection()
 
     val problems : List<Problem>

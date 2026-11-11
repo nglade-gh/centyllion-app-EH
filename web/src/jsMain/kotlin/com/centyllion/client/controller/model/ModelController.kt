@@ -185,6 +185,11 @@ class ModelController(
                     data = data.dropGrain(controller.data)
                     selected = null
                 }
+                controller.onVisibilityChange = { visible ->
+                    val hidden = page.appContext.hiddenGrainIds
+                    if (visible) hidden.remove(controller.data.id) else hidden.add(controller.data.id)
+                    simulationController.simulationViewController.refreshVisibility()
+                }
                 Column(controller, size = ColumnSize.Full)
             }
         }
@@ -216,6 +221,11 @@ class ModelController(
                     controller.onDelete = {
                         data = data.dropField(controller.data)
                         selected = null
+                    }
+                    controller.onVisibilityChange = { visible ->
+                        val hidden = page.appContext.hiddenFieldIds
+                        if (visible) hidden.remove(controller.data.id) else hidden.add(controller.data.id)
+                        simulationController.simulationViewController.refreshVisibility()
                     }
                     Column(controller.container, size = ColumnSize.Full)
                 }

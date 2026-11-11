@@ -82,7 +82,14 @@ fun Behaviour.diagnose(model: GrainModel, locale: Locale, result: MutableList<Pr
     if (formula.isNotBlank()) {
         val error = validatePredicateFormula(formula)
         if (error != null) {
-            result.add(Problem(this, "Formula", error))
+            result.add(Problem(this, "Predicate", error))
+        }
+    }
+
+    if (actions.isNotBlank()) {
+        val error = validateActionFormula(actions)
+        if (error != null) {
+            result.add(Problem(this, "Actions", error))
         }
     }
 
