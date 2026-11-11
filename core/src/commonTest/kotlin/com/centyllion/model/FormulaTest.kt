@@ -17,16 +17,17 @@ class FormulaTest {
             )
         ),
         fields = listOf(
-            Field(0, formula = "field(1, x, y)"),
+            Field(0, formula = "field(1)"),
             Field(1),
-            Field(2, formula = "field(1, x, y)"),
+            Field(2, formula = "field(1)"),
             Field(3, formula = "agent(x,y) == 0 ? 1 : 0")
         ),
     )
 
     @Test
     fun testFormulaCheck() {
-        assertNull(validateFormula("field(0, x, y)"))
+        assertNull(validateFormula("field(0)"))
+        assertNull(validateFormula("field(0, 1, 0)"))
         assertNull(validateFormula("agent(x, y)"))
         assertNull(validateFormula( "step"))
         assertNull(validateFormula( "count(0)"))
@@ -50,9 +51,10 @@ class FormulaTest {
         assertTrue(validatePredicateFormula("count(0)")!!.contains("logical predicate"))
         assertTrue(validatePredicateFormula("step")!!.contains("logical predicate"))
         assertTrue(validatePredicateFormula("current * 0.9")!!.contains("logical predicate"))
-        // field/agent are not available in behaviour formulas
-        assertTrue(validatePredicateFormula("field(0, x, y) > 0.1")!!.contains("not available"))
-        assertTrue(validatePredicateFormula("agent(x, y) == 0")!!.contains("not available"))
+        // field/agent are usable in behaviour formulas (simulator state is available)
+        assertNull(validatePredicateFormula("field(0) > 0.1"))
+        assertNull(validatePredicateFormula("agent(x, y) == 0"))
+        assertNull(validatePredicateFormula("count(0) > 3 && field(1) < 0.5"))
         // syntax errors are still reported
         assertEquals("Variable 'toto' doesn't exist", validatePredicateFormula("toto >= 3"))
     }
@@ -61,7 +63,7 @@ class FormulaTest {
     fun testNumericFormulaValidation() {
         // valid numeric formulas
         assertNull(validateNumericFormula("current * 0.9"))
-        assertNull(validateNumericFormula("field(0, x, y)"))
+        assertNull(validateNumericFormula("field(0)"))
         assertNull(validateNumericFormula("count(0)"))
         assertNull(validateNumericFormula("count(0) > 2 ? current * 0.95 : current"))
         // boolean formulas are rejected
@@ -144,5 +146,95 @@ class FormulaTest {
                 assertEquals(expected, simulator.agents[y * 10 + x], "cell ($x,$y)")
             }
         }
+    }
+
+    @Test
+    fun testAgentFunctionInBehaviourFormula() {
+        // agent(x, y) in a behaviour formula: convert to B only when the south
+        // neighbour (y+1) holds an agent 0
+        val model = GrainModel(
+            grains = listOf(Grain(id = 0, name = "A", halfLife = 1000), Grain(id = 1, name = "B", halfLife = 1000)),
+            behaviours = listOf(
+                Behaviour(
+                    name = "Convert if south neighbour is A",
+                    formula = "agent(x, y+1) == 0",
+                    mainReactiveId = 0,
+                    mainProductId = 1,
+                    probability = 1.0
+                )
+            )
+        )
+        // agents 0 at (0,0) and (0,1) on a 10x10 grid
+        val simulation = createSimulation(size = 10) { if (it == 0 || it == 10) 0 else -1 }
+        val simulator = Simulator(model, simulation)
+        simulator.oneStep()
+        // (0,0): south neighbour (0,1) is A -> converted to B
+        assertEquals(1, simulator.agents[0])
+        // (0,1): south neighbour (0,2) is empty -> stays A
+        assertEquals(0, simulator.agents[10])
+        // an empty cell never holds a converted agent
+        assertEquals(-1, simulator.agents[20])
+    }
+
+    @Test
+    fun testFieldFunctionInBehaviourFormula() {
+        // field(id) in a behaviour formula: convert when the field on the cell
+        // is above 0.5; the field reaches 1.0 after one step (formula "1.0")
+        val model = GrainModel(
+            grains = listOf(Grain(id = 0, name = "A", halfLife = 1000), Grain(id = 1, name = "B", halfLife = 1000)),
+            fields = listOf(Field(id = 0, name = "F", formula = "1.0")),
+            behaviours = listOf(
+                Behaviour(
+                    name = "Convert above field threshold",
+                    formula = "field(0) > 0.5",
+                    mainReactiveId = 0,
+                    mainProductId = 1,
+                    probability = 1.0
+                )
+            )
+        )
+        val simulation = createSimulation(size = 10) { if (it == 0) 0 else -1 }
+        val simulator = Simulator(model, simulation)
+        // step 1: the field is still at its initial value -> no conversion
+        simulator.oneStep()
+        assertEquals(0, simulator.agents[0])
+        // step 2: the field has reached 1.0 -> conversion
+        simulator.oneStep()
+        assertEquals(1, simulator.agents[0])
+    }
+
+    @Test
+    fun testFieldOffsetInBehaviourFormula() {
+        // field(id, dx, dy) in a behaviour formula: offset from the current cell
+        val model = GrainModel(
+            grains = listOf(Grain(id = 0, name = "A", halfLife = 1000), Grain(id = 1, name = "B", halfLife = 1000)),
+            fields = listOf(
+                Field(id = 0, name = "East", formula = "agent(x+1, y) == 0 ? 1 : 0"),
+                Field(id = 1, name = "West", formula = "agent(x-1, y) == 0 ? 1 : 0")
+            ),
+            behaviours = listOf(
+                Behaviour(
+                    name = "Convert facing east",
+                    formula = "field(0) > 0.5 && field(1) < 0.5",
+                    mainReactiveId = 0,
+                    mainProductId = 1,
+                    probability = 1.0
+                )
+            )
+        )
+        // agents 0 at (1,0) and (2,0) on a 10x10 grid
+        val simulation = createSimulation(size = 10) { if (it == 1 || it == 2) 0 else -1 }
+        val simulator = Simulator(model, simulation)
+        // step 1: fields still at their initial values -> no conversion
+        simulator.oneStep()
+        assertEquals(0, simulator.agents[1])
+        assertEquals(0, simulator.agents[2])
+        // step 2: field 0 is 1 only on cells with an agent to the east,
+        // field 1 only on cells with an agent to the west.
+        // (1,0): east neighbour (2,0) is A and no west neighbour -> converts
+        // (2,0): west neighbour (1,0) is A and no east neighbour -> does not convert
+        simulator.oneStep()
+        assertEquals(1, simulator.agents[1])
+        assertEquals(0, simulator.agents[2])
     }
 }

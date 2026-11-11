@@ -131,10 +131,12 @@ class BehaviourEditController(
         Table(
             body = listOf(
                 helpLine("count(grainId)", "Number of neighbour agents with the given id (8 adjacent cells)"),
+                helpLine("field(id)", "Value of field id at the current cell"),
+                helpLine("field(id, dx, dy)", "Value of field id at offset (dx, dy) from the current cell (e.g. 1, 0 = east neighbour)"),
+                helpLine("agent(x, y)", "Agent id at position (x, y), -1 if none"),
             ),
             fullWidth = true, striped = true
         ),
-        p(page.i18n("field(...) and agent(...) are not available in behaviour formulas.")),
         SubTitle(page.i18n("Operators and functions")),
         Table(
             body = listOf(
@@ -160,6 +162,7 @@ class BehaviourEditController(
                 helpLine("count(0) >= 3", "At least 3 neighbours of agent 0"),
                 helpLine("count(0) >= 3 && count(0) < 5", "Between 3 and 4 neighbours of agent 0"),
                 helpLine("step >= 10 && count(1) == 0", "Age at least 10 and no neighbour of agent 1"),
+                helpLine("count(0) > 3 && field(1) < 0.5", "At least 4 neighbours of agent 0 and field 1 below 0.5 on the cell"),
             ),
             fullWidth = true, striped = true
         )

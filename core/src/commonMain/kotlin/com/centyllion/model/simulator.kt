@@ -367,7 +367,7 @@ class Simulator(
 
                     // searches for applicable behaviours and filters by probability
                     val applicable = allBehaviours.filter {
-                        it.applicable(grain, age, fieldValues, neighbours, position) && random.nextDouble() < speeds[it]!!
+                        it.applicable(grain, age, fieldValues, neighbours, position, this) && random.nextDouble() < speeds[it]!!
                     }
 
                     // selects behaviour if any is applicable
@@ -441,7 +441,7 @@ class Simulator(
 
             // for generation, use the simulation step as the "age" value
             val applicable = allBehaviours.filter {
-                it.mainReactiveId == -1 && it.applicable(null, step, fieldValues, neighbours, position) && random.nextDouble() < speeds[it]!!
+                it.mainReactiveId == -1 && it.applicable(null, step, fieldValues, neighbours, position, this) && random.nextDouble() < speeds[it]!!
             }
 
             if (applicable.isNotEmpty()) {

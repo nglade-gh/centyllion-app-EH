@@ -128,7 +128,7 @@ count(1) > 2 && (count(2) == 1 || count(3) == 0)
 - Variables : `step` (âge de l'agent), `x`, `y`, `z` (position)
 - Opérateurs : `&&`, `||`, `!`, comparaisons, parenthèses
 - La formule doit être un **prédicat logique** (renvoyer `true`/`false`) : `sin(step)` est refusé par la validation
-- `field(...)` et `agent(...)` ne sont pas disponibles dans les formules de comportement
+- `field(id)` / `field(id, dx, dy)` (case courante ou offset) et `agent(x, y)` sont disponibles dans les formules de comportement
 - Validation automatique dans l'interface et dans le diagnostic du modèle
 
 ### 4.4 Mise à jour parallèle ou séquentielle

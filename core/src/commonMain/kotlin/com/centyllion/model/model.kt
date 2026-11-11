@@ -314,10 +314,18 @@ data class Behaviour(
         return copy(agentCountPredicates = newList)
     }
 
-    /** Is behavior applicable for given [grain], [age] and [neighbours] ? */
+    /**
+     * Is behavior applicable for given [grain], [age] and [neighbours] ?
+     *
+     * [simulator] provides the grid state so the condition formula can use
+     * `field(id)`, `field(id, dx, dy)` and `agent(x, y)` at any position, in
+     * addition to `count(grainId)`, `step` and `x`/`y`/`z` (the [position] of
+     * the cell).
+     */
     fun applicable(
         grain: Grain?, age: Int, fields: List<Pair<Int, Float>>,
-        neighbours: List<Pair<Direction, Agent>>, position: Position
+        neighbours: List<Pair<Direction, Agent>>, position: Position,
+        simulator: Simulator
     ): Boolean {
         // checks main reactive and age
         // mainReactiveId == -1 means the cell must be empty (None -> something)
@@ -341,7 +349,7 @@ data class Behaviour(
         if (formula.isNotBlank()) {
             try {
                 val counts = neighbours.groupingBy { it.second.reactiveId }.eachCount()
-                val evaluator = NetbioDynEvaluator(null)
+                val evaluator = NetbioDynEvaluator(simulator)
                 evaluator.agentCounts = counts
                 evaluator.step = age.v
                 evaluator.x = position.x.v

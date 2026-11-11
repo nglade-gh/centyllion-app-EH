@@ -168,7 +168,7 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `speed` (0..1) → vitesse de diffusion
 - `halfLife` (0 = pas de décroissance) → décroissance naturelle du champ
 - `allowedDirection` → directions de diffusion
-- `formula` → chaîne d'expression permettant de **calculer la valeur du champ** à partir de `step`, `x`, `y`, `z`, `current` et des fonctions `field(id, x, y)`, `agent(x, y)`, `count(grainId)`. La formule doit renvoyer un nombre (vérifié par `validateNumericFormula`). Exemple : `count(0) > 2 ? current * 0.95 : current`.
+- `formula` → chaîne d'expression permettant de **calculer la valeur du champ** à partir de `step`, `x`, `y`, `z`, `current` et des fonctions `field(id)`, `field(id, dx, dy)`, `agent(x, y)`, `count(grainId)`. La formule doit renvoyer un nombre (vérifié par `validateNumericFormula`). Exemple : `count(0) > 2 ? current * 0.95 : current`.
 
 ### 4.3 Behaviour (comportement)
 
@@ -358,10 +358,11 @@ count(1) > 2 && (count(2) == 1 || count(3) == 0)
 - Évalué dans `Behaviour.applicable()` à chaque pas pour chaque case
 - `count(grainId)` compte les voisins du type donné (les 8 cases adjacentes)
 - Les variables `step` (âge de l'agent, pas courant pour la génération spontanée) et `x`, `y`, `z` (coordonnées de la case) sont disponibles
-- Le résultat doit être un **prédicat logique** (`true`/`false`) : `validatePredicateFormula` rejette toute formule non booléenne (par ex. `sin(step)`), ainsi que l'usage de `field(...)`/`agent(...)`
+- Les fonctions `field(id)` / `field(id, dx, dy)` (valeur du champ sur la case courante ou à un offset) et `agent(x, y)` (ID de l'agent en une position) sont disponibles : le simulateur passe l'état de la grille à `applicable()`
+- Le résultat doit être un **prédicat logique** (`true`/`false`) : `validatePredicateFormula` rejette toute formule non booléenne (par ex. `sin(step)`), ainsi que les ternaires aux branches de types différents
 - Validation automatique dans l'interface (champ "Formula" + aide "?") et dans `validation.kt`
 
-> **Remarque** : les formules de comportement sont évaluées avec `NetbioDynEvaluator(null)` (sans simulateur). Les fonctions `agent`/`field` ne sont donc pas disponibles dans les formules de comportement — seules `count`, les variables `step`/`x`/`y`/`z` et les fonctions mathématiques le sont. Pour conditionner sur la valeur d'un champ, utiliser les seuils de champ (`fieldPredicates`).
+> **Remarque** : les formules de comportement sont évaluées avec l'état de la grille au début du pas (double buffering en mode parallèle). `field(id, dx, dy)` est relatif à la case de l'agent ; hors de la grille, la valeur renvoyée est `0`.
 
 ---
 

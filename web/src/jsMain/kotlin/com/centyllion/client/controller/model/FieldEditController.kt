@@ -106,7 +106,8 @@ class FieldEditController (
 
     fun helpBody() = listOf(
         helpLine("count(grainId)", "Number of neighbour agents with the given id (8 adjacent cells)"),
-        helpLine("field(id, x, y)", "Value of field id at position (x, y)"),
+        helpLine("field(id)", "Value of field id at the current cell"),
+        helpLine("field(id, dx, dy)", "Value of field id at offset (dx, dy) from the current cell (e.g. 1, 0 = east neighbour)"),
         helpLine("agent(x, y)", "Agent id at position (x, y), -1 if none"),
     )
 
