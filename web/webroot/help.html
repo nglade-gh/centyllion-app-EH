@@ -378,7 +378,8 @@ Voisin (C)   : C → C</code></pre>
     <tr><th>Fonction</th><th>Description</th><th>Exemple</th></tr>
     <tr><td><code>count(grainId)</code></td><td>Nombre de voisins de ce type (dans le voisinage de la case).</td><td><code>count(0) &gt;= 3</code></td></tr>
     <tr><td><code>agent(x, y)</code></td><td>ID de l'agent à la position (x, y), ou <code>-1</code> si vide.</td><td><code>agent(1,0) == 0</code></td></tr>
-    <tr><td><code>field(id, x, y)</code></td><td>Valeur du champ <code>id</code> à la position (x, y).</td><td><code>field(0, 1, 0) &gt; 0.1</code></td></tr>
+    <tr><td><code>field(id)</code></td><td>Valeur du champ <code>id</code> sur la case courante.</td><td><code>field(0) &gt; 0.1</code></td></tr>
+    <tr><td><code>field(id, dx, dy)</code></td><td>Valeur du champ <code>id</code> à l'offset (dx, dy) depuis la case courante (ex. <code>1, 0</code> = case à l'est).</td><td><code>field(0, 1, 0) &gt; 0.1</code></td></tr>
   </table>
 </section>
 
@@ -437,9 +438,12 @@ Voisin (C)   : C → C</code></pre>
   <pre><code>step &gt; 10 &amp;&amp; (count(1) &gt; 3 || count(2) == 5)</code></pre>
   <p>Le comportement s'applique si l'agent a plus de 10 pas et s'il y a plus de 3 voisins de type 1 ou exactement 5 de type 2.</p>
   <h4>Exemple 4 : condition sur un champ</h4>
-  <pre><code>field(0, x, y) &gt; 0.05</code></pre>
+  <pre><code>field(0) &gt; 0.05</code></pre>
   <p>Le comportement s'applique si le champ 0 est supérieur à 0.05 sur la case.</p>
-  <h4>Exemple 5 : condition de position</h4>
+  <h4>Exemple 5 : condition sur un champ voisin</h4>
+  <pre><code>count(0) &gt; 3 &amp;&amp; field(1, 1, 0) &lt; 0.5</code></pre>
+  <p>Le comportement s'applique s'il y a plus de 3 voisins de type 0 et que la valeur du champ 1 sur la case à l'est est inférieure à 0.5.</p>
+  <h4>Exemple 6 : condition de position</h4>
   <pre><code>x == 0 || x == 99</code></pre>
   <p>Le comportement s'applique uniquement sur les bords gauche et droit de la grille.</p>
 </section>
@@ -457,7 +461,7 @@ Comportement "Survie"   : 1 → 1,   formule : count(1) == 2 || count(1) == 3</c
 Comportement "Reproduction" : 0 → 0, voisin (1) : 1 → 1, formule : count(0) &gt; 5</code></pre>
   <h3>Chimiotaxie</h3>
   <p>Grains : <code>0</code> = bactérie ; Champ : <code>0</code> = nutriment.</p>
-  <pre><code>Comportement "Avancer vers le nutriment" : 0 → 0, voisin (vide) : vide → 0, formule : field(0, x, y) &gt; 0.1</code></pre>
+  <pre><code>Comportement "Avancer vers le nutriment" : 0 → 0, voisin (vide) : vide → 0, formule : field(0) &gt; 0.1</code></pre>
   <div class="card tip">
     <h4>Conseil</h4>
     <p>

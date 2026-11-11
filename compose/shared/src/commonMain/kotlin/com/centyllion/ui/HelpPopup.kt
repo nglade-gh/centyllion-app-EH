@@ -69,12 +69,13 @@ fun FieldFormulaHelp() {
     HelpLine("x, y, z", "Coordonnées de la case")
     HelpSection("Fonctions du modèle")
     HelpLine("count(grainId)", "Nombre de voisins de l'agent d'ID grainId (8 cases adjacentes)")
-    HelpLine("field(id, x, y)", "Valeur du champ d'ID id à la position (x, y)")
+    HelpLine("field(id)", "Valeur du champ d'ID id sur la case courante")
+    HelpLine("field(id, dx, dy)", "Valeur du champ d'ID id à l'offset (dx, dy) depuis la case courante (ex. 1, 0 = case à l'est)")
     HelpLine("agent(x, y)", "ID de l'agent à la position (x, y), -1 si la case est vide")
     HelpOperators()
     HelpSection("Exemples")
     HelpCode("current * 0.9")
-    HelpCode("current + 0.01 * (field(1, x, y) - current)")
+    HelpCode("current + 0.01 * (field(1) - current)")
     HelpCode("count(0) > 2 ? current * 0.95 : current")
 }
 
@@ -91,13 +92,16 @@ fun BehaviourFormulaHelp() {
     HelpLine("x, y, z", "Coordonnées de la case")
     HelpSection("Fonctions du modèle")
     HelpLine("count(grainId)", "Nombre de voisins de l'agent d'ID grainId (8 cases adjacentes)")
-    HelpText("Remarque : field(...) et agent(...) ne sont pas disponibles dans les formules de comportement.")
+    HelpLine("field(id)", "Valeur du champ d'ID id sur la case courante")
+    HelpLine("field(id, dx, dy)", "Valeur du champ d'ID id à l'offset (dx, dy) depuis la case courante (ex. 1, 0 = case à l'est)")
+    HelpLine("agent(x, y)", "ID de l'agent à la position (x, y), -1 si la case est vide")
     HelpOperators()
     HelpSection("Exemples")
     HelpCode("count(0) >= 3")
     HelpCode("count(0) >= 3 && count(0) < 5")
     HelpCode("step >= 10 && count(1) == 0")
     HelpCode("x % 2 == 0")
+    HelpCode("count(0) > 3 && field(1) < 0.5")
 }
 
 /** Shared operators and math functions block. */

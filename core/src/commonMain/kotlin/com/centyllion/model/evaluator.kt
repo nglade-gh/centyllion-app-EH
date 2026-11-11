@@ -53,7 +53,11 @@ class NetbioDynEvaluator(
         "field" -> {
             if (simulator != null) {
                 val id = args[0].int
-                val index = simulator.simulation.toIndex(args[1].int, args[2].int)
+                // field(id): value at the current cell (x, y)
+                // field(id, dx, dy): value at the offset (dx, dy) from the current cell
+                val px = if (args.size >= 2) x.int + args[1].int else x.int
+                val py = if (args.size >= 3) y.int + args[2].int else y.int
+                val index = simulator.simulation.toIndex(px, py)
                 simulator.fields[id]?.let { values ->
                     val result = if (index >= 0 && index < values.size) values[index] else 0f
                     result.v
@@ -88,16 +92,15 @@ fun validateFormula(formula: String): String? {
 /**
  * Validates a behaviour condition formula: it must parse, reference only
  * known functions and variables, and evaluate to a boolean (logical predicate).
+ * `field(id)`, `field(id, dx, dy)` and `agent(x, y)` are allowed (the simulator
+ * state is available when the formula is evaluated).
  * Returns an error message, or null when valid.
  */
 fun validatePredicateFormula(formula: String): String? {
     val error = validateFormula(formula)
     if (error != null) return error
     return try {
-        val parsed = formula.parseExpression()
-        if (parsed.containsFunctionCall("field") || parsed.containsFunctionCall("agent")) {
-            "field(...) and agent(...) are not available in behaviour formulas (use the field thresholds)"
-        } else if (parsed.inferType() != ExprType.Boolean) {
+        if (formula.parseExpression().inferType() != ExprType.Boolean) {
             "Formula must be a logical predicate returning true or false (e.g. count(0) >= 3 && step > 10)"
         } else null
     } catch (e: Exception) {
