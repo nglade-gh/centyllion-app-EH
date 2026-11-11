@@ -170,7 +170,7 @@ class BehaviourEditController(
 
     val formulaLine = HorizontalField(
         Label(page.i18n("Formula")),
-        BField(Control(Button("", Icon("question-circle"), size = Size.Small, color = ElementColor.Info) {
+        BField(Control(Button(page.i18n("Help"), size = Size.Small, color = ElementColor.Info) {
             page.modalDialog(
                 page.i18n("Formula"),
                 listOf(formulaHelp),
