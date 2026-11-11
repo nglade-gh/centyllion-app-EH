@@ -14,7 +14,7 @@
 |---|---|
 | **Génération spontanée** | `mainReactiveId = -1` : un comportement peut créer un agent sur une case vide (`None → Agent`) |
 | **Compteurs de voisins** | `agentCountPredicates` : conditions sur le nombre de voisins d'un type (`Agent_B > 3`) |
-| **Expressions de condition** | `conditionExpression` : expressions booléennes avec parenthèses et opérateurs logiques (`count(1) > 2 && count(2) == 1`) |
+| **Expressions de condition** | `formula` : expressions logiques avec parenthèses et opérateurs (`count(1) > 2 && count(2) == 1`) |
 | **Mise à jour parallèle** | `Simulation.parallelUpdate` (défaut) : calculs depuis l'état initial du pas, adapté aux automates cellulaires |
 | **Validation corrigée** | `validateFormula` vérifie maintenant les références et signale les erreurs |
 | **Build standalone** | Application desktop autonome + site web statique, sans serveur |
@@ -168,7 +168,7 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `speed` (0..1) → vitesse de diffusion
 - `halfLife` (0 = pas de décroissance) → décroissance naturelle du champ
 - `allowedDirection` → directions de diffusion
-- `formula` → chaîne d'expression permettant de **calculer la valeur du champ** à partir de `step`, `x`, `y`, `z` et `current`. Exemple : `current * exp(-0.1 * (x^2 + y^2))`.
+- `formula` → chaîne d'expression permettant de **calculer la valeur du champ** à partir de `step`, `x`, `y`, `z`, `current` et des fonctions `field(id, x, y)`, `agent(x, y)`, `count(grainId)`. La formule doit renvoyer un nombre (vérifié par `validateNumericFormula`). Exemple : `count(0) > 2 ? current * 0.95 : current`.
 
 ### 4.3 Behaviour (comportement)
 
@@ -340,24 +340,28 @@ function     → name "(" (expr ("," expr)*) ")"
 ### 6.3 Validation et évaluation
 
 - `validateFormula(formula)` : parse et vérifie les références (variables/fonctions) **et** évalue sans contexte ; retourne `null` si OK, sinon le message d'erreur.
+- `validatePredicateFormula(formula)` : comme `validateFormula`, mais exige en plus que la formule soit un **prédicat logique** (type booléen, via `inferType()`) et interdit `field(...)`/`agent(...)`. Utilisé pour les formules de comportement.
+- `validateNumericFormula(formula)` : comme `validateFormula`, mais exige que la formule renvoie un **nombre**. Utilisé pour les formules de champ.
+- `inferType()` (`TypeChecker.kt`) : infère statiquement le type du résultat d'une expression (`Number`/`Boolean`) ; `containsFunctionCall(name)` : détecte un appel à une fonction dans l'arbre.
 - `createEvaluator(simulator)` : crée un `NetbioDynEvaluator` attaché au simulateur (variables `step`, `x`, `y`, `z`, `current`, fonctions `agent`, `field` et `count`).
 - `SimpleFieldEvaluator` : champ sans formule = identité (`evaluateField(c) = c`).
-- `FormulaFieldEvaluator` : champ avec formule → évalue la formule pour chaque position, avec `current` mis à jour.
+- `FormulaFieldEvaluator` : champ avec formule → évalue la formule pour chaque position, avec `current` mis à jour. Si la formule utilise `count(...)`, le simulateur fournit le nombre d'agents voisins de la case (`usesCount`).
 
-### 6.4 Expressions de condition de comportement
+### 6.4 Formules de comportement (`formula`)
 
-Depuis l'extension, un `Behaviour` possède un champ `conditionExpression` qui permet d'exprimer des conditions booléennes complexes :
+Un `Behaviour` possède un champ `formula` qui permet d'exprimer des conditions logiques complexes :
 
 ```
 count(1) > 2 && (count(2) == 1 || count(3) == 0)
 ```
 
 - Évalué dans `Behaviour.applicable()` à chaque pas pour chaque case
-- `count(grainId)` compte les voisins du type donné
-- Le résultat doit être booléen (`true`/`false`)
-- Validation automatique dans l'interface (champ "Condition") et dans `validation.kt`
+- `count(grainId)` compte les voisins du type donné (les 8 cases adjacentes)
+- Les variables `step` (âge de l'agent, pas courant pour la génération spontanée) et `x`, `y`, `z` (coordonnées de la case) sont disponibles
+- Le résultat doit être un **prédicat logique** (`true`/`false`) : `validatePredicateFormula` rejette toute formule non booléenne (par ex. `sin(step)`), ainsi que l'usage de `field(...)`/`agent(...)`
+- Validation automatique dans l'interface (champ "Formula" + aide "?") et dans `validation.kt`
 
-> **Remarque** : les expressions de condition sont évaluées avec `NetbioDynEvaluator(null)` (sans simulateur). Les fonctions `agent`/`field` ne sont donc pas disponibles dans les conditions de comportement — seules `count`, les variables `step`/`x`/`y`/`z` et les fonctions mathématiques le sont.
+> **Remarque** : les formules de comportement sont évaluées avec `NetbioDynEvaluator(null)` (sans simulateur). Les fonctions `agent`/`field` ne sont donc pas disponibles dans les formules de comportement — seules `count`, les variables `step`/`x`/`y`/`z` et les fonctions mathématiques le sont. Pour conditionner sur la valeur d'un champ, utiliser les seuils de champ (`fieldPredicates`).
 
 ---
 

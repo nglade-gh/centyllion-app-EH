@@ -105,10 +105,64 @@ class BehaviourEditController(
         initialData = data.formula,
         placeHolder = page.i18n("Formula (e.g. count(1) > 2 && count(2) == 1)"),
         columns = 40,
-        isValid = { value -> if (value.isBlank()) null else validateFormula(value) },
+        isValid = { value -> if (value.isBlank()) null else validatePredicateFormula(value) },
         onUpdate = { _, new, _ ->
             data = data.copy(formula = new)
         }
+    )
+
+    fun helpLine(name: String, description: String) = TableRow(
+        TableCell(name).apply { root.classList.add("has-text-weight-bold") },
+        TableCell(page.i18n(description)),
+    )
+
+    val formulaHelp = Section(
+        p(page.i18n("Evaluated for each agent that could apply the behaviour.")),
+        p(page.i18n("The formula must be a logical predicate returning true or false. Any other value (e.g. sin(step)) makes the behaviour never applicable.")),
+        SubTitle(page.i18n("Formula Parameters")),
+        Table(
+            body = listOf(
+                helpLine("step", "Age of the agent (current step for spontaneous generation)"),
+                helpLine("x, y, z", "Position of the cell"),
+            ),
+            fullWidth = true, striped = true
+        ),
+        SubTitle(page.i18n("Model functions")),
+        Table(
+            body = listOf(
+                helpLine("count(grainId)", "Number of neighbour agents with the given id (8 adjacent cells)"),
+            ),
+            fullWidth = true, striped = true
+        ),
+        p(page.i18n("field(...) and agent(...) are not available in behaviour formulas.")),
+        SubTitle(page.i18n("Operators and functions")),
+        Table(
+            body = listOf(
+                helpLine("+, -, *, /", "Mathematical operators"),
+                helpLine("%", "Modulo: returns the remainder of a division, after one number is divided by another"),
+                helpLine("^", "Exponentiation: a^b means a raised to the power of b"),
+                helpLine("&&, ||, !", "Logical 'and', 'or', 'not' operators"),
+                helpLine("==, !=", "Equality operators"),
+                helpLine("<, >, <=, >=", "Comparison operators"),
+                helpLine("a ? b : c", "If else ternary operator"),
+                helpLine("pi, e", "PI and E constants"),
+                helpLine("abs(x)", "Absolute value"),
+                helpLine("cos(x), sin(x), tan(x)", "Trigonometry functions (also asin, acos, atan)"),
+                helpLine("floor(x), ceil(x), round(x)", "Floor, ceil and round functions"),
+                helpLine("ln(x), log(x, base)", "Logarithmic functions"),
+                helpLine("min(a1, ..., an), max(a1, ..., an)", "Min and max functions"),
+            ),
+            fullWidth = true, striped = true
+        ),
+        SubTitle(page.i18n("Examples")),
+        Table(
+            body = listOf(
+                helpLine("count(0) >= 3", "At least 3 neighbours of agent 0"),
+                helpLine("count(0) >= 3 && count(0) < 5", "Between 3 and 4 neighbours of agent 0"),
+                helpLine("step >= 10 && count(1) == 0", "Age at least 10 and no neighbour of agent 1"),
+            ),
+            fullWidth = true, striped = true
+        )
     )
 
     val formulaLine = HorizontalField(
@@ -116,11 +170,7 @@ class BehaviourEditController(
         BField(Control(Button("", Icon("question-circle"), size = Size.Small, color = ElementColor.Info) {
             page.modalDialog(
                 page.i18n("Formula"),
-                listOf(
-                    p(page.i18n("Evaluated for each agent that could apply the behaviour.")),
-                    p(page.i18n("Variables: step (age), x, y, z. Function: count(grainId).")),
-                    p(page.i18n("Example: step >= 10 && count(0) >= 3"))
-                ),
+                listOf(formulaHelp),
                 Button(page.i18n("Close"), color = ElementColor.Primary) {}
             )
         })),

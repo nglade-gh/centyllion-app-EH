@@ -91,6 +91,10 @@ class Simulator(
 
     private val evaluators: Map<Int, FieldEvaluator> = createFieldEvaluators(expressionEvaluator)
 
+    /** True when at least one field formula uses the count() function. */
+    private val fieldsRequireCount: Boolean =
+        evaluators.values.filterIsInstance<FormulaFieldEvaluator>().any { it.usesCount }
+
     /** Per-thread evaluation context. Evaluators are stateful (position, step, current),
      *  so each parallel worker needs its own. */
     private class ThreadContext(
@@ -363,7 +367,7 @@ class Simulator(
 
                     // searches for applicable behaviours and filters by probability
                     val applicable = allBehaviours.filter {
-                        it.applicable(grain, age, fieldValues, neighbours) && random.nextDouble() < speeds[it]!!
+                        it.applicable(grain, age, fieldValues, neighbours, position) && random.nextDouble() < speeds[it]!!
                     }
 
                     // selects behaviour if any is applicable
@@ -437,7 +441,7 @@ class Simulator(
 
             // for generation, use the simulation step as the "age" value
             val applicable = allBehaviours.filter {
-                it.mainReactiveId == -1 && it.applicable(null, step, fieldValues, neighbours) && random.nextDouble() < speeds[it]!!
+                it.mainReactiveId == -1 && it.applicable(null, step, fieldValues, neighbours, position) && random.nextDouble() < speeds[it]!!
             }
 
             if (applicable.isNotEmpty()) {
@@ -494,6 +498,15 @@ class Simulator(
         }
 
         // compute fields values for step
+        // count() in field formulas: number of agents in the 8 adjacent cells
+        if (fieldsRequireCount) {
+            val counts = mutableMapOf<Int, Int>()
+            for (d in Direction.entries) {
+                val id = currentAgents[simulation.moveIndex(i, d)]
+                if (id >= 0) counts[id] = (counts[id] ?: 0) + 1
+            }
+            context.evaluator.agentCounts = counts
+        }
         model.fields.forEach { field ->
             val current = fields[field.id]
             val next = nextFields[field.id]
