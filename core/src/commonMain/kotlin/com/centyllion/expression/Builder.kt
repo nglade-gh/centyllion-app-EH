@@ -52,7 +52,7 @@ class BooleanLiteralBuilder: Builder<BooleanLiteral>, MutableList<Node> by mutab
     override fun build(): BooleanLiteral = BooleanLiteral(
         children =  ArrayList(this),
         literal = literal,
-        value = BooleanValue(literal.text().toBooleanStrict())
+        value = BooleanValue(literal.content.toBooleanStrict())
     )
 }
 

@@ -15,6 +15,11 @@ enum class ExprType {
  * only when its result comes from a boolean literal, a comparison, a logical
  * operator (`&&`, `||`, `!`) or a ternary expression with boolean branches.
  *
+ * A ternary expression must have both branches of the same type; a mismatch
+ * throws [IllegalStateException] (reported by the formula validators). The
+ * condition itself is not constrained: at runtime a condition is true only
+ * when it evaluates to `true`, so numeric conditions are tolerated.
+ *
  * Used to check that a behaviour condition formula is a logical predicate
  * (returns true/false) and that a field formula returns a number.
  */
@@ -37,7 +42,14 @@ fun Expression.inferType(): ExprType = when (this) {
     is ExponentExpression -> ExprType.Number
     is FunctionCall -> ExprType.Number
     is VariableCall -> ExprType.Number
-    is TernaryExpression -> ifThen.inferType()
+    is TernaryExpression -> {
+        val thenType = ifThen.inferType()
+        val elseType = orElse.inferType()
+        if (thenType != elseType) {
+            throw IllegalStateException("Ternary branches must have the same type (number or boolean)")
+        }
+        thenType
+    }
 }
 
 /** True when the expression tree contains a call to the function [name]. */
