@@ -72,6 +72,17 @@ class FormulaTest {
     }
 
     @Test
+    fun testTernaryBranchTypeValidation() {
+        // same-type branches are accepted
+        assertNull(validateNumericFormula("step > 0 ? current * 0.9 : current"))
+        assertNull(validatePredicateFormula("step > 0 ? true : false"))
+        assertNull(validatePredicateFormula("count(0) > 2 ? true : count(0) < 5"))
+        // mixed branches are rejected
+        assertTrue(validateNumericFormula("step > 0 ? current * 0.9 : false")!!.contains("same type"))
+        assertTrue(validatePredicateFormula("step > 0 ? 1 : false")!!.contains("same type"))
+    }
+
+    @Test
     fun testSimulation() {
         val simulation = createSimulation(size = 10) { if (it == 0) 0 else -1 }
         val simulator = Simulator(model, simulation)

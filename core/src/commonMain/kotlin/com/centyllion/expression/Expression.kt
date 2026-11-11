@@ -146,7 +146,7 @@ private fun Parser.readExponent(): Expression {
  * arguments  -> expression ( ',' expression )*
  * variable   -> name
  * name       -> CHAR ( CHAR | DIGIT )*
- * boolean    -> "true" | "false" | "TRUE" | "FALSE"
+ * boolean    -> "true" | "false"   (matched in the identifier branch)
  * number     -> DIGIT ( DIGIT )*
  * ```
  */
@@ -182,11 +182,6 @@ fun Parser.readTerminal(): Expression = when {
             }
         }
     }
-
-    lexer.peekOneOfTokens(booleanTokens) != null ->
-        buildNode(BooleanLiteralBuilder()) {
-            literal = readOneOfTokens(booleanTokens)
-        }
 
     lexer.peekTokenWith(Lexer.digits) != null ->
         buildNode(NumberLiteralBuilder()) {
