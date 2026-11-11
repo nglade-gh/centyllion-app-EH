@@ -45,9 +45,11 @@ class NetbioDynEvaluator(
     override fun function(name: String, args: List<Value>): Value = when (name) {
         "agent" ->  {
             if (simulator != null) {
-                val index = simulator.simulation.toIndex(args[0].int, args[1].int)
-                val result = if (index >= 0 && index < simulator.agents.size) simulator.agents[index] else -1
-                result.v
+                val sim = simulator.simulation
+                // toroidal coordinates (consistent with Simulation.moveIndex / count())
+                val ax = wrapCoordinate(args[0].int, sim.width)
+                val ay = wrapCoordinate(args[1].int, sim.height)
+                simulator.agents[sim.toIndex(ax, ay)].v
             } else Value.Zero
         }
         "field" -> {
@@ -55,13 +57,13 @@ class NetbioDynEvaluator(
                 val id = args[0].int
                 // field(id): value at the current cell (x, y)
                 // field(id, dx, dy): value at the offset (dx, dy) from the current cell
-                val px = if (args.size >= 2) x.int + args[1].int else x.int
-                val py = if (args.size >= 3) y.int + args[2].int else y.int
-                val index = simulator.simulation.toIndex(px, py)
-                simulator.fields[id]?.let { values ->
-                    val result = if (index >= 0 && index < values.size) values[index] else 0f
-                    result.v
-                } ?: Value.Zero
+                // toroidal coordinates (consistent with Simulation.moveIndex / count())
+                val sim = simulator.simulation
+                val px = wrapCoordinate(if (args.size >= 2) x.int + args[1].int else x.int, sim.width)
+                val py = wrapCoordinate(if (args.size >= 3) y.int + args[2].int else y.int, sim.height)
+                val values = simulator.fields[id]
+                val result = values?.get(sim.toIndex(px, py)) ?: 0f
+                result.v
             } else Value.Zero
         }
         "count" -> {
@@ -75,6 +77,9 @@ class NetbioDynEvaluator(
 fun createEvaluator(simulator: Simulator) = NetbioDynEvaluator(simulator)
 
 fun createEvaluator() = NetbioDynEvaluator(null)
+
+/** Positive modulo: wraps [v] into [0, n) — toroidal coordinates (see [com.centyllion.model.Simulation.moveIndex]). */
+private fun wrapCoordinate(v: Int, n: Int): Int = ((v % n) + n) % n
 
 fun validateFormula(formula: String): String? {
     val evaluator = createEvaluator()
