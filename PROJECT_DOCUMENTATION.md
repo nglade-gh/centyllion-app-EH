@@ -362,7 +362,7 @@ count(1) > 2 && (count(2) == 1 || count(3) == 0)
 - Le résultat doit être un **prédicat logique** (`true`/`false`) : `validatePredicateFormula` rejette toute formule non booléenne (par ex. `sin(step)`), ainsi que les ternaires aux branches de types différents
 - Validation automatique dans l'interface (champ "Formula" + aide "?") et dans `validation.kt`
 
-> **Remarque** : les formules de comportement sont évaluées avec l'état de la grille au début du pas (double buffering en mode parallèle). `field(id, dx, dy)` est relatif à la case de l'agent ; hors de la grille, la valeur renvoyée est `0`.
+> **Remarque** : les formules de comportement sont évaluées avec l'état de la grille au début du pas (double buffering en mode parallèle). `field(id, dx, dy)` est relatif à la case de l'agent ; `field(...)` et `agent(...)` utilisent des **coordonnées toriques** (modulo de la taille de la grille), comme `count()`/`moveIndex` : un offset qui sort de la grille ressort de l'autre côté.
 
 ---
 

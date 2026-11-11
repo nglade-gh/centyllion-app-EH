@@ -153,7 +153,7 @@ class FormulaTest {
         // agent(x, y) in a behaviour formula: convert to B only when the south
         // neighbour (y+1) holds an agent 0
         val model = GrainModel(
-            grains = listOf(Grain(id = 0, name = "A", halfLife = 1000), Grain(id = 1, name = "B", halfLife = 1000)),
+            grains = listOf(Grain(id = 0, name = "A", halfLife = 0), Grain(id = 1, name = "B", halfLife = 0)),
             behaviours = listOf(
                 Behaviour(
                     name = "Convert if south neighbour is A",
@@ -181,7 +181,7 @@ class FormulaTest {
         // field(id) in a behaviour formula: convert when the field on the cell
         // is above 0.5; the field reaches 1.0 after one step (formula "1.0")
         val model = GrainModel(
-            grains = listOf(Grain(id = 0, name = "A", halfLife = 1000), Grain(id = 1, name = "B", halfLife = 1000)),
+            grains = listOf(Grain(id = 0, name = "A", halfLife = 0), Grain(id = 1, name = "B", halfLife = 0)),
             fields = listOf(Field(id = 0, name = "F", formula = "1.0")),
             behaviours = listOf(
                 Behaviour(
@@ -207,7 +207,7 @@ class FormulaTest {
     fun testFieldOffsetInBehaviourFormula() {
         // field(id, dx, dy) in a behaviour formula: offset from the current cell
         val model = GrainModel(
-            grains = listOf(Grain(id = 0, name = "A", halfLife = 1000), Grain(id = 1, name = "B", halfLife = 1000)),
+            grains = listOf(Grain(id = 0, name = "A", halfLife = 0), Grain(id = 1, name = "B", halfLife = 0)),
             fields = listOf(
                 Field(id = 0, name = "East", formula = "agent(x+1, y) == 0 ? 1 : 0"),
                 Field(id = 1, name = "West", formula = "agent(x-1, y) == 0 ? 1 : 0")
