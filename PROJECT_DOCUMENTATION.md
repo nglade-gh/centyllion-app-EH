@@ -611,6 +611,17 @@ Mode headless du pont : `SAVE_BRIDGE_AUTO=<répertoire> python3 save_bridge.py`
 > (aucun assistant nécessaire) ; Firefox ou accès par IP →
 > `python3 save_bridge.py` sur la machine du navigateur.
 
+> **Mise en garde — Opera** : sous Opera, les graphiques (page Simulation)
+> peuvent présenter un artefact de double dessin : l'ensemble de la scène
+> (labels X/Y, courbes) est rendu deux fois avec un décalage de 1–3 px, plus
+> des segments écho détachés au bord droit. Vérifié que ce n'est pas une
+> régression de notre code : bundle à jour (marqueur détectable par
+> `fetch('js/centyllion/centyllion.js').then(r=>r.text()).then(t=>console.log(t.indexOf('127.0.0.1:8090/save')>=0))`),
+> 3 canvas dans le DOM (un seul renderer par canvas visible), reproductible
+> uniquement sous Opera. Chromium et Firefox sont propres (y compris en mode
+> Play à pleine vitesse). L'artefact pointe vers le compositeur d'Opera.
+> Utiliser un autre navigateur pour un affichage fiable.
+
 ### Environnement headless (conteneur)
 
 Pour exécuter l'application desktop dans un conteneur sans écran :
