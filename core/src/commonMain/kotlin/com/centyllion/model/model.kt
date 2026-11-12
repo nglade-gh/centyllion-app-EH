@@ -97,6 +97,10 @@ data class Field(
     val speed: Float = 0.8f,
     val halfLife: Int = 10,
     val allowedDirection: Set<Direction> = Direction.default,
+    /** Toric boundary (wrap-around, default). When false the field has an
+     *  impermeable boundary: it does not diffuse across the grid edges
+     *  (best-effort: no exchange through the walls). */
+    val toric: Boolean = true,
     val formula: String = "",
     @Transient override val uuid: Uuid = uuid4(),
 ) : ModelElement {
@@ -129,6 +133,9 @@ data class Grain(
     val fieldProductions: Map<Int, Float> = emptyMap(),
     val fieldInfluences: Map<Int, Float> = emptyMap(),
     val fieldPermeable: Map<Int, Float> = emptyMap(),
+    /** Per-wall authorisation for agents of this grain to cross the grid walls
+     *  (toric wrap-around). Default (all true) is toric everywhere. */
+    val boundaryConditions: BoundaryConditions = BoundaryConditions(),
     @Transient override val uuid: Uuid = uuid4(),
 ) : ModelElement {
 
@@ -208,6 +215,56 @@ data class AgentCountPredicate(
         Operator.GreaterThanOrEquals -> actualCount >= count
     }
 }
+
+/**
+ * Per-wall authorisation for an agent to cross that wall (toric wrap-around).
+ *
+ * Each flag authorises crossing the corresponding wall: [left] / [right] for
+ * the vertical walls (left / right edges) and [top] / [bottom] for the
+ * horizontal walls (top / bottom edges). Default (all true) is toric in all
+ * directions.
+ *
+ * Example of an asymmetric boundary: `left = false` and `right = true` means
+ * an agent at the left edge cannot wrap to the right edge when moving left,
+ * but an agent at the right edge can wrap to the left edge when moving right.
+ */
+@Serializable
+data class BoundaryConditions(
+    val left: Boolean = true,
+    val right: Boolean = true,
+    val top: Boolean = true,
+    val bottom: Boolean = true,
+) {
+    /**
+     * True if a one-step move from [position] in [direction] crosses a CLOSED
+     * (false) wall. A diagonal move at a corner may cross two walls: if any
+     * of the crossed walls is closed, the move is considered crossed.
+     */
+    fun crossed(position: Position, direction: Direction, width: Int, height: Int): Boolean =
+        (crossLeftWall(position, direction) && !left) ||
+                (crossRightWall(position, direction, width) && !right) ||
+                (crossTopWall(position, direction) && !top) ||
+                (crossBottomWall(position, direction, height) && !bottom)
+}
+
+private fun crossLeftWall(position: Position, direction: Direction) =
+    direction.deltaX < 0 && position.x == 0
+
+private fun crossRightWall(position: Position, direction: Direction, width: Int) =
+    direction.deltaX > 0 && position.x == width - 1
+
+private fun crossTopWall(position: Position, direction: Direction) =
+    direction.deltaY < 0 && position.y == 0
+
+private fun crossBottomWall(position: Position, direction: Direction, height: Int) =
+    direction.deltaY > 0 && position.y == height - 1
+
+/** True if a one-step move from [position] in [direction] would wrap around the grid (cross a border), regardless of authorisation. */
+fun crossesBorder(position: Position, direction: Direction, width: Int, height: Int): Boolean =
+    crossLeftWall(position, direction) ||
+            crossRightWall(position, direction, width) ||
+            crossTopWall(position, direction) ||
+            crossBottomWall(position, direction, height)
 
 @Serializable
 data class Behaviour(
@@ -371,9 +428,16 @@ data class Behaviour(
             }
         }
         // checks reactions
+        // a reaction with reactiveId == -1 places the product agent into an
+        // EMPTY neighbour cell: when that cell lies across a wall, the move is
+        // only allowed if the product grain authorises crossing that wall
+        // (missing product grain -> no restriction). Reactions with
+        // reactiveId >= 0 transform an agent in place: never restricted.
         for (r in reaction) {
+            val bc = if (r.reactiveId == -1) simulator.model.grainForId(r.productId)?.boundaryConditions else null
             if (r.allowedDirection.none { d ->
-                    neighbours.any { it.first == d && it.second.reactiveId == r.reactiveId }
+                    neighbours.any { it.first == d && it.second.reactiveId == r.reactiveId &&
+                        (bc == null || !bc.crossed(position, it.first, simulator.simulation.width, simulator.simulation.height)) }
                 }) return false
         }
         return true

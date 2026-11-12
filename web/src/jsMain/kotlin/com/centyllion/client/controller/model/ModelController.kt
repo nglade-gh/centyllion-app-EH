@@ -61,7 +61,11 @@ class ModelController(
             exportFieldCsvButton.hidden = !new
             fieldChart.hidden = !new
             resizeCharts()
-            (editorController as? BehaviourEditController)?.let { it.expertMode = new }
+            when (val c = editorController) {
+                is BehaviourEditController -> c.expertMode = new
+                is GrainEditController -> c.expertMode = new
+                else -> {}
+            }
         }
     }
 
@@ -86,7 +90,7 @@ class ModelController(
                     data = data.updateField(old, new)
                 }
 
-                is Grain -> GrainEditController(newSelection, data.model, page) { old, new, _ ->
+                is Grain -> GrainEditController(newSelection, data.model, page, expertMode) { old, new, _ ->
                     data = data.updateGrain(old, new)
                 }
 

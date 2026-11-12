@@ -13,7 +13,7 @@ import kotlin.properties.Delegates.observable
 import bulma.Field as BField
 
 class GrainEditController(
-    initialData: Grain, model: GrainModel, val page: BulmaPage,
+    initialData: Grain, model: GrainModel, val page: BulmaPage, initialExpertMode: Boolean = false,
     var onUpdate: (old: Grain, new: Grain, controller: GrainEditController) -> Unit = { _, _, _ -> }
 ) : Controller<Grain, GrainModel, Div> {
 
@@ -30,6 +30,10 @@ class GrainEditController(
             fieldProductionsController.data = context.fields.map { it.id to (data.fieldProductions[it.id] ?: 0f) }
             fieldInfluencesController.data = context.fields.map { it.id to (data.fieldInfluences[it.id] ?: 0f) }
             fieldPermeableController.data = context.fields.map { it.id to (data.fieldPermeable[it.id] ?: 1f) }
+            boundaryLeftSwitch.checked = new.boundaryConditions.left
+            boundaryRightSwitch.checked = new.boundaryConditions.right
+            boundaryTopSwitch.checked = new.boundaryConditions.top
+            boundaryBottomSwitch.checked = new.boundaryConditions.bottom
             onUpdate(old, new, this@GrainEditController)
         }
         refresh()
@@ -47,11 +51,19 @@ class GrainEditController(
         }
     }
 
+    var expertMode: Boolean by observable(initialExpertMode) { _, old, new ->
+        if (old != new) refresh()
+    }
+
     override var readOnly: Boolean by observable(false) { _, old, new ->
         if (old != new) {
             colorController.readOnly = new
             iconController.readOnly = new
             invisibleCheckbox.disabled = new
+            boundaryLeftSwitch.disabled = new
+            boundaryRightSwitch.disabled = new
+            boundaryTopSwitch.disabled = new
+            boundaryBottomSwitch.disabled = new
             nameController.readOnly = new
             sizeSlider.disabled = new
             descriptionController.readOnly = new
@@ -144,6 +156,32 @@ class GrainEditController(
         }
 
 
+    val boundaryLeftSwitch = Switch(
+        page.i18n("Left"), rounded = true, outlined = true,
+        size = Size.Small, color = ElementColor.Info, checked = data.boundaryConditions.left
+    ) { _, new -> data = data.copy(boundaryConditions = data.boundaryConditions.copy(left = new)) }
+
+    val boundaryRightSwitch = Switch(
+        page.i18n("Right"), rounded = true, outlined = true,
+        size = Size.Small, color = ElementColor.Info, checked = data.boundaryConditions.right
+    ) { _, new -> data = data.copy(boundaryConditions = data.boundaryConditions.copy(right = new)) }
+
+    val boundaryTopSwitch = Switch(
+        page.i18n("Top"), rounded = true, outlined = true,
+        size = Size.Small, color = ElementColor.Info, checked = data.boundaryConditions.top
+    ) { _, new -> data = data.copy(boundaryConditions = data.boundaryConditions.copy(top = new)) }
+
+    val boundaryBottomSwitch = Switch(
+        page.i18n("Bottom"), rounded = true, outlined = true,
+        size = Size.Small, color = ElementColor.Info, checked = data.boundaryConditions.bottom
+    ) { _, new -> data = data.copy(boundaryConditions = data.boundaryConditions.copy(bottom = new)) }
+
+    val boundaryConditionsGroup = Column(
+        Label(page.i18n("Boundary conditions")),
+        BField(boundaryLeftSwitch, boundaryRightSwitch, grouped = true),
+        BField(boundaryTopSwitch, boundaryBottomSwitch, grouped = true),
+    ).apply { hidden = !expertMode }
+
     val fieldSeparator = HtmlWrapper(createHr()).apply {
         hidden = context.fields.isEmpty()
     }
@@ -193,6 +231,7 @@ class GrainEditController(
             BField(Control(Value(page.i18n("Speed"))), speedController.container, grouped = true),
             BField(Control(directionController)),
         ),
+        boundaryConditionsGroup,
         fieldSeparator,
         fieldControls
     )
@@ -213,6 +252,7 @@ class GrainEditController(
 
         fieldSeparator.hidden = context.fields.isEmpty()
         fieldControls.hidden = context.fields.isEmpty()
+        boundaryConditionsGroup.hidden = !expertMode
     }
 
 }

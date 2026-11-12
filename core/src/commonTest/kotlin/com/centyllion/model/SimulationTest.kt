@@ -306,4 +306,214 @@ class SimulationTest {
         assertEquals(1, quiet.grainsCounts()[0] ?: 0, "A should survive with only 2 neighbours")
     }
 
+    @Test
+    fun testBoundaryConditionsBlockMovement() {
+        // Walker at the left edge (0,5) can only move Left, but crossing the
+        // left wall is not authorised: the agent must stay at (0,5) and no
+        // agent may appear at (9,5).
+        val model = GrainModel(
+            "boundary block", "Test boundary conditions block movement",
+            grains = listOf(
+                Grain(
+                    0, "Walker",
+                    movementProbability = 1.0,
+                    allowedDirection = setOf(Direction.Left),
+                    boundaryConditions = BoundaryConditions(left = false)
+                )
+            )
+        )
+
+        val simulation = createSimulation("Test boundary block", size = 10) { index ->
+            if (index == 50) 0 else -1  // (0,5): left edge
+        }
+
+        val simulator = Simulator(model, simulation)
+        simulator.oneStep()
+
+        assertEquals(0, simulator.idAtIndex(50), "agent must stay at (0,5), the left wall is closed")
+        assertEquals(-1, simulator.idAtIndex(59), "no agent may wrap to (9,5)")
+    }
+
+    @Test
+    fun testBoundaryConditionsToricDefault() {
+        // Same model but default boundary conditions (toric everywhere):
+        // the walker at (0,5) moves Left and wraps to (9,5) — control.
+        val model = GrainModel(
+            "boundary toric", "Test boundary conditions default (toric)",
+            grains = listOf(
+                Grain(
+                    0, "Walker",
+                    movementProbability = 1.0,
+                    allowedDirection = setOf(Direction.Left)
+                )
+            )
+        )
+
+        val simulation = createSimulation("Test boundary toric", size = 10) { index ->
+            if (index == 50) 0 else -1  // (0,5): left edge
+        }
+
+        val simulator = Simulator(model, simulation)
+        simulator.oneStep()
+
+        assertEquals(-1, simulator.idAtIndex(50), "agent must have left (0,5)")
+        assertEquals(0, simulator.idAtIndex(59), "agent must have wrapped to (9,5)")
+    }
+
+    @Test
+    fun testBoundaryConditionsDoNotBlockInnerMovement() {
+        // Moving Right from (0,5) does not cross any wall: the closed left
+        // wall must not affect a move that stays inside the grid.
+        val model = GrainModel(
+            "boundary inner", "Test boundary conditions do not block inner movement",
+            grains = listOf(
+                Grain(
+                    0, "Walker",
+                    movementProbability = 1.0,
+                    allowedDirection = setOf(Direction.Right),
+                    boundaryConditions = BoundaryConditions(left = false)
+                )
+            )
+        )
+
+        val simulation = createSimulation("Test boundary inner", size = 10) { index ->
+            if (index == 50) 0 else -1  // (0,5): left edge
+        }
+
+        val simulator = Simulator(model, simulation)
+        simulator.oneStep()
+
+        assertEquals(-1, simulator.idAtIndex(50), "agent must have left (0,5)")
+        assertEquals(0, simulator.idAtIndex(51), "agent must have moved normally to (1,5)")
+    }
+
+    @Test
+    fun testImpermeableFieldNoWrap() {
+        // A field with toric = false must not diffuse across the closed walls.
+        fun modelFor(toric: Boolean) = GrainModel(
+            "boundary field", "Test impermeable field",
+            fields = listOf(Field(id = 0, name = "F", speed = 1.0f, halfLife = 0, toric = toric))
+        )
+
+        fun run(toric: Boolean): FloatArray {
+            val simulation = createSimulation("Test impermeable field", size = 10) { -1 }
+            val simulator = Simulator(modelFor(toric), simulation)
+            simulator.setInitialField(0, 0, 1.0f) // seed cell (0,0)
+            simulator.oneStep()
+            return simulator.field(0)
+        }
+
+        val width = 10
+        // impermeable: the wrapped neighbours of (0,0) must stay at minField
+        val impermeable = run(false)
+        assertEquals(minField, impermeable[0 * width + 9], "no diffusion across the wall to (9,0)")
+        assertEquals(minField, impermeable[9 * width + 0], "no diffusion across the wall to (0,9)")
+
+        // toric (default): the same wrapped neighbours receive some value
+        val toric = run(true)
+        assertTrue(toric[0 * width + 9] > minField, "toric field must diffuse to (9,0)")
+        assertTrue(toric[9 * width + 0] > minField, "toric field must diffuse to (0,9)")
+    }
+
+    @Test
+    fun testBoundaryConditionsBlockTopWall() {
+        // Walker at the top edge (5,0) can only move Up, but crossing the top
+        // wall is not authorised: the agent must stay at (5,0) and no agent
+        // may appear at (5,9).
+        val model = GrainModel(
+            "boundary top", "Test boundary conditions block top wall",
+            grains = listOf(
+                Grain(
+                    0, "Walker",
+                    movementProbability = 1.0,
+                    allowedDirection = setOf(Direction.Up),
+                    boundaryConditions = BoundaryConditions(top = false)
+                )
+            )
+        )
+
+        val simulation = createSimulation("Test boundary top", size = 10) { index ->
+            if (index == 5) 0 else -1  // (5,0): top edge
+        }
+
+        val simulator = Simulator(model, simulation)
+        simulator.oneStep()
+
+        assertEquals(0, simulator.idAtIndex(5), "agent must stay at (5,0), the top wall is closed")
+        assertEquals(-1, simulator.idAtIndex(95), "no agent may wrap to (5,9)")
+    }
+
+    @Test
+    fun testBoundaryConditionsDiagonalCorner() {
+        // Walker at corner (0,0) moving LeftUp crosses BOTH the left and the
+        // top wall in one step. With the left wall closed (top open), the
+        // move must be blocked: any crossed wall closed blocks the move.
+        val blocked = GrainModel(
+            "boundary corner blocked", "Test diagonal corner with a closed wall",
+            grains = listOf(
+                Grain(
+                    0, "Walker",
+                    movementProbability = 1.0,
+                    allowedDirection = setOf(Direction.LeftUp),
+                    boundaryConditions = BoundaryConditions(left = false)
+                )
+            )
+        )
+
+        val sim1 = createSimulation("Test boundary corner blocked", size = 10) { index ->
+            if (index == 0) 0 else -1  // (0,0): top-left corner
+        }
+
+        val sim1Sim = Simulator(blocked, sim1)
+        sim1Sim.oneStep()
+
+        assertEquals(0, sim1Sim.idAtIndex(0), "diagonal move must be blocked: the left wall is closed")
+        assertEquals(-1, sim1Sim.idAtIndex(99), "no agent may wrap to (9,9)")
+
+        // Same corner, same direction, default (toric) boundaries: the move
+        // wraps to (9,9).
+        val toric = GrainModel(
+            "boundary corner toric", "Test diagonal corner toric",
+            grains = listOf(
+                Grain(
+                    0, "Walker",
+                    movementProbability = 1.0,
+                    allowedDirection = setOf(Direction.LeftUp)
+                )
+            )
+        )
+
+        val sim2 = createSimulation("Test boundary corner toric", size = 10) { index ->
+            if (index == 0) 0 else -1
+        }
+
+        val sim2Sim = Simulator(toric, sim2)
+        sim2Sim.oneStep()
+
+        assertEquals(-1, sim2Sim.idAtIndex(0), "agent must have left (0,0)")
+        assertEquals(0, sim2Sim.idAtIndex(99), "agent must have wrapped to (9,9)")
+    }
+
+    @Test
+    fun testBoundaryConditionsCrossedDirectly() {
+        // Direct checks on the pure crossing predicate, including the corner
+        // rule (a diagonal move crosses two walls: it is crossed when ANY of
+        // them is closed).
+        val leftClosed = BoundaryConditions(left = false)
+        val topLeft = Position(0, 0)
+
+        assertTrue(leftClosed.crossed(topLeft, Direction.Left, 10, 10),
+            "Left at the left edge must cross the closed left wall")
+        assertTrue(leftClosed.crossed(topLeft, Direction.LeftUp, 10, 10),
+            "LeftUp at the corner must cross: the closed left wall is one of the crossed walls")
+        assertTrue(!leftClosed.crossed(topLeft, Direction.Up, 10, 10),
+            "Up at the top edge crosses only the open top wall")
+        assertTrue(!leftClosed.crossed(Position(5, 5), Direction.LeftUp, 10, 10),
+            "inner moves never cross a wall")
+
+        val toric = BoundaryConditions()
+        assertTrue(!toric.crossed(topLeft, Direction.LeftUp, 10, 10),
+            "toric boundaries (all walls open) never block")
+    }
+
 }
