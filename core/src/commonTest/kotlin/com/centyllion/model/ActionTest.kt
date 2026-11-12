@@ -244,6 +244,35 @@ class ActionTest {
     }
 
     @Test
+    fun testCountInActionArguments() {
+        val model = GrainModel(
+            grains = listOf(
+                Grain(id = 0, name = "A", halfLife = 0),
+                Grain(id = 1, name = "B", halfLife = 0),
+                Grain(id = 2, name = "C", halfLife = 0)
+            ),
+            behaviours = listOf(
+                Behaviour(
+                    name = "Add C at distance count(B)",
+                    formula = "count(1) > 0",
+                    mainReactiveId = 0,
+                    mainProductId = 0,
+                    probability = 1.0,
+                    actions = "Add(2, 0, count(1))"
+                )
+            )
+        )
+        // A at (0,0), B at (1,0): count(1) == 1 around the behaviour cell
+        val simulation = createSimulation(size = 10) { if (it == 0) 0 else if (it == 1) 1 else -1 }
+        val simulator = Simulator(model, simulation)
+        simulator.oneStep()
+        // C must be created at (0,1): if count() returned 0, Add would target
+        // the occupied behaviour cell and nothing would happen
+        assertEquals(2, simulator.agents[10])
+        assertEquals(0, simulator.agents[0])
+    }
+
+    @Test
     fun testFieldActionToroidal() {
         val model = GrainModel(
             grains = listOf(Grain(id = 0, name = "A", halfLife = 0)),

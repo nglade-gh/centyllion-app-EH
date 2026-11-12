@@ -113,7 +113,7 @@ fun ActionsHelp() {
     HelpSection("Règles")
     HelpText(
         "Les offsets sont relatifs à la case du comportement et enroulent sur la grille (torique). " +
-                "Les variables (step, x, y) et field(id, dx, dy) peuvent être utilisées dans les arguments."
+                "Les variables (step, x, y), count(grainId) et field(id, dx, dy) peuvent être utilisées dans les arguments."
     )
     HelpSection("Exemples")
     HelpCode("Add(0, 1, 0), Remove(1, 0, 0)")

@@ -189,7 +189,7 @@ Add(0, 1, 0), Remove(1, 0, 0), Move(0, 0, 0, 1, 0), SetField(2, 0, 0, 0.5)
 - `AddField(id, dx, dy, delta)` : ajoute `delta` à la valeur du champ `id` (résultat borné [0, 1])
 - `ClearField(id, dx, dy)` : remet la valeur du champ `id` à 0
 - Les offsets sont relatifs à la case du comportement et **toriques** (modulo, comme `moveIndex`)
-- Les arguments sont des expressions numériques (`step`, `x`, `y`, `field(id, dx, dy)`, fonctions mathématiques)
+- Les arguments sont des expressions numériques (`step`, `x`, `y`, `count(grainId)`, `field(id, dx, dy)`, fonctions mathématiques)
 - Validation automatique dans l'interface (champ **Actions** + aide) et dans le diagnostic du modèle
 
 ### 4.6 Visibilité des agents et des champs

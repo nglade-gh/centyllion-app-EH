@@ -208,7 +208,7 @@ class BehaviourEditController(
             fullWidth = true, striped = true
         ),
         SubTitle(page.i18n("Arguments")),
-        p(page.i18n("Variables (step, x, y) and field(id, dx, dy) can be used in the arguments.")),
+        p(page.i18n("Variables (step, x, y), count(grainId) and field(id, dx, dy) can be used in the arguments.")),
     )
 
     val actionsLine = HorizontalField(
