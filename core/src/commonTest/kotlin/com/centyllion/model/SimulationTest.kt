@@ -262,4 +262,48 @@ class SimulationTest {
         }
     }
 
+    @Test
+    fun testAnyAgentCountPredicate() {
+        // grainId < 0 counts ANY neighbouring agent (occupied neighbour cells, 8 directions)
+        val model = GrainModel(
+            "any count predicate", "Test any-agent count predicate",
+            grains = listOf(Grain(0, "AgentA"), Grain(1, "AgentB"), Grain(2, "AgentC")),
+            behaviours = listOf(
+                Behaviour(
+                    "A dies with at least 3 neighbours",
+                    mainReactiveId = 0,  // AgentA
+                    mainProductId = -1,  // None (dies)
+                    agentCountPredicates = listOf(
+                        AgentCountPredicate(grainId = -1, op = Operator.GreaterThanOrEquals, count = 3)
+                    )
+                )
+            )
+        )
+
+        // 3 occupied neighbours (two AgentB, one AgentC) -> AgentA dies
+        val busySimulation = createSimulation("Test any count busy", size = 10) { index ->
+            when (index) {
+                0 -> 0       // AgentA
+                1, 10 -> 1   // AgentB (neighbours of 0: Right, Down)
+                11 -> 2      // AgentC (neighbour of 0: RightDown)
+                else -> -1
+            }
+        }
+        val busy = Simulator(model, busySimulation)
+        busy.oneStep()
+        assertEquals(0, busy.grainsCounts()[0] ?: 0, "A should die with 3 neighbours of any type")
+
+        // 2 occupied neighbours -> AgentA survives
+        val quietSimulation = createSimulation("Test any count quiet", size = 10) { index ->
+            when (index) {
+                0 -> 0       // AgentA
+                1, 10 -> 1   // AgentB (neighbours of 0: Right, Down)
+                else -> -1
+            }
+        }
+        val quiet = Simulator(model, quietSimulation)
+        quiet.oneStep()
+        assertEquals(1, quiet.grainsCounts()[0] ?: 0, "A should survive with only 2 neighbours")
+    }
+
 }

@@ -2,6 +2,7 @@ package com.centyllion.client.controller.model
 
 import bulma.*
 import com.centyllion.client.controller.utils.EditableStringController
+import com.centyllion.client.controller.utils.collapsibleBlock
 import com.centyllion.client.controller.utils.createHr
 import com.centyllion.client.controller.utils.editableDoubleController
 import com.centyllion.client.controller.utils.editorBox
@@ -22,6 +23,7 @@ class BehaviourEditController(
             nameController.data = new.name
             descriptionController.data = new.description
             probabilityController.data = "${new.probability}"
+            agePredicateController.data = new.agePredicate
             formulaController.data = new.formula
             actionsController.data = new.actions
             mainReactiveController.data = context.grainForId(new.mainReactiveId)
@@ -32,6 +34,7 @@ class BehaviourEditController(
             reactionsController.data = new.reaction
             reactionsController.context = new to context
             fieldPredicatesController.data = new.fieldPredicates
+            countPredicatesController.data = new.agentCountPredicates
             fieldInfluencesController.data = context.fields.map { it.id to (new.fieldInfluences[it.id] ?: 0f) }
             onUpdate(old, new, this@BehaviourEditController)
             refresh()
@@ -60,6 +63,7 @@ class BehaviourEditController(
             reactionsController.dataControllers
                 .filterIsInstance<ReactionEditController>()
                 .forEach { it.expertMode = new }
+            refresh()
         }
     }
 
@@ -67,9 +71,11 @@ class BehaviourEditController(
         if (old != new) {
             addReactionButton.invisible = new
             addFieldPredicateButton.invisible = new
+            addCountPredicateButton.invisible = new
             nameController.readOnly = new
             descriptionController.readOnly = new
             probabilityController.readOnly = new
+            agePredicateController.readOnly = new
             formulaController.readOnly = new
             actionsController.readOnly = new
             mainReactiveController.readOnly = new
@@ -78,6 +84,7 @@ class BehaviourEditController(
             reactionsController.readOnly = new
             reactionEditTile.hidden = new
             fieldPredicatesController.readOnly = new
+            countPredicatesController.readOnly = new
             fieldInfluencesController.readOnly = new
         }
     }
@@ -122,6 +129,19 @@ class BehaviourEditController(
             data = data.copy(actions = new)
         }
     )
+
+    val agePredicateController = IntPredicateController(
+        locale = page.appContext.locale,
+        predicate = data.agePredicate,
+        placeHolder = page.i18n("Age"),
+        minValue = 0,
+        onUpdate = { _, new, _ ->
+            this.data = this.data.copy(agePredicate = new)
+        }
+    )
+
+    val agePredicateLine = HorizontalField(Label(page.i18n("When age")), agePredicateController.container)
+        .apply { hidden = expertMode }
 
     fun helpLine(name: String, description: String) = TableRow(
         TableCell(name).apply { root.classList.add("has-text-weight-bold") },
@@ -190,7 +210,7 @@ class BehaviourEditController(
             )
         })),
         formulaController.container
-    )
+    ).apply { hidden = !expertMode }
 
     val actionsHelp = Section(
         p(page.i18n("Actions are executed when the behaviour is applied, after the reactions.")),
@@ -238,7 +258,7 @@ class BehaviourEditController(
     )
 
     val actionsLine = HorizontalField(
-        Label(page.i18n("Actions")),
+        Label(page.i18n("Action list")),
         BField(Control(Button(page.i18n("Help"), size = Size.Small, color = ElementColor.Info) {
             page.modalDialog(
                 page.i18n("Actions"),
@@ -247,7 +267,7 @@ class BehaviourEditController(
             )
         })),
         actionsController.container
-    )
+    ).apply { hidden = !expertMode }
 
 
     val mainReactiveController = GrainSelectController(
@@ -375,41 +395,63 @@ class BehaviourEditController(
             }
         }
 
-    fun fieldSeparator() = HtmlWrapper(createHr()).apply {
-        hidden = context.fields.isEmpty()
+    val addCountPredicateButton = iconButton(Icon("plus", Size.Small), ElementColor.Primary, true, size = Size.Small) {
+        val predicate = AgentCountPredicate(grainId = -1, op = Operator.GreaterThan, count = 0)
+        this.data = data.copy(agentCountPredicates = data.agentCountPredicates + predicate)
     }
 
-    val fieldsConfiguration = Columns(
-        Column(
-            fieldSeparator().apply { root.style.marginTop = "0.2rem" },
-            size = ColumnSize.Full
+    val countPredicatesController = noContextColumnsController(data.agentCountPredicates) { predicate, previous ->
+        previous ?: CountPredicateController(
+            page.appContext.locale, predicate,
+            { old, new, _ -> if (old != new) this.data = data.updateAgentCountPredicate(old, new) },
+            { delete, _ -> this.data = data.dropAgentCountPredicate(delete) }
+        )
+    }
+
+    val countPredicatesGroup = Column(
+        Level(
+            left = listOf(Label(page.i18n("Nb Neighbours"))),
+            right = listOf(addCountPredicateButton)
         ),
-        Column(
-            Level(
-                left= listOf(Label(page.i18n("Field thresholds"))),
-                right = listOf(addFieldPredicateButton)
-            ),
-            fieldPredicatesController,
-            size = ColumnSize.Full
+        countPredicatesController,
+        size = ColumnSize.Full
+    ).apply { hidden = expertMode }
+
+    val fieldThresholdsGroup = Column(
+        Level(
+            left = listOf(Label(page.i18n("Field thresholds"))),
+            right = listOf(addFieldPredicateButton)
         ),
-        Column(
-            Label(page.i18n("Field influences")),
-            fieldInfluencesController,
-            size = ColumnSize.Full
-        ),
-        multiline = true
+        fieldPredicatesController,
+        size = ColumnSize.Full
+    ).apply { hidden = expertMode || context.fields.isEmpty() }
+
+    val fieldInfluencesGroup = Column(
+        Label(page.i18n("Field influences")),
+        fieldInfluencesController,
+        size = ColumnSize.Full
     ).apply { hidden = context.fields.isEmpty() }
 
     override val container = editorBox(page.i18n("Behaviour"), behaviourIcon,
+        // top block: general information (no title)
         HorizontalField(Label(page.i18n("Name")), nameController.container),
         HorizontalField(Label(page.i18n("Description")), descriptionController.container),
-        HorizontalField(Label(page.i18n("Speed")), probabilityController.container),
-        formulaLine,
-        HtmlWrapper(createHr()),
-        Label(page.i18n("Reactions")), reactionsController,
-        HtmlWrapper(createHr()),
-        actionsLine,
-        fieldsConfiguration,
+        // middle block: predicates (collapsible)
+        HtmlWrapper(createHr().also { it.classList.add("centy-block-separator") }),
+        collapsibleBlock(page.i18n("Predicates"),
+            agePredicateLine,
+            fieldThresholdsGroup,
+            countPredicatesGroup,
+            formulaLine
+        ),
+        // bottom block: reactions and actions (collapsible)
+        HtmlWrapper(createHr().also { it.classList.add("centy-block-separator") }),
+        collapsibleBlock(page.i18n("Actions"),
+            HorizontalField(Label(page.i18n("Speed")), probabilityController.container),
+            fieldInfluencesGroup,
+            Label(page.i18n("Reactions")), reactionsController,
+            actionsLine
+        )
     )
 
     override fun refresh() {
@@ -418,6 +460,7 @@ class BehaviourEditController(
         nameController.refresh()
         descriptionController.refresh()
         probabilityController.refresh()
+        agePredicateController.refresh()
         formulaController.refresh()
         actionsController.refresh()
         mainReactiveController.refresh()
@@ -426,7 +469,15 @@ class BehaviourEditController(
 
         fieldPredicatesController.refresh()
         fieldInfluencesController.refresh()
-        fieldsConfiguration.hidden = context.fields.isEmpty()
+        countPredicatesController.refresh()
+
+        // mode-dependent visibility
+        agePredicateLine.hidden = expertMode
+        formulaLine.hidden = !expertMode
+        actionsLine.hidden = !expertMode
+        countPredicatesGroup.hidden = expertMode
+        fieldThresholdsGroup.hidden = expertMode || context.fields.isEmpty()
+        fieldInfluencesGroup.hidden = context.fields.isEmpty()
     }
 
 }

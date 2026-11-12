@@ -188,8 +188,10 @@ data class Reaction(
 )
 
 /**
- * Predicate on the number of neighbours of a given grain type.
+ * Predicate on the number of neighbours.
  * Used to express conditions like "number of Agent_B > 3".
+ * If [grainId] is negative, the predicate counts any neighbouring agent
+ * (occupied neighbour cells, 8 directions) instead of a specific grain.
  */
 @Serializable
 data class AgentCountPredicate(
@@ -345,7 +347,8 @@ data class Behaviour(
         }
         // checks agent count predicates
         for (p in agentCountPredicates) {
-            val actualCount = neighbours.count { it.second.reactiveId == p.grainId }
+            val actualCount = if (p.grainId < 0) neighbours.count { it.second.reactiveId >= 0 }
+            else neighbours.count { it.second.reactiveId == p.grainId }
             if (!p.check(actualCount)) return false
         }
         // checks condition formula if present
