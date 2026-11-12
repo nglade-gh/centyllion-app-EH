@@ -1,6 +1,7 @@
 package com.centyllion.model
 
 import com.centyllion.i18n.Locales
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -293,5 +294,40 @@ class ActionTest {
         simulator.oneStep()
         // the west offset from (0,0) wraps to (9,0)
         assertEquals(0.6f, simulator.fields[0]!![9], 1e-6f)
+    }
+
+    // ---- serialization (saves / .netbiodyn files) ----
+
+    @Test
+    fun testActionsSerializationRoundTrip() {
+        val model = GrainModel(
+            name = "T",
+            grains = listOf(Grain(id = 0, name = "A", halfLife = 0), Grain(id = 1, name = "B", halfLife = 0)),
+            behaviours = listOf(
+                Behaviour(name = "B1", mainReactiveId = 0, mainProductId = 1,
+                    actions = "Add(1, 1, 0), Move(0, 0, 0, 0, 1)"),
+                Behaviour(name = "B2", mainReactiveId = 0, mainProductId = 1)
+            )
+        )
+        val saved = ModelAndSimulation(model, Simulation.empty)
+        val encoded = Json.encodeToString(ModelAndSimulation.serializer(), saved)
+
+        // non-empty actions are written
+        assertTrue(encoded.contains("Add(1, 1, 0), Move(0, 0, 0, 0, 1)"))
+        // exactly one behaviour has actions (the empty one is omitted)
+        assertEquals(1, encoded.split("\"actions\"").size - 1)
+
+        // round trip
+        val reloaded = Json.decodeFromString(ModelAndSimulation.serializer(), encoded)
+        assertEquals("Add(1, 1, 0), Move(0, 0, 0, 0, 1)", reloaded.model.behaviours[0].actions)
+        assertEquals("", reloaded.model.behaviours[1].actions)
+
+        // a file without any "actions" key still loads (old .netbiodyn files)
+        val legacy = Json.decodeFromString(ModelAndSimulation.serializer(), """
+            {"model": {"name": "L", "grains": [{"name": "A"}],
+              "behaviours": [{"name": "B", "mainReactiveId": 0, "mainProductId": 0}]},
+             "simulation": {"name": "", "description": "", "agents": [-1]}}
+        """.trimIndent())
+        assertEquals("", legacy.model.behaviours[0].actions)
     }
 }
