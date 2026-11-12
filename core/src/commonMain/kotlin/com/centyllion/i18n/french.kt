@@ -174,7 +174,7 @@ object French: Locale {
         "Adds delta to the value of field id at offset (dx, dy) (result clamped between 0 and 1)" -> "Ajoute delta à la valeur du champ id à l'offset (dx, dy) (résultat borné entre 0 et 1)"
         "Sets the value of field id at offset (dx, dy) to 0" -> "Remet la valeur du champ id à l'offset (dx, dy) à 0"
         "Offsets are relative to the behaviour cell and wrap around the grid (toroidal)." -> "Les offsets sont relatifs à la case du comportement et enroulent sur la grille (torique)."
-        "Variables (step, x, y) and field(id, dx, dy) can be used in the arguments." -> "Les variables (step, x, y) et field(id, dx, dy) peuvent être utilisées dans les arguments."
+        "Variables (step, x, y), count(grainId) and field(id, dx, dy) can be used in the arguments." -> "Les variables (step, x, y), count(grainId) et field(id, dx, dy) peuvent être utilisées dans les arguments."
         "Formula Fields" -> "Champs calculés"
         "Formula Parameters" -> "Paramètres de la formule"
         "Current simulation step" -> "Étape de simulation courante"

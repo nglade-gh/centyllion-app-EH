@@ -663,7 +663,14 @@ class Simulator(
         evaluator.x = position.x.v
         evaluator.y = position.y.v
         evaluator.z = position.z.v
-        evaluator.agentCounts = emptyMap()
+        // agent counts around the behaviour cell, from the start-of-step state
+        // (same source as the predicate in applicable() and field formulas)
+        val counts = mutableMapOf<Int, Int>()
+        for (d in Direction.entries) {
+            val id = currentAgents[simulation.moveIndex(index, d)]
+            if (id >= 0) counts[id] = (counts[id] ?: 0) + 1
+        }
+        evaluator.agentCounts = counts
 
         val targetAgents = if (parallelUpdate) nextAgents else agents
         val targetAges = if (parallelUpdate) nextAges else ages

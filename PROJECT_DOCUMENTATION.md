@@ -384,7 +384,7 @@ Add(0, 1, 0), Remove(1, 0, 0), Move(0, 0, 0, 1, 0), SetField(2, 0, 0, 0.5)
 | `ClearField(id, dx, dy)` | Remet la valeur du champ `id` à l'offset (dx, dy) à 0 |
 
 - Les offsets sont **relatifs à la case du comportement** et **toriques** (modulo, comme `moveIndex`)
-- Les arguments sont des expressions numériques évaluées dans le contexte de la case (`step`, `x`, `y`, `z`, `field(id, dx, dy)`, fonctions mathématiques)
+- Les arguments sont des expressions numériques évaluées dans le contexte de la case (`step`, `x`, `y`, `z`, `count(grainId)`, `field(id, dx, dy)`, fonctions mathématiques) ; `count` est compté sur l'état du début du pas, comme dans le prédicat
 - Parsing : `parseActionFormula()` ; validation : `validateActionFormula()` (propriété du problème : `Actions`)
 - Exécution : `ApplicableBehavior.apply()` → `applyActions()` dans `simulator.kt`
 
