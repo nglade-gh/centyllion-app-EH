@@ -75,6 +75,41 @@ python3 -m http.server 8081 --directory web/webroot
 
 - Bundle : `web/webroot/js/centyllion/centyllion.js`
 - Servable par n'importe quel serveur statique (nginx, Apache, etc.)
+- Variante HTTPS (certificat auto-signé, généré dans `web/certs/`, ignoré par git) :
+  `python3 serve_https.py 8081`
+
+#### Sauvegarde de fichiers et recommandation de navigateur
+
+Le bouton **Save As** essaie, dans cet ordre :
+
+1. **Explorateur natif du navigateur** (API File System Access) — disponible dans
+   **Chrome, Chromium ou Edge**, et uniquement sur une page sécurisée
+   (HTTPS ou `localhost`).
+2. **Pont local** (`save_bridge.py`) — ouvre la boîte de dialogue de
+   l'explorateur de fichiers de l'OS depuis un processus local : fonctionne
+   **dans tous les navigateurs, Firefox compris**, à condition que
+   l'application soit chargée en **HTTP** (une page HTTPS ne peut pas appeler
+   `127.0.0.1`, blocage de mixed-content) et que l'assistant tourne sur la
+   machine où se trouve le navigateur.
+3. **Téléchargement** simple (le fichier atterrit dans le dossier de
+   téléchargements, sans explorateur).
+
+**Assistant local** (optionnel) :
+
+```bash
+python3 save_bridge.py            # écoute sur 127.0.0.1:8090 (port par défaut)
+```
+
+- Nécessite Python 3 avec tkinter (standard sous Windows et macOS ;
+  `sudo apt install python3-tk` sous Debian/Ubuntu).
+- Chaque enregistrement est confirmé par la boîte de dialogue ; le serveur
+  n'écoute que sur `127.0.0.1` (inaccessible depuis le réseau).
+
+**Recommandation** : utilisez **Chrome, Chromium ou Edge** si possible — sur
+`http://localhost:8081` l'explorateur natif fonctionne sans aucun assistant.
+Sous Firefox, ou en accédant à l'application via l'IP de la machine, lancez le
+pont local (`python3 save_bridge.py`) pour conserver un véritable explorateur
+de fichiers.
 
 ### 3.3 Serveur de développement web
 

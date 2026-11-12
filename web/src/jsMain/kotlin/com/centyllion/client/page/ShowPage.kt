@@ -219,9 +219,25 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
                 after()
             },
             onFallback = {
-                // browsers without the File System Access API: plain download
+                // write error in the native picker: plain download
                 download(fileName, stringHref(content))
                 after()
+            },
+            onUnavailable = {
+                // no native dialog (Firefox, or a non-secure page): try the
+                // local save bridge, which opens the OS dialog in every browser
+                tryBridgeSave(fileName, content) { savedPath ->
+                    if (savedPath != null) {
+                        currentFileName = savedPath.substringAfterLast('/').substringAfterLast('\\')
+                        after()
+                        notification(i18n("Save As: saved") + " " + savedPath, ElementColor.Success, 4000)
+                    } else {
+                        // bridge not running (or dialog cancelled): plain download
+                        download(fileName, stringHref(content))
+                        after()
+                        notification(i18n("Save As: bridge unavailable"), ElementColor.Warning, 8000)
+                    }
+                }
             }
         )
     }

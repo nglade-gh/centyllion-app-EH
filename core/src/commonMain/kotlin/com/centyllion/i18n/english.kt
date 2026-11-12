@@ -191,6 +191,8 @@ object English: Locale {
         "removes the B at (-1,0) -> empty" -> "removes the B at (-1,0) -> empty"
         "places A in the centre (empty) -> A" -> "places A in the centre (empty) -> A"
         "Net result: centre = A, B on the left removed. Remove(0,0,0) has an effect only because it runs after the main reaction (which places the A) and before the Add: if the Add had come before the Remove, the centre would end up empty." -> "Net result: centre = A, B on the left removed. Remove(0,0,0) has an effect only because it runs after the main reaction (which places the A) and before the Add: if the Add had come before the Remove, the centre would end up empty."
+        "Save As: saved" -> "File saved:"
+        "Save As: bridge unavailable" -> "The file has been downloaded. To open the native file explorer in this browser, run the local helper on this machine (python3 save_bridge.py — see the project documentation) and access the app over HTTP; Chrome or Edge over HTTPS or localhost works without the helper."
         "Formula Fields" -> "Formula Fields"
         "Formula Parameters" -> "Formula Parameters"
         "Current simulation step" -> "Current simulation step"

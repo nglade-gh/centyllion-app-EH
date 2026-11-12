@@ -14,6 +14,7 @@ web/webroot/js/centyllion
 web/webroot/css/centyllion
 web/webroot/version.json
 web/webroot/netbiodyn23.tar.gz
+web/certs/
 
 db/docker/db-*.tar
 

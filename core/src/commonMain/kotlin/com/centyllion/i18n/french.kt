@@ -191,6 +191,8 @@ object French: Locale {
         "removes the B at (-1,0) -> empty" -> "retire le B de (-1,0) → vide"
         "places A in the centre (empty) -> A" -> "pose A au centre (vide) → A"
         "Net result: centre = A, B on the left removed. Remove(0,0,0) has an effect only because it runs after the main reaction (which places the A) and before the Add: if the Add had come before the Remove, the centre would end up empty." -> "Bilan net : centre = A, B à gauche supprimé. Remove(0,0,0) n'a d'effet que parce qu'il s'exécute après la réaction principale (qui pose l'A) et avant l'Add : si l'Add avait précédé le Remove, le centre finirait vide."
+        "Save As: saved" -> "Fichier enregistré :"
+        "Save As: bridge unavailable" -> "Le fichier a été téléchargé. Pour ouvrir l'explorateur de fichiers natif dans ce navigateur, exécutez l'assistant local sur cette machine (python3 save_bridge.py — voir la documentation du projet) et accédez à l'application en HTTP ; Chrome ou Edge en HTTPS ou sur localhost fonctionne sans l'assistant."
         "Formula Fields" -> "Champs calculés"
         "Formula Parameters" -> "Paramètres de la formule"
         "Current simulation step" -> "Étape de simulation courante"

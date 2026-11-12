@@ -14,11 +14,21 @@ class PlotterController(
     val roundPoints: Boolean = false
 ): Controller<List<Plot>, Size, Div> {
 
-    val canvas = canvas { }
+    // Each plotter generation has its own canvas element. When the plotter is
+    // recreated (model change, size change), the previous canvas is detached
+    // from the DOM: the data2viz renderer still bound to it (event listeners,
+    // timers) can no longer paint on the visible chart, which used to leave
+    // stale, doubled axis labels behind.
+    private val canvasHolder = Div()
+    private var canvas = canvas { }
+
+    init {
+        canvasHolder.root.appendChild(canvas.root)
+    }
 
     override var data: List<Plot> by observable(plot) { _, old, new ->
         if (old != new) {
-            // recreate uPlot
+            // recreate the plotter (new canvas)
             plotter = createPlotter(new)
             legend.columns = createColumns(new)
         } else {
@@ -38,8 +48,7 @@ class PlotterController(
 
     override var context: Size by observable(size) { _, old, new ->
         if (old != new) {
-            canvas.root.width = context.width.toInt()
-            canvas.root.height = context.height.toInt()
+            // new canvas with the new size; the old canvas (and its renderer) is detached
             plotter = createPlotter(data)
         }
     }
@@ -55,11 +64,18 @@ class PlotterController(
 
     val legend = Columns(multiline = true).apply { columns = createColumns(data) }
 
-    override val container: Div = Div(this.title, canvas, legend)
+    override val container: Div = Div(this.title, canvasHolder, legend)
 
     override fun refresh() { renderRequest() }
 
-    private fun createPlotter(plots: List<Plot>) = LinePlotter(canvas.root, plots, context) { label ->
+    private fun createPlotter(plots: List<Plot>): LinePlotter {
+        val newCanvas = canvas { }
+        newCanvas.root.width = context.width.toInt()
+        newCanvas.root.height = context.height.toInt()
+        // detach the previous canvas (and the renderer bound to it)
+        canvasHolder.root.replaceChild(newCanvas.root, canvas.root)
+        canvas = newCanvas
+        return LinePlotter(newCanvas.root, plots, context) { label ->
         val pointsForLabel = plotter.pointsForLabel(label)
         stepValueSpan.text = "$stepName $label"
         legendValueSpans.forEachIndexed { index, valueSpan ->
@@ -71,6 +87,7 @@ class PlotterController(
     }.apply {
         xTick = 50
         window = this@PlotterController.window
+    }
     }
 
     private fun colorIcon(color: String) = Icon("").apply {

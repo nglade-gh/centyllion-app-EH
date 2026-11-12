@@ -69,6 +69,44 @@ fun download(filename: String, href: String) {
     document.body?.removeChild(a)
 }
 
+/** Port of the local save bridge (see save_bridge.py in the project root). */
+const val SAVE_BRIDGE_PORT = 8090
+
+/**
+ * Asks the local save bridge (save_bridge.py, which must run on the machine
+ * hosting the browser) to save [content] through the native OS file dialog.
+ *
+ * This works in every browser — including Firefox — as long as the page is
+ * served over plain HTTP (an https page cannot fetch http://127.0.0.1 because
+ * of mixed-content blocking).
+ *
+ * @param suggestedName file name proposed in the dialog.
+ * @param onResult called with the absolute path chosen by the user, or null
+ * when the bridge is not running, cannot open a dialog, or the user cancelled.
+ */
+fun tryBridgeSave(suggestedName: String, content: String, onResult: (String?) -> Unit) {
+    val w = window.asDynamic()
+    if (w.fetch == null || w.fetch == js("undefined")) {
+        onResult(null)
+        return
+    }
+    val name = w.encodeURIComponent(suggestedName) as String
+    val url = "http://127.0.0.1:$SAVE_BRIDGE_PORT/save?name=$name"
+    val options = js("({method: 'POST', headers: {'Content-Type': 'text/plain;charset=UTF-8'}, body: content})")
+    try {
+        w.fetch(url, options).then { response: dynamic ->
+            response.json().then { payload: dynamic ->
+                val saved = payload.saved
+                onResult(if (saved == null || saved == js("undefined")) null else saved as String)
+            }
+        }.catch { _: dynamic ->
+            onResult(null)
+        }
+    } catch (e: Exception) {
+        onResult(null)
+    }
+}
+
 /**
  * Saves [content] through the native save dialog (File System Access API),
  * letting the user choose the location and the file name.
@@ -77,7 +115,11 @@ fun download(filename: String, href: String) {
  * @param onSaved called with the file name chosen by the user and its file handle.
  * @param onCancel called when the user dismisses the dialog without saving.
  * @param onFallback called when the API is unavailable or writing fails;
- * the caller should fall back to [download].
+ * the caller should fall back to [download]. Ignored when [onUnavailable] is
+ * provided.
+ * @param onUnavailable called instead of [onFallback] when the API is
+ * unavailable; the caller then takes over the fallback (e.g. it can try the
+ * local save bridge with [tryBridgeSave] before giving up to a download).
  */
 fun saveFilePicker(
     suggestedName: String,
@@ -85,10 +127,20 @@ fun saveFilePicker(
     onSaved: (String, dynamic) -> Unit,
     onCancel: () -> Unit = {},
     onFallback: () -> Unit,
+    onUnavailable: (() -> Unit)? = null,
 ) {
     val w = window.asDynamic()
     if (w.showSaveFilePicker == js("undefined")) {
-        onFallback()
+        // The File System Access API only exists on secure contexts (https or
+        // localhost) in supporting browsers: say which case applies.
+        if (w.isSecureContext as Boolean) {
+            console.warn("showSaveFilePicker unavailable: the browser does not support the File System Access API — falling back to download.")
+        } else {
+            console.warn("showSaveFilePicker unavailable: the page is not in a secure context (use HTTPS or localhost) — falling back to download.")
+        }
+        // When provided, onUnavailable takes over the fallback (it may try the
+        // local save bridge before giving up to a download).
+        if (onUnavailable != null) onUnavailable() else onFallback()
         return
     }
     val options = js("{}")

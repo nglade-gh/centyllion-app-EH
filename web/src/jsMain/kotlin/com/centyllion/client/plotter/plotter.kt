@@ -206,7 +206,9 @@ class LinePlotter(
         }
 
         // updates ranges (a scale change triggers a rebuild that already includes the new point)
-        xMax = findNewXMax(xMax, x, xTick)
+        // in window mode xMax follows every pushed step so the window slides
+        // continuously instead of jumping by xTick
+        xMax = if (window > 0) maxOf(xMax, x) else findNewXMax(xMax, x, xTick)
         yRange = range(findNewMin(yRange.min, newMin, yTick), findNewMax(yRange.max, newMax, yTick))
 
         // update paths — skip when the rebuild above already contains the new point
