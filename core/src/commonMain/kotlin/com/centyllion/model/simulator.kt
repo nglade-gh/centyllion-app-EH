@@ -384,8 +384,10 @@ class Simulator(
                         // for each reaction, find all possible reactives
                         val possibleReactions = behaviour.reaction
                             .map { reaction ->
+                                val bc = model.grainForId(reaction.productId)?.boundaryConditions
                                 neighbours.filter { (d, a) ->
-                                    reaction.reactiveId == a.reactiveId && reaction.allowedDirection.contains(d)
+                                    reaction.reactiveId == a.reactiveId && reaction.allowedDirection.contains(d) &&
+                                            (reaction.reactiveId >= 0 || bc == null || !bc.crossed(position, d, simulation.width, simulation.height))
                                 }
                             }
 
@@ -457,8 +459,10 @@ class Simulator(
                 // for each reaction, find all possible reactives
                 val possibleReactions = behaviour.reaction
                     .map { reaction ->
+                        val bc = model.grainForId(reaction.productId)?.boundaryConditions
                         neighbours.filter { (d, a) ->
-                            reaction.reactiveId == a.reactiveId && reaction.allowedDirection.contains(d)
+                            reaction.reactiveId == a.reactiveId && reaction.allowedDirection.contains(d) &&
+                                    (reaction.reactiveId >= 0 || bc == null || !bc.crossed(position, d, simulation.width, simulation.height))
                         }
                     }
 
@@ -520,6 +524,7 @@ class Simulator(
 
             var permeableSum = 0f
             for (allowed in field.allowedDirection) {
+                if (!field.toric && crossesBorder(position, allowed, simulation.width, simulation.height)) continue
                 val index = simulation.moveIndex(i, allowed)
                 permeableSum += (grainAtIndex(index)?.fieldPermeable?.get(field.id) ?: 1f)
             }
@@ -527,6 +532,7 @@ class Simulator(
             if (next != null && current != null) {
                 var diffusionSum = 0f
                 for (opposite in field.oppositeDirections) {
+                    if (!field.toric && crossesBorder(position, opposite, simulation.width, simulation.height)) continue
                     val index = simulation.moveIndex(i, opposite)
                     val permeable = (grainAtIndex(index)?.fieldPermeable?.get(field.id) ?: 1f)
                     diffusionSum += current[index] * field.speed * permeable
@@ -565,6 +571,18 @@ class Simulator(
 
         step = 0
         resetCount()
+    }
+
+    /**
+     * Test/initialisation support: set the initial value of field [fieldId]
+     * at [index]. Must be called before the first step (the current field
+     * buffer is filled with [minField] at construction and by [reset]).
+     * Values are clamped to [minField]..1f, like every field update.
+     */
+    fun setInitialField(fieldId: Int, index: Int, value: Float) {
+        val f = fields[fieldId] ?: error("setInitialField: unknown field id $fieldId")
+        check(index in 0 until f.size) { "setInitialField: index $index out of range 0..${f.size - 1}" }
+        f[index] = value.coerceIn(minField, 1f)
     }
 
     /** Releases the parallel executor. Call when the simulator is no longer used. */

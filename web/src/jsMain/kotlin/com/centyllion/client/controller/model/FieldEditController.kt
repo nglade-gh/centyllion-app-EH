@@ -26,6 +26,7 @@ class FieldEditController (
             directionController.data = new.allowedDirection
             halfLifeController.data = "${new.halfLife}"
             formulaController.data = new.formula
+            toricSwitch.checked = new.toric
             onUpdate(old, new, this@FieldEditController)
         }
         refresh()
@@ -41,6 +42,7 @@ class FieldEditController (
         if (old != new) {
             colorController.readOnly = new
             invisibleCheckbox.disabled = new
+            toricSwitch.disabled = new
             nameController.readOnly = new
             descriptionController.readOnly = new
             speedController.readOnly = new
@@ -58,6 +60,11 @@ class FieldEditController (
         page.i18n("Invisible"), rounded = true, outlined = true,
         size = Size.Small, color = ElementColor.Info, checked = data.invisible
     ) { _, new -> data = data.copy(invisible = new) }
+
+    val toricSwitch = Switch(
+        page.i18n("Toric"), rounded = true, outlined = true,
+        size = Size.Small, color = ElementColor.Info, checked = data.toric
+    ) { _, new -> data = data.copy(toric = new) }
 
     val nameController = EditableStringController(data.name, page.i18n("Name"), columns = 8) { _, new, _ ->
         data = data.copy(name = new)
@@ -169,6 +176,7 @@ class FieldEditController (
             BField(Control(Value(page.i18n("Speed"))), speedController.container, grouped = true),
             BField(Control(directionController)),
         ),
+        HorizontalField(Label(page.i18n("Boundary conditions")), BField(toricSwitch)),
         HorizontalField(Label(page.i18n("Formula")), BField(Control(formulaHelpButton)), formulaController.container)
     )
 
