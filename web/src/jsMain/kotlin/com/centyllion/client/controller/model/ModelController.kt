@@ -14,6 +14,7 @@ import com.centyllion.model.Field
 import io.data2viz.geom.size
 import kotlinx.browser.window
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.events.Event
 import kotlin.properties.Delegates.observable
 
 class ModelController(
@@ -383,8 +384,40 @@ class ModelController(
         createFieldPlots(), size(window.innerWidth/4.0, window.innerHeight/3.0)
     ).apply { hidden = !expertMode }
 
+    // shared display mode for both charts: full history (step 0 -> current) or sliding window
+    private val windowValues = (10..500 step 10).toList()
+    private var plotWindowMode = false
+    private var plotWindowSize = 100
+
+    private fun applyPlotWindow(checked: Boolean, sizeValue: Int) {
+        plotWindowMode = checked
+        plotWindowSize = sizeValue
+        val w = if (checked) sizeValue else 0
+        grainChart.window = w
+        fieldChart.window = w
+        grainChart.renderRequest()
+        fieldChart.renderRequest()
+    }
+
+    val windowCheckbox = Checkbox(page.i18n("Sliding window"), false) { _, checked ->
+        applyPlotWindow(checked, plotWindowSize)
+    }
+
+    val windowSelect = Select(
+        options = windowValues.map { Option("$it") },
+        rounded = true,
+        selectedIndex = windowValues.indexOf(100)
+    ) { _: Event, value: List<Option> ->
+        value.firstOrNull()?.value?.toIntOrNull()?.let { applyPlotWindow(plotWindowMode, it) }
+    }
+
+    val plotModeHeader = Level(
+        center = listOf(windowCheckbox, Label(page.i18n("Window")), windowSelect),
+        mobile = true
+    )
+
     val rightColumn = Column(
-        chartsHeader, grainChart, fieldChart,
+        plotModeHeader, chartsHeader, grainChart, fieldChart,
         size = ColumnSize.S3
     )
 
