@@ -11741,3 +11741,9 @@ div.field-label {
 .uplot .off {
   text-decoration: line-through;
 }
+
+/* Behaviour editor: blue block separators between the general / predicates / actions blocks */
+hr.centy-block-separator {
+    border-top: 2px solid #3273dc;
+    opacity: 1;
+}
