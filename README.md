@@ -111,6 +111,13 @@ Sous Firefox, ou en accédant à l'application via l'IP de la machine, lancez le
 pont local (`python3 save_bridge.py`) pour conserver un véritable explorateur
 de fichiers.
 
+> **⚠ Mise en garde — Opera** : les graphiques de la page Simulation peuvent
+> s'afficher avec un artefact de double dessin (labels d'axes et courbes
+> reproduits avec un léger décalage). Cet artefact est propre au compositeur
+> d'Opera (le code et le DOM sont corrects ; Chromium et Firefox ne le
+> présentent pas). Utilisez Chrome/Chromium, Edge ou Firefox pour un affichage
+> fiable des graphiques.
+
 ### 3.3 Serveur de développement web
 
 ```bash
