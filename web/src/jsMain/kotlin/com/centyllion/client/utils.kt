@@ -68,6 +68,52 @@ fun download(filename: String, href: String) {
     document.body?.removeChild(a)
 }
 
+/**
+ * Saves [content] through the native save dialog (File System Access API),
+ * letting the user choose the location and the file name.
+ *
+ * @param suggestedName file name proposed in the dialog (e.g. "model.netbiodyn").
+ * @param onSaved called with the file name chosen by the user.
+ * @param onCancel called when the user dismisses the dialog without saving.
+ * @param onFallback called when the API is unavailable or writing fails;
+ * the caller should fall back to [download].
+ */
+fun saveFilePicker(
+    suggestedName: String,
+    content: String,
+    onSaved: (String) -> Unit,
+    onCancel: () -> Unit = {},
+    onFallback: () -> Unit,
+) {
+    val w = window.asDynamic()
+    if (w.showSaveFilePicker == js("undefined")) {
+        onFallback()
+        return
+    }
+    val options = js("{}")
+    options.suggestedName = suggestedName
+    val type = js("{}")
+    type.description = "NetBioDyn model"
+    val accept = js("{}")
+    accept["application/json"] = js("['.netbiodyn']")
+    type.accept = accept
+    options.types = js("[type]")
+    w.showSaveFilePicker(options)
+        .then { handle: dynamic ->
+            handle.createWritable()
+                .then { writable: dynamic ->
+                    writable.write(content)
+                        .then {
+                            writable.close()
+                                .then { onSaved(handle.name as String) }
+                        }
+                }
+        }
+        .catch { error: dynamic ->
+            if (error != null && error.name == "AbortError") onCancel() else onFallback()
+        }
+}
+
 /** Toggles a element into fullscreen */
 fun toggleElementToFullScreen(htmlElement: HTMLElement): Boolean {
     val d = document.asDynamic()
