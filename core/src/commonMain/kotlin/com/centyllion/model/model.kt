@@ -4,6 +4,7 @@ import com.benasher44.uuid.Uuid
 import com.benasher44.uuid.uuid4
 import com.centyllion.expression.parseExpression
 import com.centyllion.expression.v
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlin.math.pow
@@ -202,9 +203,9 @@ data class Reaction(
  */
 @Serializable
 data class AgentCountPredicate(
-    val grainId: Int = -1,
-    val op: Operator = Operator.GreaterThanOrEquals,
-    val count: Int = 0
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val grainId: Int = -1,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val op: Operator = Operator.GreaterThanOrEquals,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val count: Int = 0
 ) {
     fun check(actualCount: Int): Boolean = when (op) {
         Operator.Equals -> actualCount == count
@@ -227,13 +228,18 @@ data class AgentCountPredicate(
  * Example of an asymmetric boundary: `left = false` and `right = true` means
  * an agent at the left edge cannot wrap to the right edge when moving left,
  * but an agent at the right edge can wrap to the left edge when moving right.
+ *
+ * Serialization: when a grain is not toric (any wall closed) the whole
+ * boundary-conditions object is written with ALL four walls explicit
+ * ([EncodeDefault.Mode.ALWAYS]); when the grain is toric everywhere the
+ * object is omitted entirely (default value).
  */
 @Serializable
 data class BoundaryConditions(
-    val left: Boolean = true,
-    val right: Boolean = true,
-    val top: Boolean = true,
-    val bottom: Boolean = true,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val left: Boolean = true,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val right: Boolean = true,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val top: Boolean = true,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val bottom: Boolean = true,
 ) {
     /**
      * True if a one-step move from [position] in [direction] crosses a CLOSED

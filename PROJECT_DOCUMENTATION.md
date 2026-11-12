@@ -16,6 +16,7 @@
 | **Compteurs de voisins** | `agentCountPredicates` : conditions sur le nombre de voisins d'un type (`Agent_B > 3`) |
 | **Expressions de condition** | `formula` : expressions logiques avec parenthèses et opérateurs (`count(1) > 2 && count(2) == 1`) |
 | **Mise à jour parallèle** | `Simulation.parallelUpdate` (défaut) : calculs depuis l'état initial du pas, adapté aux automates cellulaires |
+| **Conditions aux limites** | `boundaryConditions` par grain (4 parois toriques/imperméables) et `toric` par champ ; défaut torique partout, asymétrie autorisée (voir §4, §10) |
 | **Validation corrigée** | `validateFormula` vérifie maintenant les références et signale les erreurs |
 | **Build standalone** | Application desktop autonome + site web statique, sans serveur |
 
@@ -157,6 +158,7 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `fieldProductions` : `Map<Int,Float>` → pour chaque champ, quantité produite (positif ou négatif)
 - `fieldInfluences` : `Map<Int,Float>` → influence (de -1 à 1) d'un champ voisin sur le comportement
 - `fieldPermeable` : `Map<Int,Float>` → perméabilité du grain pour chaque champ (0..1)
+- `boundaryConditions` : `BoundaryConditions(left, right, top, bottom)` → autorisation par paroi de traverser la bordure du plateau (retour torique). Défaut : `true` partout (torique dans les 4 directions). L'asymétrie est autorisée : `left=false, right=true` signifie qu'un agent du bord gauche ne traverse pas la paroi gauche en allant à gauche, tandis qu'un agent du bord droit traverse la paroi droite en allant à droite (vérification `BoundaryConditions.crossed(position, direction, width, height)`). Éditable en mode expert uniquement (4 interrupteurs entre *Movement* et *Fields*).
 
 > `Grain.moveBehaviour()` génère un `Behaviour` "déplacement" si `movementProbability > 0 && allowedDirection non vide`.
 
@@ -168,6 +170,7 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `speed` (0..1) → vitesse de diffusion
 - `halfLife` (0 = pas de décroissance) → décroissance naturelle du champ
 - `allowedDirection` → directions de diffusion
+- `toric` : `Boolean` (défaut `true`) → bordure torique du champ ; `false` = bordure **imperméable** : la diffusion ne traverse pas les bords de la grille (« best effort », sans solveur numérique dédié). Éditable en mode expert (interrupteur *Toric*).
 - `formula` → chaîne d'expression permettant de **calculer la valeur du champ** à partir de `step`, `x`, `y`, `z`, `current` et des fonctions `field(id)`, `field(id, dx, dy)`, `agent(x, y)`, `count(grainId)`. La formule doit renvoyer un nombre (vérifié par `validateNumericFormula`). Exemple : `count(0) > 2 ? current * 0.95 : current`.
 
 ### 4.3 Behaviour (comportement)
@@ -184,6 +187,7 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `reaction` : `List<Reaction>` → réactions secondaires : `reactiveId`, `productId`, `sourceReactive`, `allowedDirection`
 - `formula` : chaîne (libellée **Predicate** dans l'interface) → condition logique d'application (voir 6.4)
 - `actions` : chaîne → liste d'actions exécutées après les réactions (voir 6.5)
+- `agentCountPredicates` : `List<AgentCountPredicate(grainId, op, count)>` → conditions sur le nombre de voisins ; `grainId < 0` = tout agent voisin occupé (8 directions, valeur 0-8) (voir 6bis)
 
 Une **réaction** s'exécute lorsque un grain voisin (dans `allowedDirection`) possède le `reactiveId` spécifié.
 
@@ -208,6 +212,7 @@ Là où le simulateur est pertinent, les notions s'expriment ainsi :
   `p = 1 - 2^(-1/halfLife)` (demi-vie = nombre de pas pour que la population s'approche de 1/2).
 - **Diffusion d'un champ** : pour un champ `f` avec vitesse `s` et perméabilités `p_i` selon les directions opposées `d`:  
   `next[i] = current[i] * (1 - s * Σ p_i / n) + production(i) + Σ current[opposé] * s * p / n`, coupé à `[minField, 1]` puis passé éventuellement par `evaluateField`.
+- **Conditions aux limites** : un déplacement (ou une production sur case voisine vide) traverse la bordure dans la direction `d` si et seulement si la paroi correspondante est autorisée : `crossesBorder(position, d, w, h)` (test géométrique) ∧ `boundaryConditions.crossed(...)` (drapeau du grain). Par défaut (torique), le retour est `position + w` / `position - w` (ou `± h`) modulo la taille. Pour un champ avec `toric = false`, les échanges de diffusion à travers les bords sont simplement omis (aucun terme de voisin opposé au-delà de la grille).
 - **Étape de simulation** : la méthode `Simulator.oneStep()` applique les règles de mort, de déplacement, de comportement (avec sélection probabiliste + influence des champs via `log10` des valeurs voisines), puis actualise les champs. `Agent` dispose d'un `age` qui augmente à chaque pas.
 
 ---
@@ -588,6 +593,42 @@ python3 -m http.server 8081 --directory web/webroot
 # python3 serve_https.py 8081
 ```
 
+### Format de fichier et contrat de sauvegarde
+
+Le fichier `.netbiodyn` est le JSON de `ModelAndSimulation`
+(`{"model": …, "simulation": …}`), sérialisé par kotlinx.serialization avec
+`encodeDefaults = false` (défaut) : une valeur égale à sa valeur par défaut
+est omise, ce qui rend les fichiers compacts et lisibles à l'œil.
+
+Quatre champs obéissent toutefois à un contrat explicite (2026-11-12) pour
+que les fichiers sauvegardés soient **autodescriptifs** :
+
+| Champ | Contrainte d'écriture | Contrainte de lecture |
+|---|---|---|
+| `grains[].boundaryConditions` | omis si le grain est torique partout ; sinon **les 4 parois `left/right/top/bottom` sont toujours écrites** (`@EncodeDefault(ALWAYS)`) | parois absentes = `true` (les fichiers anciens partiels, ex. `{"left":false}`, restent lisibles) |
+| `fields[].toric` | omis si `true` ; `false` est écrit | absent = `true` (torique) |
+| `behaviours[].agentCountPredicates` | omis si liste vide ; chaque prédicat présent **écrit toujours** `grainId`, `op` et `count` (`@EncodeDefault(ALWAYS)`), même aux valeurs par défaut | liste absente = vide |
+| `behaviours[].reaction[].sourceReactive` | écrite si ≥ 0, omise si < 0 (convention antérieure) | absente = -1 |
+
+Exemple de grain non torique sauvegardé :
+
+```jsonc
+"boundaryConditions": { "left": false, "right": true, "top": true, "bottom": true }
+```
+
+et d'un comportement avec un prédicat de count :
+
+```jsonc
+"agentCountPredicates": [ { "grainId": -1, "op": "GreaterThan", "count": 3 } ]
+```
+
+Le projet **NISMA** (C#/.NET) est aligné sur ce contrat : mêmes classes
+(`BoundaryConditions`, `AgentCountPredicate`, `Field.Toric`), mêmes règles
+d'omission dans `JsonUtils.SaveNbd`, et lecture rétrocompatible des fichiers
+partiels. Voir `NISMA/PROJECT_DOCUMENTATION.md` §2.4 et `NISMA/README.md`
+§4.1ter. Tests dédiés : `core/src/commonTest/.../SerializationTest.kt`
+(7 tests de (dé)sérialisation).
+
 ### Sauvegarde de fichiers (web)
 
 L'API `showSaveFilePicker` (File System Access) n'existe que dans les navigateurs
@@ -741,7 +782,7 @@ Les tests couvrent notamment les nouvelles fonctionnalités de l'extension :
 
 ## 16. Historique Git (extrait)
 
-Derniers commits : `unwanted tests removed`, `Adds model name edition in showpage...`, `Allows simulation of 200`, `Support wasm browser`, `Prepare compose multiplatform`, `Add formula performance test`, `Center direction`, `Replace kotlinx-uuid by benasher44`, `Correct pointer color change`, `Age predicate and source reactive are for expert mode`, `Adds Compose version`, `Updates to kotlin 2`, `Add Compose version`, `Adds grid for behaviour`, `Adds square for directions`, `Reworked properties title and combo`, `Removes split-panes`, `Important re-layout`, `Adds compose UI`, `Update field tutorial`, `Support zip assets`, `Adds examples tab...`, `Adds support for asset in server and use of thumbnail`, `Adds validation for fields`, `Adds search query`, `Add validation for fields`, `Test docker`, `Adds native image`, `Update translation`, `Add formula performance test`, `Update kotlin`, `Prevent chart resize if result is < 0`, `Correct still drawing even getting outside plane`, `Working on Compose version`, `Allows simulation of 200`, `Use value as key for remember in text field`, `Cleaning`, `Corrects missing value error`, `Support wasm browser`, `Adds model name edition...`, `Allows simulation of 200`.
+Derniers commits (extension CentyllionExtend) : `223850fb Add boundary conditions: per-grain wall authorisation and per-field toric flag`, `51c2d113 Rework behaviour editor: 3 blocks with blue separators, collapsible Predicates/Actions, age + Nb Neighbours graphical predicates in normal mode, formulas in expert mode, any-agent count predicate semantics`, `67242047 Add Opera warning to web docs (chart double-draw artifact)`, `91b1372a Fix doubled chart axes, continuous sliding window, cross-browser save bridge`, `3b809be5 Add quick Save (same file, no dialog) and Save As (picker) with remembered file name and handle; document reactions/actions order in help`, `3b1a1a9c Save through the native file dialog; remember the project file name across saves and reloads`, puis l'historique du dépôt monté : `unwanted tests removed`, `Adds model name edition in showpage...`, `Allows simulation of 200`, `Support wasm browser`, `Prepare compose multiplatform`, `Add formula performance test`, `Center direction`, `Replace kotlinx-uuid by benasher44`, `Correct pointer color change`, `Age predicate and source reactive are for expert mode`, `Adds Compose version`, `Updates to kotlin 2`, `Add Compose version`, `Adds grid for behaviour`, `Adds square for directions`, `Reworked properties title and combo`, `Removes split-panes`, `Important re-layout`, `Adds compose UI`, `Update field tutorial`, `Support zip assets`, `Adds examples tab...`, `Adds support for asset in server and use of thumbnail`, `Adds validation for fields`, `Adds search query`, `Add validation for fields`, `Test docker`, `Adds native image`, `Update translation`, `Add formula performance test`, `Update kotlin`, `Prevent chart resize if result is < 0`, `Correct still drawing even getting outside plane`, `Working on Compose version`, `Allows simulation of 200`, `Use value as key for remember in text field`, `Cleaning`, `Corrects missing value error`, `Support wasm browser`, `Adds model name edition...`, `Allows simulation of 200`.
 
 Branches distantes : `main`, `compose`, `master`, `purehtml`, `share`. Dépôt upstream : `github.com/jeancharles-roger/centyllion-app`.
 
