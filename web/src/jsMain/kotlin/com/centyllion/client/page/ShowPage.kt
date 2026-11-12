@@ -19,10 +19,23 @@ import kotlin.js.Promise
 import kotlin.properties.Delegates.observable
 import bulma.Field as BField
 
+/** Local storage key holding the file name used as the default for saves. */
+private const val FILE_NAME_KEY = "saveFileName"
+
 /** ShowPage is used to present and edit (if not read-only) a model and a simulation. */
 class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     private var tutorialLayer: TutorialLayer<ShowPage>? = null
+
+    /** File name (with extension) proposed as the default for the next file save.
+     *  Set by the latest file import or file save, and persisted so the same
+     *  project keeps its file name across page reloads. */
+    var currentFileName: String?
+        get() = window.localStorage.getItem(FILE_NAME_KEY)
+        set(value) {
+            if (value == null) window.localStorage.removeItem(FILE_NAME_KEY)
+            else window.localStorage.setItem(FILE_NAME_KEY, value)
+        }
 
     var model: ModelAndSimulation by observable(ModelAndSimulation.empty) { _, old, new ->
         if (new != old) {
@@ -132,6 +145,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     fun new() = changeModelOrSimulation {accepted ->
         if (accepted) {
             setModel(ModelAndSimulation.empty)
+            currentFileName = null
             message("New model.")
         }
     }
@@ -142,6 +156,8 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
             val reader = FileReader()
             reader.onload = {
                 val text: String = reader.result as String
+                // the imported file name becomes the default save name for this project
+                currentFileName = selectedFile.name
                 setModel(netbiodynJson.decodeFromString(text))
             }
             reader.readAsText(selectedFile)
@@ -151,10 +167,22 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     val needsSaving get() = undoRedo.changed(model)
 
     fun export(after: () -> Unit = {}) {
-        val href = stringHref(netbiodynJson.encodeToString(ModelAndSimulation.serializer(), model))
-        val name = if (model.model.name.isNotBlank()) model.model.name else "model"
-        download("$name.netbiodyn", href)
-        after()
+        val content = netbiodynJson.encodeToString(ModelAndSimulation.serializer(), model)
+        val base = currentFileName ?: if (model.model.name.isNotBlank()) model.model.name else "model"
+        val fileName = if (base.endsWith(".netbiodyn")) base else "$base.netbiodyn"
+        saveFilePicker(
+            suggestedName = fileName,
+            content = content,
+            onSaved = { name ->
+                currentFileName = name
+                after()
+            },
+            onFallback = {
+                // browsers without the File System Access API: plain download
+                download(fileName, stringHref(content))
+                after()
+            }
+        )
     }
 
     fun refreshButtons() {
