@@ -584,7 +584,32 @@ JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE" \
 # Service :
 python3 -m http.server 8081 --directory web/webroot
 # → http://localhost:8081
+# Variante HTTPS (certificat auto-signé dans web/certs/, ignoré par git) :
+# python3 serve_https.py 8081
 ```
+
+### Sauvegarde de fichiers (web)
+
+L'API `showSaveFilePicker` (File System Access) n'existe que dans les navigateurs
+Chromium (Chrome, Chromium, Edge) et uniquement dans un contexte sécurisé
+(HTTPS ou `localhost`). Le bouton **Save As** utilise donc cette cascade :
+
+1. `showSaveFilePicker` si disponible (navigateur Chromium + contexte sécurisé) ;
+2. sinon, le **pont local** `save_bridge.py` : le web envoie le contenu du
+   fichier en `POST http://127.0.0.1:8090/save?name=<nom>` (CORS ouvert,
+   écoute sur `127.0.0.1` uniquement) ; le processus local ouvre la boîte de
+   dialogue native tkinter et écrit le fichier au chemin choisi. Fonctionne
+   dans **tous les navigateurs (Firefox compris)**, à condition que la page
+   soit servie en **HTTP** (mixed-content : une page HTTPS ne peut pas
+   fetcher `http://127.0.0.1`) ;
+3. sinon, téléchargement simple via `<a download>`.
+
+Mode headless du pont : `SAVE_BRIDGE_AUTO=<répertoire> python3 save_bridge.py`
+(écrit directement dans le répertoire, sans boîte de dialogue).
+
+> **Recommandation** : Chrome/Chromium/Edge sur `http://localhost:8081`
+> (aucun assistant nécessaire) ; Firefox ou accès par IP →
+> `python3 save_bridge.py` sur la machine du navigateur.
 
 ### Environnement headless (conteneur)
 

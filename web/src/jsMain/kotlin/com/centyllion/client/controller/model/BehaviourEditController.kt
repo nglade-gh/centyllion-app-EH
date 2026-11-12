@@ -209,7 +209,10 @@ class BehaviourEditController(
         ),
         SubTitle(page.i18n("Arguments")),
         p(page.i18n("Variables (step, x, y), count(grainId) and field(id, dx, dy) can be used in the arguments.")),
-        SubTitle(page.i18n("Order of reactions and actions")),
+        SubTitle(page.i18n("Order of reactions and actions")).apply {
+            // the modal CSS cancels the subtitle's top margin: restore the line break
+            root.style.marginTop = "1.5rem"
+        },
         p(page.i18n("Within a single behaviour, the reactions are applied first, then the actions. Within the actions, the order matters: successive actions are applied one after the other, each seeing the effect of the previous ones. Note that count(id) is evaluated on the state at the beginning of the step, before the reactions and the actions are applied.")),
         p(page.i18n("Example: behaviour with an empty central cell and a B neighbour to the left at (-1,0):")),
         Table(

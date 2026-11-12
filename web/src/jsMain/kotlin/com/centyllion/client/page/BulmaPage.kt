@@ -52,7 +52,7 @@ interface BulmaPage : BulmaElement {
     }
 }
 
-fun notification(content: String, color: ElementColor = ElementColor.None) {
+fun notification(content: String, color: ElementColor = ElementColor.None, duration: Int = 2000) {
     when (color) {
         ElementColor.Danger -> console.error(content)
         ElementColor.Warning -> console.warn(content)
@@ -63,7 +63,7 @@ fun notification(content: String, color: ElementColor = ElementColor.None) {
     val options = json(
         "message" to content,
         "type" to color.className,
-        "duration" to 2000,
+        "duration" to duration,
         "position" to "bottom-center",
         "dismissible" to false,
         "pauseOnHover" to true,
