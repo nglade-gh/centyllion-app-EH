@@ -209,6 +209,29 @@ class BehaviourEditController(
         ),
         SubTitle(page.i18n("Arguments")),
         p(page.i18n("Variables (step, x, y), count(grainId) and field(id, dx, dy) can be used in the arguments.")),
+        SubTitle(page.i18n("Order of reactions and actions")),
+        p(page.i18n("Within a single behaviour, the reactions are applied first, then the actions. Within the actions, the order matters: successive actions are applied one after the other, each seeing the effect of the previous ones. Note that count(id) is evaluated on the state at the beginning of the step, before the reactions and the actions are applied.")),
+        p(page.i18n("Example: behaviour with an empty central cell and a B neighbour to the left at (-1,0):")),
+        Table(
+            body = listOf(
+                helpLine("None -> A", page.i18n("main reaction, on the empty central cell")),
+                helpLine("B -> B", page.i18n("reaction, B allowed only to the left at (-1,0)")),
+                helpLine("Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)", page.i18n("actions, in this order")),
+            ),
+            fullWidth = true, striped = true
+        ),
+        p(page.i18n("Application (if the behaviour is selected):")),
+        Table(
+            body = listOf(
+                helpLine("1. None -> A", page.i18n("centre becomes A (main reaction)")),
+                helpLine("2. B -> B", page.i18n("B at (-1,0) stays B (identity)")),
+                helpLine("3. Remove(0,0,0)", page.i18n("removes the A from the centre (placed by the main reaction) -> empty cell")),
+                helpLine("4. Remove(1,-1,0)", page.i18n("removes the B at (-1,0) -> empty")),
+                helpLine("5. Add(0,0,0)", page.i18n("places A in the centre (empty) -> A")),
+            ),
+            fullWidth = true, striped = true
+        ),
+        p(page.i18n("Net result: centre = A, B on the left removed. Remove(0,0,0) has an effect only because it runs after the main reaction (which places the A) and before the Add: if the Add had come before the Remove, the centre would end up empty.")),
     )
 
     val actionsLine = HorizontalField(

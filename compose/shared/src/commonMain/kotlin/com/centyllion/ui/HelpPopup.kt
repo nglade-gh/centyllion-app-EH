@@ -120,6 +120,26 @@ fun ActionsHelp() {
     HelpCode("Move(0, 0, 0, 1, 0)")
     HelpCode("SetField(1, 0, 0, 1), ClearField(1, 1, 0)")
     HelpCode("Add(0, x % 2, 0), AddField(1, 0, 0, 0.1)")
+    HelpSection("Ordre des réactions et des actions")
+    HelpText(
+        "Au sein d'un même comportement, les réactions sont appliquées d'abord, puis les actions. " +
+                "Au sein des actions, l'ordre compte : les actions successives sont appliquées l'une après l'autre, " +
+                "chacune voyant l'effet des précédentes. Notez que count(id) est évalué sur l'état du début du pas, " +
+                "avant l'application des réactions et des actions."
+    )
+    HelpText("Exemple : comportement avec une case centrale vide et un voisin B à gauche en (-1,0) :")
+    HelpCode("Réaction principale : None -> A ; Réaction : B -> B (B uniquement à gauche) ; Actions : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)")
+    HelpText("Application (si le comportement est tiré au sort) :")
+    HelpCode("1. Réaction principale : centre -> A")
+    HelpCode("2. Réaction : B à (-1,0) -> B (identité)")
+    HelpCode("3. Remove(0,0,0) : retire l'A du centre (celui posé par la réaction principale) -> case vide")
+    HelpCode("4. Remove(1,-1,0) : retire le B de (-1,0) -> vide")
+    HelpCode("5. Add(0,0,0) : pose A au centre (vide) -> A")
+    HelpText(
+        "Bilan net : centre = A, B à gauche supprimé. Remove(0,0,0) n'a d'effet que parce qu'il s'exécute " +
+                "après la réaction principale (qui pose l'A) et avant l'Add : si l'Add avait précédé le Remove, " +
+                "le centre finirait vide. Si l'ordre des réactions/actions était interverti, le résultat changerait."
+    )
 }
 
 /** Shared operators and math functions block. */

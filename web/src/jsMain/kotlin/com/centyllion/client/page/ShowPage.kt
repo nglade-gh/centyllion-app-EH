@@ -37,6 +37,10 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
             else window.localStorage.setItem(FILE_NAME_KEY, value)
         }
 
+    /** File handle of the last saved file, used by the quick save. Restored
+     *  from IndexedDB on start (same browser profile, even after a restart). */
+    private var saveHandle: dynamic = null
+
     var model: ModelAndSimulation by observable(ModelAndSimulation.empty) { _, old, new ->
         if (new != old) {
             undoRedo.update(old, new)
@@ -77,9 +81,13 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     val fileInput = FileInput(label = i18n("Import"), color = ElementColor.Primary, onChange = ::import)
 
-    val exportControl = Control(Button(
-        i18n("Export"), Icon("download"), color = ElementColor.Primary
-    ) { export() })
+    val saveControl = Control(Button(
+        i18n("Export"), Icon("save"), color = ElementColor.Primary
+    ) { saveQuick() })
+
+    val saveAsControl = Control(Button(
+        i18n("Save As"), Icon("download"), color = ElementColor.Primary
+    ) { saveAs() })
 
     val tutorialControl = Control(Button(
         i18n("Tutorial"), Icon("question-circle"), color = ElementColor.Primary
@@ -100,7 +108,8 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         modelName.container,
         newControl,
         Control(fileInput),
-        exportControl,
+        saveControl,
+        saveAsControl,
         tutorialControl,
         helpControl,
         Control(undoRedo.undoButton), Control(undoRedo.redoButton),
@@ -146,6 +155,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         if (accepted) {
             setModel(ModelAndSimulation.empty)
             currentFileName = null
+            saveHandle = null
             message("New model.")
         }
     }
@@ -158,6 +168,8 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
                 val text: String = reader.result as String
                 // the imported file name becomes the default save name for this project
                 currentFileName = selectedFile.name
+                // a loaded project must not be quick-saved into the previous file
+                saveHandle = null
                 setModel(netbiodynJson.decodeFromString(text))
             }
             reader.readAsText(selectedFile)
@@ -166,15 +178,44 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     val needsSaving get() = undoRedo.changed(model)
 
-    fun export(after: () -> Unit = {}) {
+    /**
+     * Quick save: rewrites the file of the current project without dialog
+     * when the write permission is already granted (the browser may show a
+     * short permission prompt otherwise). Falls back to [saveAs] when the
+     * project has no file yet or the permission is denied.
+     */
+    fun saveQuick(after: () -> Unit = {}) {
+        val content = netbiodynJson.encodeToString(ModelAndSimulation.serializer(), model)
+        val handle = saveHandle
+        if (handle == null) {
+            saveAs(after)
+            return
+        }
+        quickSaveFile(
+            handle, content,
+            onSaved = { name ->
+                currentFileName = name
+                after()
+            },
+            onDenied = { saveAs(after) }
+        )
+    }
+
+    /**
+     * Save as: opens the native save dialog, with the current file name of
+     * the project as the suggested name.
+     */
+    fun saveAs(after: () -> Unit = {}) {
         val content = netbiodynJson.encodeToString(ModelAndSimulation.serializer(), model)
         val base = currentFileName ?: if (model.model.name.isNotBlank()) model.model.name else "model"
         val fileName = if (base.endsWith(".netbiodyn")) base else "$base.netbiodyn"
         saveFilePicker(
             suggestedName = fileName,
             content = content,
-            onSaved = { name ->
+            onSaved = { name, handle ->
                 currentFileName = name
+                saveHandle = handle
+                rememberFileHandle("save", handle)
                 after()
             },
             onFallback = {
@@ -198,7 +239,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         if (needsSaving) {
             modalDialog(i18n("Modifications not saved. Do you want to save ?"),
                 listOf(p(i18n("You're about to quit the page and some modifications haven't been saved."))),
-                textButton(i18n("Save"), ElementColor.Success) { export { conclude(true) } },
+                textButton(i18n("Save"), ElementColor.Success) { saveQuick { conclude(true) } },
                 textButton(i18n("Don't save"), ElementColor.Danger) { conclude(true) },
                 textButton(i18n("Stay here")) { conclude(false) }
             )
@@ -236,5 +277,8 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         appContext.api.fetchVersion().then {
             currentVersion.text = i18n("version of %0", it.date)
         }
+
+        // restore the file handle of the last saved file (quick save across restarts)
+        restoreFileHandle("save").then { handle: dynamic -> saveHandle = handle }
     }
 }

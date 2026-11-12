@@ -308,6 +308,36 @@ Actions   : AddField(0, 0, 0, 0.2), Add(1, 0, 1)</code></pre>
       <code>0</code> de 0,2 dans sa case et crée un agent <code>B</code> au-dessus de lui.
     </p>
   </div>
+  <h3>Ordre des réactions et des actions</h3>
+  <p>
+    Au sein d'un même comportement, les <strong>réactions sont appliquées d'abord, puis les
+    actions</strong>. Au sein des actions, <strong>l'ordre compte</strong> : les actions successives
+    sont appliquées l'une après l'autre, chacune voyant l'effet des précédentes. Notez que
+    <code>count(id)</code> est évalué sur <strong>l'état du début du pas</strong>, avant
+    l'application des réactions et des actions.
+  </p>
+  <div class="card example">
+    <h4>Exemple : rôle de l'ordre des actions</h4>
+    <pre><code>Case centrale : vide ; voisin B à gauche en (-1,0)
+Réaction principale : None -&gt; A
+Réaction          : B -&gt; B (B autorisé uniquement à gauche)
+Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
+    <p>Application (si le comportement est tiré au sort) :</p>
+    <ol>
+      <li>Réaction principale : centre → A ;</li>
+      <li>Réaction : B à (-1,0) → B (identité) ;</li>
+      <li><code>Remove(0,0,0)</code> : retire l'A du centre (celui posé par la réaction principale) → case vide ;</li>
+      <li><code>Remove(1,-1,0)</code> : retire le B de (-1,0) → vide ;</li>
+      <li><code>Add(0,0,0)</code> : pose A au centre (vide) → A.</li>
+    </ol>
+    <p>
+      Bilan net : centre = A, B à gauche supprimé. <code>Remove(0,0,0)</code> n'a d'effet que parce
+      qu'il s'exécute <em>après</em> la réaction principale (qui pose l'A) et <em>avant</em>
+      l'<code>Add</code> : si l'<code>Add</code> avait précédé le <code>Remove</code>, le centre
+      finirait vide. Si l'ordre des réactions/actions était interverti, le résultat changerait —
+      d'où l'importance de l'ordre d'écriture dans la ligne Actions.
+    </p>
+  </div>
 </section>
 
 <section id="fields">
