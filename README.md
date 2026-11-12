@@ -262,6 +262,43 @@ C0 : Agent_A -> Agent_B
 Cij : Agent_B -> Agent_A
 ```
 
+### 4.8 Conditions aux limites
+
+Chaque agent et chaque champ est **torique par défaut** (retour en bout de
+plateau). En **mode expert** :
+
+- **Agent** (éditeur de grain, entre *Movement* et *Fields*) : 4 interrupteurs
+  *Boundary conditions* (Gauche/Droite/Haut/Bas) ; décocher une paroi
+  empêche les agents de ce grain de la traverser. L'asymétrie est autorisée
+  (ex. Gauche décoché + Droite coché : un agent du bord gauche ne sort pas en
+  allant à gauche, un agent du bord droit sort en allant à droite).
+- **Champ** (éditeur de champ) : interrupteur *Toric* ; décoché = bordure
+  **imperméable** (la diffusion ne traverse pas les bords de la grille,
+  « best effort » sans solveur dédié).
+
+Les conditions sont stockées dans le modèle (`boundaryConditions` par grain,
+`toric` par champ), visibles en mode expert seulement, et sauvegardées
+(cf. §4.9).
+
+### 4.9 Format de sauvegarde (`.netbiodyn`)
+
+Les fichiers sauvegardés sont compacts : une valeur égale à sa valeur par
+défaut est omise (`encodeDefaults = false`), sauf quatre champs qui obéissent
+à un contrat explicite d'**écriture complète** pour rester autodescriptifs :
+
+- `boundaryConditions` (grain) : omis si torique partout ; sinon les **4
+  parois sont toujours écrites** (`{"left":false,"right":true,"top":true,"bottom":true}`) ;
+- `toric` (champ) : écrit seulement si `false` ;
+- `agentCountPredicates` (comportement) : liste omise si vide ; chaque
+  prédicat écrit toujours `grainId`, `op` et `count`
+  (`[{"grainId":-1,"op":"GreaterThan","count":3}]`) ;
+- `sourceReactive` (réaction) : écrite si ≥ 0.
+
+Lecture rétrocompatible : un `boundaryConditions` partiel (fichiers anciens,
+ex. `{"left":false}`) est accepté, les parois absentes valant `true`. Le
+projet **NISMA** (C#) est aligné sur ce même contrat
+(`NISMA/PROJECT_DOCUMENTATION.md` §2.4).
+
 ---
 
 ## 5. Structure du projet
