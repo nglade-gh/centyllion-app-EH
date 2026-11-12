@@ -29,6 +29,13 @@ class PlotterController(
 
     var size get() = context; set(value) { context = value }
 
+    /** Sliding time window width in steps applied to the underlying plotter (0 = full history). */
+    var window: Int = 0
+        set(value) {
+            field = value
+            plotter.window = value
+        }
+
     override var context: Size by observable(size) { _, old, new ->
         if (old != new) {
             canvas.root.width = context.width.toInt()
@@ -61,7 +68,10 @@ class PlotterController(
             }
             valueSpan.text = "${get ?: "-"}"
         }
-    }.apply { xTick = 50 }
+    }.apply {
+        xTick = 50
+        window = this@PlotterController.window
+    }
 
     private fun colorIcon(color: String) = Icon("").apply {
         root.style.backgroundColor = color

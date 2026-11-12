@@ -164,6 +164,8 @@ object French: Locale {
         "Predicate" -> "Prédicat"
         "Actions" -> "Actions"
         "Arguments" -> "Arguments"
+        "Sliding window" -> "Fenêtre glissante"
+        "Window" -> "Fenêtre"
         "Predicate (e.g. count(1) > 2 && count(2) == 1)" -> "Prédicat (ex. count(1) > 2 && count(2) == 1)"
         "Actions (e.g. Add(0, 1, 0), Remove(1, 0, 0))" -> "Actions (ex. Add(0, 1, 0), Remove(1, 0, 0))"
         "Actions are executed when the behaviour is applied, after the reactions." -> "Les actions sont exécutées quand le comportement est appliqué, après les réactions."

@@ -55,6 +55,18 @@ class LinePlotter(
 
     var xTick: Int = 1
 
+    /** Sliding time window width (in steps): 0 plots from step 0 to the current
+     *  step, otherwise the chart shows the last [window] steps. */
+    var window: Int = 0
+        set(value) {
+            field = value.coerceAtLeast(0)
+            xScale = newXScale()
+            rebuild()
+            invalidate()
+        }
+
+    private fun xMin(): Int = if (window > 0) (xMax - window).coerceAtLeast(0) else 0
+
     var xMax: Int by observable(0) { _, old, new ->
         if (old != new) {
             xScale = newXScale()
@@ -80,7 +92,7 @@ class LinePlotter(
     private var xScale = newXScale()
 
     private fun newXScale() = Scales.Continuous.linearRound {
-        domain = listOf(0.0, xMax.toDouble())
+        domain = listOf(xMin().toDouble(), xMax.toDouble())
         range = listOf(0.0, chartWidth)
     }
 
@@ -108,8 +120,11 @@ class LinePlotter(
 
     private var redraw = false
 
+    private var lastBuildStep = -1
+
     private fun Viz.build() {
         clear()
+        lastBuildStep = -1
         group {
             transform { translate(x = margins.left, y = margins.top) }
             group { yAxis() }
@@ -117,7 +132,10 @@ class LinePlotter(
 
             group {
                 plotPaths.clear()
-                if (points.isNotEmpty()) {
+                // in window mode only the points inside the current window are drawn
+                val visiblePoints = if (window > 0) points.filter { it.step >= xMin() } else points
+                if (visiblePoints.isNotEmpty()) {
+                    lastBuildStep = visiblePoints.last().step
                     for (plotIndex in plots.indices) {
                         group {
                             plotPaths.add(path {
@@ -126,9 +144,9 @@ class LinePlotter(
                                 strokeColor = if (!hiddenPlots[plotIndex]) element.stroke else null
                                 strokeWidth = element.strokeWidth
 
-                                moveTo(xScale(points[0].step), yScale(points[0].points[plotIndex]))
-                                for (i in 1 until points.size) {
-                                    lineTo(xScale(points[i].step), yScale(points[i].points[plotIndex]))
+                                moveTo(xScale(visiblePoints[0].step), yScale(visiblePoints[0].points[plotIndex]))
+                                for (i in 1 until visiblePoints.size) {
+                                    lineTo(xScale(visiblePoints[i].step), yScale(visiblePoints[i].points[plotIndex]))
                                 }
                             })
                         }
@@ -187,13 +205,15 @@ class LinePlotter(
             }
         }
 
-        // updates ranges
+        // updates ranges (a scale change triggers a rebuild that already includes the new point)
         xMax = findNewXMax(xMax, x, xTick)
         yRange = range(findNewMin(yRange.min, newMin, yTick), findNewMax(yRange.max, newMax, yTick))
 
-        // update paths
-        for (i in plotPaths.indices) {
-            if (!hiddenPlots[i]) plotPaths[i].lineTo(xScale(x), yScale(ys[i]))
+        // update paths — skip when the rebuild above already contains the new point
+        if (x != lastBuildStep) {
+            for (i in plotPaths.indices) {
+                if (!hiddenPlots[i]) plotPaths[i].lineTo(xScale(x), yScale(ys[i]))
+            }
         }
         invalidate()
     }
@@ -204,6 +224,9 @@ class LinePlotter(
 
     fun renderRequest() {
         if (redraw) {
+            // clear the canvas so stale traces from the previous x scale don't remain
+            (canvas.getContext("2d") as? org.w3c.dom.CanvasRenderingContext2D)
+                ?.clearRect(0.0, 0.0, canvas.width.toDouble(), canvas.height.toDouble())
             visual.render()
             redraw = false
         }
