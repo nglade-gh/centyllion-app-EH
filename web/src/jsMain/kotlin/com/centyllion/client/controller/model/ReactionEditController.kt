@@ -9,7 +9,7 @@ import com.centyllion.model.Reaction
 import kotlin.properties.Delegates.observable
 
 class ReactionEditController(
-    reaction: Reaction, behaviour: Behaviour, model: GrainModel, page: BulmaPage, expertMode: Boolean,
+    reaction: Reaction, behaviour: Behaviour, model: GrainModel, page: BulmaPage,
     var onUpdate: (old: Reaction, new: Reaction, controller: ReactionEditController) -> Unit = { _, _, _ -> },
     var onDelete: (Reaction, controller: ReactionEditController) -> Unit = { _, _ -> }
 ) : Controller<Reaction, Pair<Behaviour, GrainModel>, Column> {
@@ -38,12 +38,6 @@ class ReactionEditController(
         if (old != new) {
             directionController.context = directionColors()
             sourceReactiveController.context = context
-        }
-    }
-
-    var expertMode: Boolean by observable(expertMode) { _, old, new ->
-        if (old != new) {
-            sourceReactiveController.hidden = !new
         }
     }
 
@@ -92,7 +86,7 @@ class ReactionEditController(
         onUpdate = { _, new, _ ->
             this.data = this.data.copy(sourceReactive = new)
         }
-    ).apply { hidden = !expertMode }
+    )
 
 
     val delete = iconButton(Icon("times", Size.Small), ElementColor.Danger, true, size = Size.Small)

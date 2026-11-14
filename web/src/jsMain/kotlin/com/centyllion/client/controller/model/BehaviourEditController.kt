@@ -2,7 +2,7 @@ package com.centyllion.client.controller.model
 
 import bulma.*
 import com.centyllion.client.controller.utils.EditableStringController
-import com.centyllion.client.controller.utils.collapsibleBlock
+import com.centyllion.client.controller.utils.blockTitle
 import com.centyllion.client.controller.utils.createHr
 import com.centyllion.client.controller.utils.editableDoubleController
 import com.centyllion.client.controller.utils.editorBox
@@ -58,11 +58,6 @@ class BehaviourEditController(
 
     var expertMode: Boolean by observable(expertMode) { _, old, new ->
         if (old != new) {
-            sourceHeader.hidden = !new
-            sourceReactiveController.hidden = !new
-            reactionsController.dataControllers
-                .filterIsInstance<ReactionEditController>()
-                .forEach { it.expertMode = new }
             refresh()
         }
     }
@@ -301,7 +296,6 @@ class BehaviourEditController(
     )
 
     val sourceHeader = Column(Help(page.i18n("Sources")), size = ColumnSize.S2)
-        .apply { hidden = !expertMode }
 
     val reactionHeader = listOf(
         // Header
@@ -337,7 +331,7 @@ class BehaviourEditController(
         header = reactionHeader,
         footer = emptyList(),
         controllerBuilder = { reaction, previous ->
-            previous ?: ReactionEditController(reaction, data, context, page, expertMode).also {
+            previous ?: ReactionEditController(reaction, data, context, page).also {
                 it.onUpdate = { old, new, _ ->
                     data = data.updateReaction(old, new)
                 }
@@ -433,25 +427,24 @@ class BehaviourEditController(
     ).apply { hidden = context.fields.isEmpty() }
 
     override val container = editorBox(page.i18n("Behaviour"), behaviourIcon,
-        // top block: general information (no title)
+        // top block: information
+        blockTitle(page.i18n("Misc")),
         HorizontalField(Label(page.i18n("Name")), nameController.container),
         HorizontalField(Label(page.i18n("Description")), descriptionController.container),
-        // middle block: predicates (collapsible)
+        // middle block: predicates (graphical in normal mode, formula in expert mode)
         HtmlWrapper(createHr().also { it.classList.add("centy-block-separator") }),
-        collapsibleBlock(page.i18n("Predicates"),
-            agePredicateLine,
-            fieldThresholdsGroup,
-            countPredicatesGroup,
-            formulaLine
-        ),
-        // bottom block: reactions and actions (collapsible)
+        blockTitle(page.i18n("Predicates")),
+        agePredicateLine,
+        fieldThresholdsGroup,
+        countPredicatesGroup,
+        formulaLine,
+        // bottom block: speed, field influences, reactions and actions (expert mode)
         HtmlWrapper(createHr().also { it.classList.add("centy-block-separator") }),
-        collapsibleBlock(page.i18n("Actions"),
-            HorizontalField(Label(page.i18n("Speed")), probabilityController.container),
-            fieldInfluencesGroup,
-            Label(page.i18n("Reactions")), reactionsController,
-            actionsLine
-        )
+        blockTitle("Reactions"),
+        HorizontalField(Label(page.i18n("Speed")), probabilityController.container),
+        fieldInfluencesGroup,
+        Label(page.i18n("Reactions")), reactionsController,
+        actionsLine
     )
 
     override fun refresh() {

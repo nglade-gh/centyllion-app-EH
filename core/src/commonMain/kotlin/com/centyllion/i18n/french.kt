@@ -147,6 +147,7 @@ object French: Locale {
         "reactive %0" -> "réactif %0"
         "Field thresholds" -> "Seuils des champs"
         "Field influences" -> "Influences des champs"
+        "Misc" -> "Information"
         "When age" -> "Avec l'âge"
         "Age" -> "Âge"
         "Reactions" -> "Réactions"
