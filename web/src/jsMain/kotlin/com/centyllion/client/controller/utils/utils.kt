@@ -47,25 +47,11 @@ fun editorBox(title: String, icon: String?, vararg body: BulmaElement) = Div(
 ).apply { root.style.display = "contents"}
 
 /**
- * A collapsible titled block: clicking the header (with a chevron icon)
- * toggles the visibility of its content.
+ * A static block title: centered, dark red, bold and underlined
+ * (styled by the .centy-block-title CSS class).
  */
-fun collapsibleBlock(title: String, vararg content: BulmaElement): Div {
-    val body = Div()
-    content.forEach { body.root.appendChild(it.root) }
-    val iconDown = Icon("chevron-down", Size.Small)
-    val iconUp = Icon("chevron-up", Size.Small).apply { hidden = true }
-    val header = Level(
-        left = listOf(Label(title).apply { root.classList.add("has-text-weight-bold") }),
-        right = listOf(iconDown, iconUp)
-    )
-    header.root.style.cursor = "pointer"
-    header.root.onclick = {
-        body.hidden = !body.hidden
-        iconDown.hidden = body.hidden
-        iconUp.hidden = !body.hidden
-    }
-    return Div(header, body)
+fun blockTitle(text: String): Div = Div(Label(text)).apply {
+    root.classList.add("centy-block-title")
 }
 
 

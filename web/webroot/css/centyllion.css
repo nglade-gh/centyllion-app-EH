@@ -11747,3 +11747,13 @@ hr.centy-block-separator {
     border-top: 2px solid #3273dc;
     opacity: 1;
 }
+
+/* Behaviour editor: block titles — centered, dark red, bold, underlined */
+.centy-block-title {
+    text-align: center;
+    color: #8b0000;
+    font-weight: bold;
+    text-decoration: underline;
+    font-size: 1.15rem;
+    margin: 0.5rem 0 0.75rem 0;
+}
