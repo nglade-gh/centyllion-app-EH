@@ -48,9 +48,10 @@ fun editorBox(title: String, icon: String?, vararg body: BulmaElement) = Div(
 
 /**
  * A static block title: centered, dark red, bold and underlined
- * (styled by the .centy-block-title CSS class).
+ * (styled by the .centy-block-title CSS class, applied to the label
+ * itself so it overrides Bulma's .label color).
  */
-fun blockTitle(text: String): Div = Div(Label(text)).apply {
+fun blockTitle(text: String): BulmaElement = Label(text).apply {
     root.classList.add("centy-block-title")
 }
 

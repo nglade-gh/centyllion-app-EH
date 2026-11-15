@@ -55,8 +55,6 @@ class ModelController(
 
     var expertMode: Boolean by observable(false) { _, old, new ->
         if (old != new) {
-            fieldsHeader.hidden = !new
-            fieldsController.hidden = !new
             fieldsChartsHeader.hidden = !new
             exportFieldCsvButton.hidden = !new
             fieldChart.hidden = !new
@@ -215,7 +213,7 @@ class ModelController(
         left = listOf(Icon(fieldIcon), Title(page.i18n("Fields"), TextSize.S4)),
         right = listOf(addFieldButton),
         mobile = true
-    ).apply { hidden = !expertMode }
+    )
 
     val fieldsController: MultipleController<Field, Unit, Columns, Column, Controller<Field, Unit, Column>> =
         noContextColumnsController(
@@ -235,7 +233,7 @@ class ModelController(
                     Column(controller.container, size = ColumnSize.Full)
                 }
             }
-        ).apply { hidden = !expertMode }
+        )
 
     val leftColumn = Column(
         searchController,
