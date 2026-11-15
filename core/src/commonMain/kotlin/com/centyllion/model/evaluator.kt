@@ -21,8 +21,14 @@ class NetbioDynEvaluator(
     /** Agent counts for the current position (grainId -> count) */
     var agentCounts: Map<Int, Int> = emptyMap()
 
+    /** Ages for the `age(n)` function, 0-based: index 0 is the main agent
+     *  (age 0 for generation behaviours), index k (k >= 1) is the neighbour
+     *  of reaction k. Formulas use the 1-based "reactive" numbering of the
+     *  age-inheritance column: age(1) = main agent, age(2) = first reaction. */
+    var ages: List<Int> = emptyList()
+
     /** Names of functions provided by this evaluator (in addition to [functions]) */
-    private val dynamicFunctions = setOf("agent", "field", "count")
+    private val dynamicFunctions = setOf("agent", "field", "count", "age")
 
     /** Names of variables provided by this evaluator (in addition to [variables]) */
     private val dynamicVariables = setOf("step", "x", "y", "z", "current")
@@ -69,6 +75,10 @@ class NetbioDynEvaluator(
         "count" -> {
             val grainId = args[0].int
             (agentCounts[grainId] ?: 0).v
+        }
+        "age" -> {
+            // 1-based: age(1) = main agent, age(2..N+1) = neighbours of the reactions
+            (ages.getOrNull(args[0].int - 1) ?: 0).v
         }
         else -> super.function(name, args)
     }

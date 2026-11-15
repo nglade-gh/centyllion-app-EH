@@ -364,7 +364,8 @@ count(1) > 2 && (count(2) == 1 || count(3) == 0)
 
 - Évalué dans `Behaviour.applicable()` à chaque pas pour chaque case
 - `count(grainId)` compte les voisins du type donné (les 8 cases adjacentes)
-- Les variables `step` (âge de l'agent, pas courant pour la génération spontanée) et `x`, `y`, `z` (coordonnées de la case) sont disponibles
+- Les variables `step` (étape courante de la simulation) et `x`, `y`, `z` (coordonnées de la case) sont disponibles
+- `age(n)` renvoie l'âge du réactif `n` : `1` = agent principal, `2` à `N+1` = voisins des réactions, même numérotation que la colonne "Sources" (héritage d'âge) ; `0` si le réactif n'existe pas
 - Les fonctions `field(id)` / `field(id, dx, dy)` (valeur du champ sur la case courante ou à un offset) et `agent(x, y)` (ID de l'agent en une position) sont disponibles : le simulateur passe l'état de la grille à `applicable()`
 - Le résultat doit être un **prédicat logique** (`true`/`false`) : `validatePredicateFormula` rejette toute formule non booléenne (par ex. `sin(step)`), ainsi que les ternaires aux branches de types différents
 - Validation automatique dans l'interface (champ "Predicate" + aide "Help") et dans `validation.kt` (propriété du problème : `Predicate`)
@@ -389,7 +390,7 @@ Add(0, 1, 0), Remove(1, 0, 0), Move(0, 0, 0, 1, 0), SetField(2, 0, 0, 0.5)
 | `ClearField(id, dx, dy)` | Remet la valeur du champ `id` à l'offset (dx, dy) à 0 |
 
 - Les offsets sont **relatifs à la case du comportement** et **toriques** (modulo, comme `moveIndex`)
-- Les arguments sont des expressions numériques évaluées dans le contexte de la case (`step`, `x`, `y`, `z`, `count(grainId)`, `field(id, dx, dy)`, fonctions mathématiques) ; `count` est compté sur l'état du début du pas, comme dans le prédicat
+- Les arguments sont des expressions numériques évaluées dans le contexte de la case (`step`, `age(n)`, `x`, `y`, `z`, `count(grainId)`, `field(id, dx, dy)`, fonctions mathématiques) ; `count` est compté sur l'état du début du pas, comme dans le prédicat ; `age(n)` suit la même numérotation que le prédicat
 - Parsing : `parseActionFormula()` ; validation : `validateActionFormula()` (propriété du problème : `Actions`)
 - Exécution : `ApplicableBehavior.apply()` → `applyActions()` dans `simulator.kt`
 
