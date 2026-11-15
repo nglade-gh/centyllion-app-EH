@@ -387,8 +387,8 @@ data class Behaviour(
      *
      * [simulator] provides the grid state so the condition formula can use
      * `field(id)`, `field(id, dx, dy)` and `agent(x, y)` at any position, in
-     * addition to `count(grainId)`, `step` and `x`/`y`/`z` (the [position] of
-     * the cell).
+     * addition to `count(grainId)`, `age(n)`, `step` (the current simulation
+     * step) and `x`/`y`/`z` (the [position] of the cell).
      */
     fun applicable(
         grain: Grain?, age: Int, fields: List<Pair<Int, Float>>,
@@ -420,7 +420,22 @@ data class Behaviour(
                 val counts = neighbours.groupingBy { it.second.reactiveId }.eachCount()
                 val evaluator = NetbioDynEvaluator(simulator)
                 evaluator.agentCounts = counts
-                evaluator.step = age.v
+                evaluator.step = simulator.step.v
+                // ages for age(n), 1-based "reactive" numbering (same as the
+                // age-inheritance column): [0] main agent (0 for generation
+                // behaviours), [1..] one entry per reaction. When a reaction
+                // has several matching neighbours, the first one in direction
+                // order is used (the actual one is chosen later, by random or
+                // field influence); no match (or out of range) -> 0.
+                val agesList = buildList {
+                    add(if (grain != null) age else 0)
+                    for (r in reaction) {
+                        add(neighbours.firstOrNull { (d, a) ->
+                            a.reactiveId == r.reactiveId && r.allowedDirection.contains(d)
+                        }?.second?.age ?: 0)
+                    }
+                }
+                evaluator.ages = agesList
                 evaluator.x = position.x.v
                 evaluator.y = position.y.v
                 evaluator.z = position.z.v

@@ -46,7 +46,9 @@ class ApplicableBehavior(
         }
 
         // applies actions (agent production/destruction/movement and field modifications)
-        simulator.applyActions(behaviour, index)
+        // ages for age(n), 1-based "reactive" numbering (same as ageForSource):
+        // index 0 = main agent, index k+1 = neighbour of reaction k
+        simulator.applyActions(behaviour, index, listOf(age) + usedNeighbours.map { it.age })
     }
 }
 
@@ -670,14 +672,20 @@ class Simulator(
      *
      * An action failing at runtime (e.g. a negative field id) is ignored:
      * invalid formulas are reported as model problems in the editor.
+     *
+     * [ages] provides the `age(n)` formula values, 1-based "reactive"
+     * numbering (same as the age-inheritance column): index 0 is the main
+     * agent (0 for generation behaviours), index k (k >= 1) is the neighbour
+     * of reaction k.
      */
-    fun applyActions(behaviour: Behaviour, index: Int) {
+    fun applyActions(behaviour: Behaviour, index: Int, ages: List<Int>) {
         val actions = actionsFor(behaviour)
         if (actions.isEmpty()) return
 
         val evaluator = expressionEvaluator
         val position = simulation.toPosition(index)
         evaluator.step = step.v
+        evaluator.ages = ages
         evaluator.x = position.x.v
         evaluator.y = position.y.v
         evaluator.z = position.z.v
@@ -691,7 +699,7 @@ class Simulator(
         evaluator.agentCounts = counts
 
         val targetAgents = if (parallelUpdate) nextAgents else agents
-        val targetAges = if (parallelUpdate) nextAges else ages
+        val targetAges = if (parallelUpdate) nextAges else this.ages
 
         for (action in actions) {
             try {

@@ -149,7 +149,8 @@ class BehaviourEditController(
         SubTitle(page.i18n("Formula Parameters")),
         Table(
             body = listOf(
-                helpLine("step", "Age of the agent (current step for spontaneous generation)"),
+                helpLine("step", "Current simulation step"),
+                helpLine("age(n)", "Age of reactive n (1 = main agent, 2 to N+1 = neighbours of the reactions, same numbering as age inheritance)"),
                 helpLine("x, y, z", "Position of the cell"),
             ),
             fullWidth = true, striped = true
@@ -188,7 +189,7 @@ class BehaviourEditController(
             body = listOf(
                 helpLine("count(0) >= 3", "At least 3 neighbours of agent 0"),
                 helpLine("count(0) >= 3 && count(0) < 5", "Between 3 and 4 neighbours of agent 0"),
-                helpLine("step >= 10 && count(1) == 0", "Age at least 10 and no neighbour of agent 1"),
+                helpLine("age(1) >= 10 && count(1) == 0", "Age at least 10 and no neighbour of agent 1"),
                 helpLine("count(0) > 3 && field(1) < 0.5", "At least 4 neighbours of agent 0 and field 1 below 0.5 on the cell"),
             ),
             fullWidth = true, striped = true
@@ -223,7 +224,15 @@ class BehaviourEditController(
             fullWidth = true, striped = true
         ),
         SubTitle(page.i18n("Arguments")),
-        p(page.i18n("Variables (step, x, y), count(grainId) and field(id, dx, dy) can be used in the arguments.")),
+        Table(
+            body = listOf(
+                helpLine("step", "Current simulation step"),
+                helpLine("age(n)", "Age of reactive n (1 = main agent, 2 to N+1 = neighbours of the reactions, same numbering as age inheritance)"),
+                helpLine("x, y, z", "Position of the behaviour cell"),
+            ),
+            fullWidth = true, striped = true
+        ),
+        p(page.i18n("Variables, count(grainId) and field(id, dx, dy) can also be used in the arguments.")),
         SubTitle(page.i18n("Order of reactions and actions")).apply {
             // the modal CSS cancels the subtitle's top margin: restore the line break
             root.style.marginTop = "1.5rem"
