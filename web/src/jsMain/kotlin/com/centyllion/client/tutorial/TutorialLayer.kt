@@ -49,6 +49,14 @@ class TutorialLayer<P: BulmaPage>(
     }
 
     fun start() {
+        // a layer can be restarted (conclusion -> next tutorial): drop its own
+        // previous widgets so they don't accumulate in the page
+        started = false
+        document.body?.let { body ->
+            if (body.contains(arrow.root)) body.removeChild(arrow.root)
+            if (body.contains(container.root)) body.removeChild(container.root)
+        }
+
         // creates a modal dialog to present the tutorial
         tutorial.page.modalDialog(
             tutorial.i18n("Tutorial '%0'", tutorial.i18n(tutorial.name)), tutorial.introduction,

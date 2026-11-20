@@ -107,7 +107,7 @@ centyllion-app/
 │       ├─ context.kt        # ClientEvent, AppContext
 │       ├─ PlotterController.kt
 │       ├─ plotter/          # PlotterController.kt, plotter.kt
-│       ├─ tutorial/         # BacteriasTutorial, FieldTutorial, TutorialLayer, ...
+│       ├─ tutorial/         # 5 tutoriels (débutant + expert), TutorialLayer, formulas.kt
 │       ├─ page/             # BulmaPage, ShowPage
 │       └─ controller/
 │           ├─ model/*.kt    # 20 contrôleurs de l'éditeur
@@ -498,8 +498,10 @@ Le code Kotlin/JS est compilé en **AMD modules** (`moduleKind = "amd"`), charge
 | `SimulationRunController.kt` | Contrôleur de la simulation : lecture complète, lecture, pas, settings, répercussion sur les charts. |
 | `PlotterController.kt` | Graphique via **data2viz** (LinePlotter) + Legende; `push(x, ys)`, `reset()`. |
 | `BulmaPage.kt` | Interface commune pour les écrans Bulma (modal, notification, erreur). |
-| `TutorialLayer.kt` | Tour du tutorial (étapes validation, navigation, conclusion). |
-| `BacteriasTutorial.kt` / `FieldTutorial.kt` | Tutoriels pas-à-pas de création de simulation. |
+| `TutorialLayer.kt` | Tour du tutorial (étapes, validation, navigation, conclusion) ; supprime ses widgets au redémarrage. |
+| `BacteriasTutorial.kt` / `FieldTutorial.kt` | Tutoriels débutants pas-à-pas (bactéries, champs). |
+| `GameOfLifeTutorial.kt` / `ActionsTutorial.kt` / `FieldFormulaTutorial.kt` | Tutoriels experts : `count(0)`, actions + `age(1)`, formule de champ animée. |
+| `formulas.kt` | Vérifications sémantiques des formules saisies dans les tutoriels experts. |
 
 ### 8.3 Contrôleurs de l'éditeur (`controller/model/`)
 
@@ -746,12 +748,22 @@ Le site `www.centyllion.com` sert :
 
 ## 12. Tutoriels (en ligne)
 
-Deux tutoriels interactifs sont intégrés :
+Le bouton **Tutorial** ouvre une boîte de dialogue contenant un **menu déroulant** (« Choisir un tutoriel ») : les noms des tutoriels sont longs, une liste de boutons serait tronquée. Le menu propose cinq tutoriels, en deux niveaux. Ils sont aussi enchaînés : la conclusion d'un tutoriel propose le suivant (`next`).
 
-- **BacteriasTutorial** : crée une bactérie, la déplace, ajoute une division (comportement) pour faire croître une colonie. (17 étapes)
-- **FieldTutorial** : ajoute un champ sucre, un grain source, un impact d'attraction et un seuil. (15 étapes)
+**Débutant**
 
-Chaque étape est une classe `TutorialStep` avec `title`, `content`, `selector` (éléments DOM à attendre), `validated` (condition booléenne) et `nextCallback` (action). `TutorialLayer` orchestre le succès et la navigation.
+- **BacteriasTutorial** : crée une bactérie, la déplace, ajoute une division (comportement) pour faire croître une colonie.
+- **FieldTutorial** : ajoute un champ sucre, un grain source, un impact d'attraction et un seuil.
+
+**Expert** (l'agent et la structure sont créés par `prepare()`, l'utilisateur écrit les formules)
+
+- **GameOfLifeTutorial** : le jeu de la vie de Conway avec `count(0)` — survie (`count(0) == 2 || count(0) == 3`), mort (`count(0) < 2 || count(0) > 3`, produit principal « aucun ») et naissance par génération spontanée (réactif principal « aucun », `count(0) == 3`). Recette vérifiée par `GameOfLifeTest` (clignotant de période 2, bloc stable, planeur translaté d'une case en 4 pas).
+- **ActionsTutorial** : un agent mobile laisse une piste (`Add(1, 0, 1)`) et la miette disparaît au bout de six pas (`age(1) > 5`, produit « aucun »). Vérifié par `ExpertRecipesTest`.
+- **FieldFormulaTutorial** : un champ piloté par `0.5 + 0.5 * sin(x / 10 + step / 5)` — gradient qui varie en espace et en temps. Vérifié par `ExpertRecipesTest`.
+
+Chaque étape est une classe `TutorialStep` avec `title`, `content`, `selector` (éléments DOM à attendre), `validated` (condition booléenne) et `nextCallback` (action). `TutorialLayer` orchestre le succès et la navigation et supprime ses widgets avant un redémarrage (`next` ou nouveau choix dans le menu).
+
+Les étapes des tutoriels experts ne comparent pas le texte tapé : `formulas.kt` (module web) évalue la formule avec un `NetbioDynEvaluator` autonome et vérifie sa **sémantique** (`matchesCountRule` : vraie pour 2 et 3 voisins, fausse pour 0, 1, 4, 5, 8 ; `matchesAgeRule` ; `actionAddsGrain` ; `isMovingGradient` : la valeur du champ doit varier à la fois en x et avec `step`). Toute formulation équivalente est donc acceptée.
 
 ---
 
@@ -772,6 +784,8 @@ Les tests couvrent notamment les nouvelles fonctionnalités de l'extension :
 - `testAgentCountPredicate` : comptage de voisins structuré
 - `testConditionExpression`, `testConditionExpressionFalse` : expressions de condition
 - `testParallelUpdate` : mise à jour parallèle vs séquentielle
+- `GameOfLifeTest` : recettes du jeu de la vie (clignotant, bloc, planeur, formule sans naissance)
+- `ExpertRecipesTest` : piste de miettes qui s'efface (`Add(1, 0, 1)` + `age(1) > 5`) et gradient de champ animé
 
 ---
 

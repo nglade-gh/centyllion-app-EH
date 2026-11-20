@@ -6,7 +6,12 @@ import com.centyllion.client.*
 import com.centyllion.client.controller.model.ModelController
 import com.centyllion.client.controller.utils.EditableStringController
 import com.centyllion.client.controller.utils.UndoRedoSupport
+import com.centyllion.client.tutorial.ActionsTutorial
 import com.centyllion.client.tutorial.BacteriasTutorial
+import com.centyllion.client.tutorial.FieldFormulaTutorial
+import com.centyllion.client.tutorial.FieldTutorial
+import com.centyllion.client.tutorial.GameOfLifeTutorial
+import com.centyllion.client.tutorial.Tutorial
 import com.centyllion.client.tutorial.TutorialLayer
 import com.centyllion.model.ModelAndSimulation
 import kotlinx.browser.window
@@ -187,10 +192,52 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         )
     }
 
-    fun startTutorial() {
-        // Activates tutorial
-        tutorialLayer = TutorialLayer(BacteriasTutorial(this)) { tutorialLayer = null }
+    private fun startTutorial(tutorial: Tutorial<ShowPage>) {
+        // stops the tutorial in progress (if any) before starting a new one,
+        // otherwise the previous layer stays in the page
+        tutorialLayer?.stop()
+        tutorialLayer = TutorialLayer(tutorial) { tutorialLayer = null }
         tutorialLayer?.start()
+    }
+
+    /**
+     * Tutorial menu: the two beginner tutorials (bacterias, fields) and the
+     * expert ones (Game of Life, actions, field formula). Each tutorial can also
+     * be reached from the conclusion of the previous one.
+     */
+    fun startTutorial() {
+        val beginner = i18n("Beginner")
+        val expert = i18n("Expert")
+        val entries: List<Pair<String, Tutorial<ShowPage>>> = listOf(
+            beginner to BacteriasTutorial(this),
+            beginner to FieldTutorial(this),
+            expert to GameOfLifeTutorial(this),
+            expert to ActionsTutorial(this),
+            expert to FieldFormulaTutorial(this)
+        )
+
+        // the tutorial names are long: a drop-down menu keeps the dialog readable
+        // (buttons would be truncated and push the dialog out of the window)
+        var dialog: ModalCard? = null
+        val choice = Dropdown(text = i18n("Choose a tutorial"), rounded = true).apply {
+            items = entries.map { (level, tutorial) ->
+                DropdownSimpleItem("$level — ${i18n(tutorial.name)}") {
+                    toggleDropdown()
+                    dialog?.active = false
+                    startTutorial(tutorial)
+                }
+            }
+        }
+
+        dialog = modalDialog(
+            i18n("Tutorials"),
+            listOf(
+                p(i18n("Choose a tutorial. The expert tutorials assume you already know how to create agents, behaviours and fields.")),
+                p(i18n("They are also chained: the conclusion of a tutorial proposes the next one.")),
+                choice
+            ),
+            Button(i18n("Close"), color = ElementColor.Primary) {}
+        )
     }
 
     fun setModel(model: ModelAndSimulation) {
