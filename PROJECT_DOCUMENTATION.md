@@ -748,7 +748,7 @@ Le site `www.centyllion.com` sert :
 
 ## 12. Tutoriels (en ligne)
 
-Le bouton **Tutorial** ouvre une boîte de dialogue contenant un **menu déroulant** (« Choisir un tutoriel ») : les noms des tutoriels sont longs, une liste de boutons serait tronquée. Le menu propose cinq tutoriels, en deux niveaux. Ils sont aussi enchaînés : la conclusion d'un tutoriel propose le suivant (`next`).
+Le bouton **Tutorial** ouvre une boîte de dialogue contenant une **liste déroulante native** (`<select>`, « Choisir un tutoriel ») : les noms des tutoriels sont longs et la liste est dessinée par le navigateur, donc jamais tronquée ni coupée par la fenêtre. Le corps de la boîte a une hauteur minimale de 200 px. La liste propose cinq tutoriels, en deux niveaux ; choisir une entrée ferme la boîte et ouvre l'introduction du tutoriel. Ils sont aussi enchaînés : la conclusion d'un tutoriel propose le suivant (`next`).
 
 **Débutant**
 

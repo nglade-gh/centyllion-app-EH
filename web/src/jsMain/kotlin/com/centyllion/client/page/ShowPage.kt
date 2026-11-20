@@ -16,6 +16,7 @@ import com.centyllion.client.tutorial.TutorialLayer
 import com.centyllion.model.ModelAndSimulation
 import kotlinx.browser.window
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.events.Event
 import org.w3c.dom.url.URLSearchParams
 import org.w3c.files.FileList
 import org.w3c.files.FileReader
@@ -216,16 +217,23 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
             expert to FieldFormulaTutorial(this)
         )
 
-        // the tutorial names are long: a drop-down menu keeps the dialog readable
-        // (buttons would be truncated and push the dialog out of the window)
+        // The tutorial names are long: a native <select> keeps the dialog readable
+        // (the list is drawn by the browser, so it can never be clipped by the
+        // modal) and the closed control stays compact.
+        val labels = listOf(i18n("Choose a tutorial")) + entries.map { (level, tutorial) ->
+            "$level — ${i18n(tutorial.name)}"
+        }
         var dialog: ModalCard? = null
-        val choice = Dropdown(text = i18n("Choose a tutorial"), rounded = true).apply {
-            items = entries.map { (level, tutorial) ->
-                DropdownSimpleItem("$level — ${i18n(tutorial.name)}") {
-                    toggleDropdown()
-                    dialog?.active = false
-                    startTutorial(tutorial)
-                }
+        val choice = Select(
+            options = labels.map { Option(it) },
+            rounded = true,
+            selectedIndex = 0
+        ) { _: Event, value: List<Option> ->
+            val index = labels.indexOfFirst { it == value.firstOrNull()?.value }
+            if (index in 1..entries.size) {
+                val tutorial = entries[index - 1].second
+                dialog?.active = false
+                startTutorial(tutorial)
             }
         }
 
@@ -238,6 +246,12 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
             ),
             Button(i18n("Close"), color = ElementColor.Primary) {}
         )
+
+        // comfortable height for the dialog (the browser draws the option list
+        // outside the card, so the entries are never clipped)
+        dialog?.root?.querySelector(".modal-card-body")?.let { body ->
+            (body as? HTMLElement)?.style?.setProperty("min-height", "200px")
+        }
     }
 
     fun setModel(model: ModelAndSimulation) {
