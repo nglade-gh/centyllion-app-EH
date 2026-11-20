@@ -26,13 +26,6 @@ repositories {
             password = grpToken
         }
     }
-    maven {
-        url = uri("https://maven.pkg.github.com/centyllion/babylon-kotlin")
-        credentials {
-            username = grpUser
-            password = grpToken
-        }
-    }
 
     maven { url = uri("https://maven.pkg.jetbrains.space/data2viz/p/maven/public") }
     maven { url = uri("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven") }
@@ -86,15 +79,8 @@ kotlin {
         jsMain {
             dependencies {
                 implementation(libs.bulma.kotlin)
-                implementation(libs.babylon.kotlin)
                 implementation(libs.bundles.data2viz)
                 implementation(libs.markdown)
-
-                /*
-                implementation(npm("babylonjs", "4.0.3", generateExternals = false))
-                implementation(npm("babylonjs-loaders", "4.0.3", generateExternals = false))
-                implementation(npm("babylonjs-materials", "4.0.3", generateExternals = false))
-                 */
             }
         }
 

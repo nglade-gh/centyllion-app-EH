@@ -8,7 +8,6 @@ coroutines = "1.8.0"
 postgresql = "42.6.0"
 kotlinx-html = "0.7.3"
 bulma-kotlin = "0.5"
-babylon-kotlin = "0.5.2"
 data2viz = "0.10.1"
 markdown = "0.5.2"
 evaluator = "1.1.1"
@@ -28,7 +27,6 @@ coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", ve
 evaluator = { module = "io.github.murzagalin:multiplatform-expressions-evaluator", version.ref = "evaluator" }
 kotlinx-html = { module = "org.jetbrains.kotlinx:kotlinx-html", version.ref = "kotlinx-html" }
 bulma-kotlin = { module = "com.centyllion:bulma-kotlin", version.ref = "bulma-kotlin"}
-babylon-kotlin = { module = "com.centyllion:babylon-kotlin", version.ref = "babylon-kotlin"}
 data2viz-core = { module = "io.data2viz.d2v:d2v-core", version.ref = "data2viz" }
 data2viz-color = { module = "io.data2viz.d2v:d2v-color", version.ref = "data2viz" }
 data2viz-scale = { module = "io.data2viz.d2v:d2v-scale", version.ref = "data2viz" }
