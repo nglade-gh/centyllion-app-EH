@@ -157,6 +157,19 @@ Quand : Agent_B > 3 AND Agent_C == 5
 
 - `agentCountPredicates` : liste de `AgentCountPredicate(grainId, op, count)`
 - Opérateurs : `=`, `!=`, `<`, `<=`, `>`, `>=`
+- Dans l'interface (mode normal), un prédicat « Nb voisins » est une ligne `Nb [type d'agent] [relation] [0..8] [×]` ajoutée par le bouton `+` ; « Tous les agents » correspond à `grainId = -1` (tout voisin occupé) et un type donné à `count(grainId)`
+
+### 4.2bis Prédicats graphiques (mode normal)
+
+Le bloc **Prédicats** de l'éditeur de comportement propose trois groupes de prédicats graphiques, chacun avec un bouton `+` pour ajouter une ligne, un bouton `Aide` contextuel et une corbeille par ligne :
+
+- **Âge de la simulation** (`Simulation age`) : lignes `[relation] [valeur entière]`. Chaque ligne porte sur l'âge de l'agent au pas courant (1 au premier pas de l'agent, 0 pour une génération spontanée).
+- **Seuils des champs** (`Field thresholds`, visible si le modèle a au moins un champ) : lignes `[champ] [relation] [valeur 0..1]` sur la valeur du champ dans la case du comportement.
+- **Nb voisins** (`Nb Neighbours`) : lignes `Nb [type d'agent] [relation] [0..8]`.
+
+**Toutes les lignes de tous les groupes sont combinées en ET** (et avec la formule de prédicat si elle est renseignée en mode expert) : le comportement ne s'applique que si chaque condition est vraie.
+
+Stockage : `Behaviour.agePredicates`, `Behaviour.fieldPredicates`, `Behaviour.agentCountPredicates`. Le prédicat unique historique `Behaviour.agePredicate` reste lu et évalué ; l'éditeur le replie dans la première ligne d'âge à l'ouverture (`migrateLegacyAgePredicate`), donc un ancien fichier reste utilisable et se normalise dès la première édition.
 
 ### 4.3 Expressions de condition
 
@@ -167,12 +180,13 @@ count(1) > 2 && (count(2) == 1 || count(3) == 0)
 ```
 
 - `count(grainId)` : nombre de voisins du type donné (les 8 cases adjacentes)
-- Variables : `step` (âge de l'agent), `x`, `y`, `z` (position)
+- Variables : `step` (étape courante de la simulation), `age(n)` (âge du réactif `n` : 1 = agent principal, 2 à N+1 = voisins des réactions, même numérotation que la colonne « Avec l'âge de »), `x`, `y`, `z` (position)
 - Opérateurs : `&&`, `||`, `!`, comparaisons, parenthèses
 - La formule doit être un **prédicat logique** (renvoyer `true`/`false`) : `sin(step)` est refusé par la validation
 - `field(id)` / `field(id, dx, dy)` (case courante ou offset) et `agent(x, y)` sont disponibles dans les formules de comportement
 - Validation automatique dans l'interface et dans le diagnostic du modèle
-- Dans l'interface, la ligne de formule est libellée **Predicate**
+- Dans l'interface, la ligne de formule est libellée **Predicate** (mode expert uniquement)
+- La formule est combinée en **ET** avec les prédicats graphiques du mode normal (âge, seuils de champs, nb voisins)
 
 ### 4.4 Mise à jour parallèle ou séquentielle
 
