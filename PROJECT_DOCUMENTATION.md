@@ -396,6 +396,16 @@ Add(0, 1, 0), Remove(1, 0, 0), Move(0, 0, 0, 1, 0), SetField(2, 0, 0, 0.5)
 
 ---
 
+### 6.6 Persistance : contrat de sauvegarde et compatibilité
+
+La sauvegarde (`.netbiodyn`) sérialise le **modèle**, indépendamment du mode d'édition : tout ce qui est saisi en mode normal (prédicat d'âge, seuils de champs, nb voisins avec grain, influences, héritage d'âge, réactions, `toric`, `boundaryConditions`) et en mode expert (formule de prédicat, liste d'actions) est écrit et relu à l'identique.
+
+- Couverture vérifiée par `core/src/commonTest/.../PersistenceTest.kt` : aller-retour d'un modèle complet (toutes les clés ci-dessus, `updatePlan` séquentiel, `settings`), avec ré-encodage identique au bit près, puis contrôle valeur par valeur ; second test : un fichier « ancien » (sans `formula`, `actions`, `fieldPredicates`, `agentCountPredicates`, `boundaryConditions`, `toric`) se charge avec les valeurs par défaut documentées et se ré-enregistre.
+- Valeurs par défaut **écrites explicitement** quand elles sont significatives : `sourceReactive = 0` (héritage d'âge), `reaction[].sourceReactive = 0`, `agentCountPredicates[].grainId = 0`, seuils de champs `>= 0` (l'objet `Predicate` n'a pas de valeur par défaut).
+- Compatibilité : une ancienne simulation reste chargeable par cette version. En revanche, un fichier produit ici n'est pas lisible par `centyllion-app` d'origine : son `Json` n'active pas `ignoreUnknownKeys` et rejette donc les clés ajoutées (`formula`, `actions`, `fieldPredicates`, `agentCountPredicates`, `toric`, `boundaryConditions`, `sourceReactive` de réaction). NISMA, lui, ignore les clés inconnues et préserve désormais toutes ces clés lors de ses propres sauvegardes.
+
+---
+
 ## 6bis. Génération spontanée et comptage de voisins
 
 ### Génération spontanée (None → Agent)
@@ -518,6 +528,7 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 - Les trois prédicats graphiques et la formule sont combinés en **ET** dans `applicable()`.
 - Le mode expert n'est imposé (`ModelAndSimulation.expert`) que si un comportement utilise une **formule de prédicat** ou une **liste d'actions** non vide : ces deux champs ne sont éditables qu'en mode expert. Les champs (création, seuils, influences), les prédicats graphiques et l'héritage d'âge sont accessibles dans les deux modes, donc la création d'un champ ne bascule plus en mode expert.
 - Sélecteur de grain du prédicat « Nb voisins » : « Tous les agents » (`grainId = -1`) ou un grain précis (équivalent de `count(grainId)`).
+- Le graphique des champs et l'export CSV des champs (`fields.csv`) sont disponibles dans **les deux modes** ; ils n'apparaissent que si le modèle contient au moins un champ (le graphique des agents occupe alors 40 % de la hauteur, 80 % sinon).
 
 ### 8.4 Graphiques (Plotter) et 3D
 
