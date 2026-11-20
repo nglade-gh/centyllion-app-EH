@@ -158,7 +158,7 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `fieldProductions` : `Map<Int,Float>` → pour chaque champ, quantité produite (positif ou négatif)
 - `fieldInfluences` : `Map<Int,Float>` → influence (de -1 à 1) d'un champ voisin sur le comportement
 - `fieldPermeable` : `Map<Int,Float>` → perméabilité du grain pour chaque champ (0..1)
-- `boundaryConditions` : `BoundaryConditions(left, right, top, bottom)` → autorisation par paroi de traverser la bordure du plateau (retour torique). Défaut : `true` partout (torique dans les 4 directions). L'asymétrie est autorisée : `left=false, right=true` signifie qu'un agent du bord gauche ne traverse pas la paroi gauche en allant à gauche, tandis qu'un agent du bord droit traverse la paroi droite en allant à droite (vérification `BoundaryConditions.crossed(position, direction, width, height)`). Éditable en mode expert uniquement (4 interrupteurs entre *Movement* et *Fields*).
+- `boundaryConditions` : `BoundaryConditions(left, right, top, bottom)` → autorisation par paroi de traverser la bordure du plateau (retour torique). Défaut : `true` partout (torique dans les 4 directions). L'asymétrie est autorisée : `left=false, right=true` signifie qu'un agent du bord gauche ne traverse pas la paroi gauche en allant à gauche, tandis qu'un agent du bord droit traverse la paroi droite en allant à droite (vérification `BoundaryConditions.crossed(position, direction, width, height)`). Éditable dans **les deux modes** (4 interrupteurs entre *Movement* et *Fields*).
 
 > `Grain.moveBehaviour()` génère un `Behaviour` "déplacement" si `movementProbability > 0 && allowedDirection non vide`.
 
@@ -170,7 +170,7 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `speed` (0..1) → vitesse de diffusion
 - `halfLife` (0 = pas de décroissance) → décroissance naturelle du champ
 - `allowedDirection` → directions de diffusion
-- `toric` : `Boolean` (défaut `true`) → bordure torique du champ ; `false` = bordure **imperméable** : la diffusion ne traverse pas les bords de la grille (« best effort », sans solveur numérique dédié). Éditable en mode expert (interrupteur *Toric*).
+- `toric` : `Boolean` (défaut `true`) → bordure torique du champ ; `false` = bordure **imperméable** : la diffusion ne traverse pas les bords de la grille (« best effort », sans solveur numérique dédié). Éditable dans les deux modes (interrupteur *Toric*).
 - `formula` → chaîne d'expression permettant de **calculer la valeur du champ** à partir de `step`, `x`, `y`, `z`, `current` et des fonctions `field(id)`, `field(id, dx, dy)`, `agent(x, y)`, `count(grainId)`. La formule doit renvoyer un nombre (vérifié par `validateNumericFormula`). Exemple : `count(0) > 2 ? current * 0.95 : current`.
 
 ### 4.3 Behaviour (comportement)

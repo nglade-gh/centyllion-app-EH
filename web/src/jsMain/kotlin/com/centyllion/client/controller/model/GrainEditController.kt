@@ -180,7 +180,7 @@ class GrainEditController(
         Label(page.i18n("Boundary conditions")),
         BField(boundaryLeftSwitch, boundaryRightSwitch, grouped = true),
         BField(boundaryTopSwitch, boundaryBottomSwitch, grouped = true),
-    ).apply { hidden = !expertMode }
+    )
 
     val fieldSeparator = HtmlWrapper(createHr()).apply {
         hidden = context.fields.isEmpty()
@@ -252,7 +252,6 @@ class GrainEditController(
 
         fieldSeparator.hidden = context.fields.isEmpty()
         fieldControls.hidden = context.fields.isEmpty()
-        boundaryConditionsGroup.hidden = !expertMode
     }
 
 }
