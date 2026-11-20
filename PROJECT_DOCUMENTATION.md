@@ -494,7 +494,7 @@ Le code Kotlin/JS est compilé en **AMD modules** (`moduleKind = "amd"`), charge
 | `index.kt` | Point d'entrée ; instancie `Api`, `BrowserContext`, `ShowPage`, injecte le DOM. |
 | `Api.kt` | Client HTTP via `XMLHttpRequest` ; methods : `searchQuery`, `simulationGet`, `fetchVersion`. |
 | `ShowPage.kt` | Page principale : en-tête (nom, boutons nouvelle/export/import/tutoriel, mode expert), contrôle du modèle, sauvegarde en localStorage, gestion des tutoriels. |
-| `ModelController.kt` | Contrôleur de la page modèle : liste grains/comportements/champs, recherche, édition, graphiques. |
+| `ModelController.kt` | Contrôleur de la page modèle : liste grains/comportements/champs (chaque section se replie indépendamment via son chevron), recherche, édition, graphiques. |
 | `SimulationRunController.kt` | Contrôleur de la simulation : lecture complète, lecture, pas, settings, répercussion sur les charts. |
 | `PlotterController.kt` | Graphique via **data2viz** (LinePlotter) + Legende; `push(x, ys)`, `reset()`. |
 | `BulmaPage.kt` | Interface commune pour les écrans Bulma (modal, notification, erreur). |
@@ -507,7 +507,7 @@ Le code Kotlin/JS est compilé en **AMD modules** (`moduleKind = "amd"`), charge
 
 Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base, et gère un élément UI bulma (input, button, slider, etc.) généré à partir d'un élément du modèle. Ils utilisent le pattern : "observer vers `data` (valeur du modèle)", "modifier `data` via `onUpdate`".
 
-- `ModelController.kt` : racine de la page modèle ; orchestre les contrôleurs enfants ; gère la recherche (`SearchController`), l'export CSV, les graphiques.
+- `ModelController.kt` : racine de la page modèle ; orchestre les contrôleurs enfants ; gère la recherche (`SearchController`), l'export CSV, les graphiques, et le repli indépendant des trois sections (`sectionHeader`) — ajouter un élément déplie sa section.
 - `SimulationRunController.kt` : contrôle la lecture complète (play/stop, pas, slider de vitesse, settings), appelle `simulator.oneStep()` et met à jour les graphs.
 - `GrainEditController.kt`, `FieldEditController.kt`, `BehaviourEditController.kt` : édition détaillée des grains, champs et comportements.
 - `FieldSelectController.kt`, `FieldChangeController.kt`, `FieldDisplayController.kt` : sélection/affichage/suppression de champs.

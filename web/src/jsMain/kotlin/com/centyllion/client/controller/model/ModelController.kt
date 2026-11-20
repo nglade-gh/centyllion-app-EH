@@ -246,12 +246,6 @@ class ModelController(
             }
         }
 
-    val fieldsHeader = Level(
-        left = listOf(Icon(fieldIcon), Title(page.i18n("Fields"), TextSize.S4)),
-        right = listOf(addFieldButton),
-        mobile = true
-    )
-
     val fieldsController: MultipleController<Field, Unit, Columns, Column, Controller<Field, Unit, Column>> =
         noContextColumnsController(
             initialList = data.model.fields,
@@ -272,19 +266,51 @@ class ModelController(
             }
         )
 
+    /**
+     * Section header of the editor (agents, behaviours, fields) with a fold
+     * chevron. The three sections fold independently, so dozens of behaviours
+     * don't force long scrolls to reach the agents or the fields. Adding an
+     * element unfolds the section so the new row stays visible.
+     */
+    private fun sectionHeader(icon: String, title: String, content: BulmaElement, add: Button): Level {
+        val chevron = Icon("chevron-up", Size.Small)
+
+        fun apply(collapsed: Boolean) {
+            content.hidden = collapsed
+            // only swap the direction class: keep Bulma's size classes (fa-sm…)
+            chevron.root.querySelector("i")?.classList?.let { classes ->
+                classes.remove(if (collapsed) "fa-chevron-up" else "fa-chevron-down")
+                classes.add(if (collapsed) "fa-chevron-down" else "fa-chevron-up")
+            }
+        }
+
+        val toggle = iconButton(chevron, ElementColor.None, rounded = true, size = Size.Small) {
+            apply(!content.hidden)
+        }
+
+        // the section is unfolded when a new element is added
+        val addAction = add.onClick
+        add.onClick = { button ->
+            addAction?.invoke(button)
+            apply(false)
+        }
+
+        return Level(
+            left = listOf(Icon(icon), Title(page.i18n(title), TextSize.S4)),
+            right = listOf(toggle, add),
+            mobile = true
+        )
+    }
+
+    val grainsHeader = sectionHeader(grainIcon, "Grains", grainsController, addGrainButton)
+    val behavioursHeader = sectionHeader(behaviourIcon, "Behaviours", behavioursController, addBehaviourButton)
+    val fieldsHeader = sectionHeader(fieldIcon, "Fields", fieldsController, addFieldButton)
+
     val leftColumn = Column(
         searchController,
-        Level(
-            left = listOf(Icon(grainIcon), Title(page.i18n("Grains"), TextSize.S4)),
-            right = listOf(addGrainButton),
-            mobile = true
-        ),
+        grainsHeader,
         grainsController,
-        Level(
-            left = listOf(Icon(behaviourIcon), Title(page.i18n("Behaviours"), TextSize.S4)),
-            right = listOf(addBehaviourButton),
-            mobile = true
-        ),
+        behavioursHeader,
         behavioursController,
         fieldsHeader,
         fieldsController,
