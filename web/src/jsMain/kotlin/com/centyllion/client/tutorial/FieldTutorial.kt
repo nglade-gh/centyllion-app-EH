@@ -159,5 +159,5 @@ class FieldTutorial(
         }
     )
 
-    override val next: Tutorial<ShowPage>? = null
+    override val next: Tutorial<ShowPage> get() = GameOfLifeTutorial(page)
 }
