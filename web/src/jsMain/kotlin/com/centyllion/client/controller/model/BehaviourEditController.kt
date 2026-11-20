@@ -50,6 +50,7 @@ class BehaviourEditController(
             sourceReactiveController.context = data to context
             reactionsController.context = data to context
             fieldPredicatesController.context = context.fields
+            countPredicatesController.context = context.grains
             fieldInfluencesController.context = context.fields
             fieldInfluencesController.data = context.fields.map { it.id to (data.fieldInfluences[it.id] ?: 0f) }
             refresh()
@@ -291,7 +292,7 @@ class BehaviourEditController(
         onUpdate = { _, new, _ ->
             this.data = this.data.copy(sourceReactive = new)
         }
-    ).apply { hidden = !expertMode }
+    )
 
     val addReactionButton = iconButton(Icon("plus", Size.Small), ElementColor.Primary, true, size = Size.Small) {
         val newReaction = Reaction()
@@ -403,13 +404,14 @@ class BehaviourEditController(
         this.data = data.copy(agentCountPredicates = data.agentCountPredicates + predicate)
     }
 
-    val countPredicatesController = noContextColumnsController(data.agentCountPredicates) { predicate, previous ->
-        previous ?: CountPredicateController(
-            page.appContext.locale, predicate,
-            { old, new, _ -> if (old != new) this.data = data.updateAgentCountPredicate(old, new) },
-            { delete, _ -> this.data = data.dropAgentCountPredicate(delete) }
-        )
-    }
+    val countPredicatesController: MultipleController<AgentCountPredicate, List<Grain>, Columns, Column, CountPredicateController> =
+        columnsController(data.agentCountPredicates, context.grains) { predicate, previous ->
+            previous ?: CountPredicateController(
+                page.appContext.locale, predicate, context.grains,
+                { old, new, _ -> if (old != new) this.data = data.updateAgentCountPredicate(old, new) },
+                { delete, _ -> this.data = data.dropAgentCountPredicate(delete) }
+            )
+        }
 
     val countPredicatesGroup = Column(
         Level(

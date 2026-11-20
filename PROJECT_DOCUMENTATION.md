@@ -421,6 +421,7 @@ Agent_B > 3 AND Agent_C == 5
 ```
 
 - `AgentCountPredicate(grainId, op, count)` avec opérateurs `=`, `!=`, `<`, `<=`, `>`, `>=`
+- `grainId < 0` compte **tous les agents** ; `grainId >= 0` ne compte que ce grain (équivalent de `count()` / `count(grainId)` dans une formule de prédicat)
 - Évalué dans `Behaviour.applicable()` via `neighbours.count { it.second.reactiveId == p.grainId }`
 
 ---
@@ -497,6 +498,26 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 - `BehaviourDisplayController.kt`, `ReactionEditController.kt`, `FieldPredicateController.kt`, `FloatPredicateController.kt`, `IntPredicateController.kt`, `SourceReactiveSelectController.kt`, `DirectionController.kt`, `ColorSelectController.kt`, `IconSelectController.kt`, `SimulationSettingsController.kt`, `Simulator3dViewController.kt` : sous-composants détaillés.
 - `ModelSearchController.kt` : recherche de modèles sur le serveur.
 - `SearchController.kt`, `UndoRedoSupport.kt`, `stringControllers.kt` (utils).
+
+### 8.3bis Éditeur de comportement : modes normal et expert
+
+`BehaviourEditController` présente trois blocs (Information / Prédicats / Réactions) séparés par des lignes bleues, avec titres centrés en rouge foncé.
+
+| Élément | Mode normal | Mode expert |
+|---|---|---|
+| Nom, description | oui | oui |
+| Prédicat graphique d'âge (« Avec l'âge ») | oui | — |
+| Prédicat graphique « Seuils des champs » (si au moins un champ existe) | oui | — |
+| Prédicat graphique « Nb voisins » (grain + relation + valeur 0..8) | oui | — |
+| Formule de prédicat (+ aide) | — | oui |
+| Vitesse | oui | oui |
+| Influences des champs (si au moins un champ existe) | oui | oui |
+| Réactions + colonne « Avec l'âge de » (héritage d'âge) | oui | oui |
+| Formule d'actions (+ aide) | — | oui |
+
+- Les trois prédicats graphiques et la formule sont combinés en **ET** dans `applicable()`.
+- Le mode expert n'est imposé (`ModelAndSimulation.expert`) que si un comportement utilise une **formule de prédicat** ou une **liste d'actions** non vide : ces deux champs ne sont éditables qu'en mode expert. Les champs (création, seuils, influences), les prédicats graphiques et l'héritage d'âge sont accessibles dans les deux modes, donc la création d'un champ ne bascule plus en mode expert.
+- Sélecteur de grain du prédicat « Nb voisins » : « Tous les agents » (`grainId = -1`) ou un grain précis (équivalent de `count(grainId)`).
 
 ### 8.4 Graphiques (Plotter) et 3D
 

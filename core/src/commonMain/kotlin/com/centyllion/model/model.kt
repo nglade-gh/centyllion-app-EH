@@ -847,19 +847,15 @@ data class ModelAndSimulation(
     }
 
     /**
-     * Model needs expert mode if:
-     * - there are no fields,
-     * - no age predicate is specified for any behaviour and
-     * - no reaction allows to keep the age of one reactive.
+     * Model needs expert mode if a behaviour uses a raw predicate formula or a raw
+     * list of actions: these are only editable in expert mode.
+     *
+     * Fields (creation, field thresholds predicate, field influences), the age
+     * predicate, the neighbour count predicates (with their grain) and the age
+     * inheritance are editable in normal mode too, so they do not force expert mode.
      */
     val expert: Boolean
-        get() = model.fields.isNotEmpty() ||
-                model.behaviours.any { behaviour ->
-                    behaviour.agePredicate.op != Operator.GreaterThanOrEquals ||
-                    behaviour.agePredicate.constant != 0 ||
-                    behaviour.sourceReactive != 0 ||
-                    behaviour.reaction.any { it.sourceReactive >= 0 }
-                }
+        get() = model.behaviours.any { it.formula.isNotBlank() || it.actions.isNotBlank() }
 
     fun updateInfo(name: String = model.name, description: String = model.description): ModelAndSimulation = copy(
         model = model.copy(name = name, description = description)

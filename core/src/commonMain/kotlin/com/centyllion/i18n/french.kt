@@ -154,6 +154,7 @@ object French: Locale {
         "Predicates" -> "Prédicats"
         "Nb Neighbours" -> "Nb voisins"
         "Nb" -> "Nb"
+        "All agents" -> "Tous les agents"
         "Action list" -> "Liste d'actions"
         "Url" -> "Url"
         "Position (x,y,z)" -> "Position (x,y,z)"
