@@ -14,6 +14,9 @@
 |---|---|
 | **Génération spontanée** | `mainReactiveId = -1` : un comportement peut créer un agent sur une case vide (`None → Agent`) |
 | **Compteurs de voisins** | `agentCountPredicates` : conditions sur le nombre de voisins d'un type (`Agent_B > 3`) |
+| **Prédicats graphiques** | En mode normal : lignes « Âge de la simulation » (`agePredicates`), « Seuils des champs » (`fieldPredicates`) et « Nb voisins » (`agentCountPredicates`, avec choix du type), toutes combinées en **ET** ; chaque groupe a son bouton `Aide` (voir §8.3bis) |
+| **Actions de comportement** | `actions` : `Add`, `Remove`, `Move`, `SetField`, `AddField`, `ClearField`, exécutées après les réactions (voir §6.5) |
+| **Formules de comportement** | `formula` avec `step` (étape courante), `age(n)` (âge du réactif n), `count`, `field`, `agent` (voir §6.4) |
 | **Expressions de condition** | `formula` : expressions logiques avec parenthèses et opérateurs (`count(1) > 2 && count(2) == 1`) |
 | **Mise à jour parallèle** | `Simulation.parallelUpdate` (défaut) : calculs depuis l'état initial du pas, adapté aux automates cellulaires |
 | **Conditions aux limites** | `boundaryConditions` par grain (4 parois toriques/imperméables) et `toric` par champ ; défaut torique partout, asymétrie autorisée (voir §4, §10) |
@@ -530,6 +533,7 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 - Les trois prédicats graphiques et la formule sont combinés en **ET** dans `applicable()`.
 - Le mode expert n'est imposé (`ModelAndSimulation.expert`) que si un comportement utilise une **formule de prédicat** ou une **liste d'actions** non vide : ces deux champs ne sont éditables qu'en mode expert. Les champs (création, seuils, influences), les prédicats graphiques et l'héritage d'âge sont accessibles dans les deux modes, donc la création d'un champ ne bascule plus en mode expert.
 - Sélecteur de grain du prédicat « Nb voisins » : « Tous les agents » (`grainId = -1`) ou un grain précis (équivalent de `count(grainId)`).
+- Chaque groupe de prédicats graphiques a un bouton **Aide** qui ouvre une aide contextuelle (sémantique du prédicat, règle du ET, exemples) ; l'aide de la formule de prédicat rappelle que les prédicats graphiques sont aussi évalués (ET).
 - Le graphique des champs et l'export CSV des champs (`fields.csv`) sont disponibles dans **les deux modes** ; ils n'apparaissent que si le modèle contient au moins un champ (le graphique des agents occupe alors 40 % de la hauteur, 80 % sinon).
 
 ### 8.4 Graphiques (Plotter) et 3D

@@ -127,6 +127,54 @@ class BehaviourEditController(
         }
     )
 
+    // ---- contextual help of the three graphical predicates (normal mode) ----
+
+    private fun helpButton(title: String, sections: List<BulmaElement>) = Button(
+        page.i18n("Help"), size = Size.Small, color = ElementColor.Info
+    ) {
+        page.modalDialog(page.i18n(title), sections, Button(page.i18n("Close"), color = ElementColor.Primary) {})
+    }
+
+    val agePredicateHelp = Section(
+        p(page.i18n("Each line is a condition on the age of the agent at the current step: 1 at the agent's first step, 0 for a spontaneous generation (there is no agent yet).")),
+        p(page.i18n("All the lines must be true at the same time (AND). They are also ANDed with the field thresholds, with the neighbour counts and, in expert mode, with the predicate formula.")),
+        SubTitle(page.i18n("Examples")),
+        Table(
+            body = listOf(
+                helpLine(">= 10", "The agent must have existed for at least 10 steps"),
+                helpLine(">= 10 then <= 20", "The behaviour applies only between the 10th and the 20th step of the agent"),
+                helpLine("!= 5", "Every age except 5"),
+            ),
+            fullWidth = true, striped = true
+        )
+    )
+
+    val fieldThresholdsHelp = Section(
+        p(page.i18n("Each line compares the value of a field on the behaviour cell (between 0 and 1, read at the start of the step) with a threshold.")),
+        p(page.i18n("All the lines must be true at the same time (AND). They are also ANDed with the simulation age lines, with the neighbour counts and, in expert mode, with the predicate formula.")),
+        SubTitle(page.i18n("Example")),
+        Table(
+            body = listOf(
+                helpLine("sugar > 0.3", "The behaviour applies only if the sugar field on the cell is above 0.3"),
+            ),
+            fullWidth = true, striped = true
+        )
+    )
+
+    val countPredicatesHelp = Section(
+        p(page.i18n("Each line counts the neighbours of the chosen type among the 8 adjacent cells (0 to 8) and compares that count with the value.")),
+        p(page.i18n("'All agents' counts every occupied neighbour cell; a chosen agent type counts only that type (same as count(grainId) in a formula).")),
+        p(page.i18n("All the lines must be true at the same time (AND), like the simulation age lines and the field thresholds.")),
+        SubTitle(page.i18n("Example")),
+        Table(
+            body = listOf(
+                helpLine("Nb A >= 3", "At least 3 neighbours of type A"),
+                helpLine("Nb all agents == 0", "No occupied neighbour cell at all"),
+            ),
+            fullWidth = true, striped = true
+        )
+    )
+
     val addAgePredicateButton = iconButton(Icon("plus", Size.Small), ElementColor.Primary, true, size = Size.Small) {
         val predicate = Predicate(Operator.GreaterThanOrEquals, 0)
         this.data = data.copy(agePredicates = data.agePredicates + predicate)
@@ -143,7 +191,7 @@ class BehaviourEditController(
     val agePredicatesGroup = Column(
         Level(
             left = listOf(Label(page.i18n("Simulation age"))),
-            right = listOf(addAgePredicateButton)
+            right = listOf(helpButton("Simulation age", listOf(agePredicateHelp)), addAgePredicateButton)
         ),
         agePredicatesController,
         size = ColumnSize.Full
@@ -157,6 +205,7 @@ class BehaviourEditController(
     val formulaHelp = Section(
         p(page.i18n("Evaluated for each agent that could apply the behaviour.")),
         p(page.i18n("The formula must be a logical predicate returning true or false. Any other value (e.g. sin(step)) makes the behaviour never applicable.")),
+        p(page.i18n("The graphical predicates entered in normal mode (simulation age lines, field thresholds and neighbour counts) are also evaluated: the behaviour applies only if they are all true AND the formula is true. Remove the graphical lines to let the formula alone decide.")),
         SubTitle(page.i18n("Formula Parameters")),
         Table(
             body = listOf(
@@ -426,7 +475,7 @@ class BehaviourEditController(
     val countPredicatesGroup = Column(
         Level(
             left = listOf(Label(page.i18n("Nb Neighbours"))),
-            right = listOf(addCountPredicateButton)
+            right = listOf(helpButton("Nb Neighbours", listOf(countPredicatesHelp)), addCountPredicateButton)
         ),
         countPredicatesController,
         size = ColumnSize.Full
@@ -435,7 +484,7 @@ class BehaviourEditController(
     val fieldThresholdsGroup = Column(
         Level(
             left = listOf(Label(page.i18n("Field thresholds"))),
-            right = listOf(addFieldPredicateButton)
+            right = listOf(helpButton("Field thresholds", listOf(fieldThresholdsHelp)), addFieldPredicateButton)
         ),
         fieldPredicatesController,
         size = ColumnSize.Full
