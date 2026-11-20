@@ -33,7 +33,7 @@ Voir le [README.md](README.md) pour l'installation et l'exécution.
 
 L'application est accessible en ligne et s'ouvre sous deux formes :
 
-- **Web** : navigateur (compilation Kotlin/JS, interface Bulma + data2viz + Babylon.js pour la 3D).
+- **Web** : navigateur (compilation Kotlin/JS, interface Bulma + data2viz ; vue de simulation en canvas 2D).
 - **Bureau (Compose Multiplatform)** : application JavaFX/Swing (package `com.centyllion.ui.NetbiodynKt`).
 
 Le code source est partagé entre un module `core` (logique métier, multi-platforme `jvm`, `js`, `wasmJs`) et deux modules d'interface :
@@ -53,7 +53,7 @@ Le code source est partagé entre un module `core` (logique métier, multi-platf
 │  ├─ compose:shared/ │ Compose Multiplatform : UI ui (jvm,    │
 │  │                 │ wasmJs, js)                               │
 │  ├─ web/            Kotlin/JS : interface navigateur bulma    │
-│  │                 │ + 3D (Babylon.js, data2viz)              │
+│  │                 │ + canvas 2D, data2viz                     │
 │  ├─ db/             JVM : serveur Ktor REST + SQLDelight      │
 │  └─ settings.gradle.kts (4 sous-projets)                       │
 └──────────────────────────────────────────────────────────────┘
@@ -64,7 +64,7 @@ Le code source est partagé entre un module `core` (logique métier, multi-platf
 | Module | Type | Cibles | Principal |
 |--------|------|--------|-----------|
 | `:core` | kotlin-multiplatform | jvm, js, (wasm via composeShared) | Modèle, simulateur, expression, i18n |
-| `:web` | kotlin-multiplatform | js | Interface web (Bulma, Babylon.js, data2viz) |
+| `:web` | kotlin-multiplatform | js | Interface web (Bulma, data2viz, canvas 2D) |
 | `:compose:shared` | kotlin-multiplatform | jvm, wasmJs | Interface Compose (bureau + WASM) |
 | `:db` | kotlin-multiplatform | jvm | Serveur Ktor REST + DB SQLDelight |
 
@@ -536,10 +536,11 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 - Chaque groupe de prédicats graphiques a un bouton **Aide** qui ouvre une aide contextuelle (sémantique du prédicat, règle du ET, exemples) ; l'aide de la formule de prédicat rappelle que les prédicats graphiques sont aussi évalués (ET).
 - Le graphique des champs et l'export CSV des champs (`fields.csv`) sont disponibles dans **les deux modes** ; ils n'apparaissent que si le modèle contient au moins un champ (le graphique des agents occupe alors 40 % de la hauteur, 80 % sinon).
 
-### 8.4 Graphiques (Plotter) et 3D
+### 8.4 Graphiques (Plotter) et vue de simulation 2D
 
 - **data2viz** (`plotter/`) : tracé des courbes (nombre de grains, quantité de champs) dans `Plotter` (Canvas Skia) avec axes, ticks et courbes coloriées.
-- **Babylon.js** (`controller/model/Simulator3dViewController.kt` ≥ 3000 L) : visualisation 3D du plateau de simulation virtuel, avec : maillage du sol, support de champs, maillages des grains (boîtes/cercles selon icône), outils de dessin (stylo, ligne, carré, pistil, gomme), camera ArcRotate, rendu en boucle, screenshots, textures GLTF pour les assets.
+- **Vue de simulation** (`controller/model/SimulatorViewController.kt`) : vue de dessus en canvas 2D, **sans 3D ni éclairage**. Un buffer hors écran de la taille de la grille (1 pixel = 1 cellule) reçoit les agents (couleur du grain, aplats stricts) puis la couche des champs (alpha identique à l'ancienne texture 3D) ; il est ensuite agrandi en `imageSmoothingEnabled = false` dans le canvas affiché (backing store en pixels de périphérique, `devicePixelRatio`), sur lequel sont tracés la grille et l'aperçu du pinceau. Outils conservés : stylo, ligne, carré, spray, gomme, déplacement (panoramique) ; zoom molette ×0,25 à ×16 ; bouton plein écran ; vignettes/captures par `canvas.toDataURL` / `toBlob`. Les grains masqués (case à cocher) et les champs masqués sont rendus en couleur de fond. Les clés `simulation.assets` et `settings.gridTextureUrl` restent dans le modèle (compatibilité) mais ne sont plus rendues.
+- Coût mesuré sur `coeur` (8 694 agents, grille 100×100) : ~0,5 ms par repeint, contre ~31 ms par rendu de scène Babylon et 17 404 maillages ; débit en lecture ≈ 7 pas/s contre ≈ 1,8 pas/s (même modèle, même machine). Bundle JS : 806 Ko contre 3,5 Mo.
 
 ---
 
@@ -579,7 +580,7 @@ Les contrôleurs Ktor sont : `Server.kt` (routing), `main.kt` (clikt : `centylli
 - **SQLDelight** : `2.0.1` (dialect postgresql).
 - **Ktor** : `2.3.6` (server core, cio, content-negotiation, serialization, cors, calllog).
 - **Bulma-kotlin** : `0.5` (UI).
-- **Babylon-kotlin** : `0.5.2` (3D).
+
 - **data2viz** : `0.10.1` (plotting).
 - **Font Awesome** : `1.1.1`.
 - **FileKit** : `0.8.8` (choix de fichiers).
@@ -719,7 +720,7 @@ JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE" xvfb-run -a ./gradlew :compose:sh
 | `xvfb-run -a` | Crée un serveur X virtuel éphémère |
 | `-Dskiko.renderApi=SOFTWARE` | Force le rendu logiciel Skia (pas de GPU nécessaire) |
 
-> La compilation complète nécessite les référentiels GitHub (`maven.pkg.github.com/centyllion/...`) pour bulma-kotlin et babylon-kotlin, avec les credentials `grpUser`/`grpToken` (définis dans les variables de projet local, ou dans les fichiers de configuration métier).
+> La compilation complète nécessite le référentiel GitHub (`maven.pkg.github.com/centyllion/...`) pour bulma-kotlin, avec les credentials `grpUser`/`grpToken` (définis dans les variables de projet local, ou dans les fichiers de configuration métier).
 
 ---
 
@@ -800,7 +801,7 @@ Les tests couvrent notamment les nouvelles fonctionnalités de l'extension :
 ### 14.4 Web (Kotlin/JS)
 
 - **Ajout de nouveau contrôleur JS** : créer une classe dans `controller/model/` correspondant à un contrôleur de l'interface web.
-- **Ajout de voie de rendu** : graphiques data2viz, 3D Babylon.js, etc.
+- **Ajout de voie de rendu** : graphiques data2viz, vue canvas 2D, etc.
 
 ### 14.5 Tests
 

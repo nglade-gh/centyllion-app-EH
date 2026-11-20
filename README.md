@@ -42,7 +42,7 @@ cd CentyllionExtend
 ./gradlew build
 ```
 
-> **Note** : le build nécessite les dépôts GitHub (`maven.pkg.github.com/centyllion/...`) pour `bulma-kotlin` et `babylon-kotlin`. Les credentials `grpUser`/`grpToken` doivent être définis (fichier `local.properties` ou variables de projet).
+> **Note** : le build nécessite le dépôt GitHub (`maven.pkg.github.com/centyllion/...`) pour `bulma-kotlin`. Les credentials `grpUser`/`grpToken` doivent être définis (fichier `local.properties` ou variables de projet).
 
 ---
 
@@ -322,7 +322,7 @@ CentyllionExtend/
 ├── core/           # Modèle, simulation, expressions (Kotlin Multiplatform)
 ├── compose/
 │   └── shared/     # Interface Compose Multiplatform (desktop)
-├── web/            # Interface navigateur (Kotlin/JS + Babylon.js)
+├── web/            # Interface navigateur (Kotlin/JS + canvas 2D)
 ├── db/             # Serveur Ktor REST + SQLDelight (optionnel)
 ├── gradle/         # Configuration Gradle
 ├── gradlew         # Wrapper Gradle 8.11
@@ -335,7 +335,7 @@ CentyllionExtend/
 |---|---|---|
 | `core` | jvm, js, wasmJs | Logique métier, simulation, expressions |
 | `compose:shared` | jvm, wasmJs | Interface bureau (Compose) |
-| `web` | js | Interface navigateur (Bulma + Babylon.js) |
+| `web` | js | Interface navigateur (Bulma + canvas 2D) |
 | `db` | jvm | Serveur REST (optionnel) |
 
 ---
