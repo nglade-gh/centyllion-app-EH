@@ -45,8 +45,26 @@ fun availableName(existing: Collection<String>, prefix: String): String = existi
     return "$prefix ${existing.size + 1}"
 }
 
-/** Find a color excluding already [used] */
-fun availableColor(used: Collection<String>) =
-    (colorNames.keys - used).let { if (it.isEmpty()) "red" else it.random() }
+/**
+ * Vivid, well separated colours for new agents and fields.
+ *
+ * Picking randomly among all the CSS names gave dull or dark colours too often
+ * (Black, DimGrey, MidnightBlue, DarkGreen…): the grid looked muddy. These
+ * names all exist in [colorNames] so they can be edited and rendered.
+ */
+val vividColorNames = listOf(
+    "Red", "Orange", "Gold", "Chartreuse", "Lime", "SpringGreen",
+    "Cyan", "DeepSkyBlue", "DodgerBlue", "RoyalBlue", "BlueViolet", "DarkViolet",
+    "Magenta", "DeepPink", "Crimson", "Chocolate", "Violet"
+)
+
+/** Finds a random colour excluding the already [used] ones (vivid colours first). */
+fun availableColor(used: Collection<String>): String {
+    val usedColors = used.toSet()
+    val vivid = vividColorNames.filterNot { it in usedColors }
+    if (vivid.isNotEmpty()) return vivid.random()
+    val others = colorNames.keys.filterNot { it in usedColors }
+    return others.randomOrNull() ?: "red"
+}
 
 fun Float.flatten(threshold: Float, line: Float = 0f) = if (this <= threshold) line else this
