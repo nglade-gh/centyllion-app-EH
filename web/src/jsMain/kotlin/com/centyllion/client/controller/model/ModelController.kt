@@ -34,6 +34,7 @@ class ModelController(
 
                 grainChart.data = createGrainPlots()
                 fieldChart.data = createFieldPlots()
+                refreshFieldPanels()
 
                 // handles problems display
                 val problems = new.model.diagnose(page.appContext.locale)
@@ -55,16 +56,38 @@ class ModelController(
 
     var expertMode: Boolean by observable(false) { _, old, new ->
         if (old != new) {
-            fieldsChartsHeader.hidden = !new
-            exportFieldCsvButton.hidden = !new
-            fieldChart.hidden = !new
-            resizeCharts()
+            refreshFieldPanels()
             when (val c = editorController) {
                 is BehaviourEditController -> c.expertMode = new
                 is GrainEditController -> c.expertMode = new
                 else -> {}
             }
         }
+    }
+
+    /**
+     * Field chart and field CSV export are available in both modes: they only
+     * depend on the model having fields. The grain chart keeps the remaining
+     * height when the field chart is shown.
+     */
+    private fun refreshFieldPanels() {
+        val visible = data.model.fields.isNotEmpty()
+        fieldsChartsHeader.hidden = !visible
+        exportFieldCsvButton.hidden = !visible
+        fieldChart.hidden = !visible
+
+        // both charts share the available height when the field chart is shown;
+        // the grain chart keeps the whole height otherwise. The parent width is
+        // not reliable before the first layout, so size from the window here and
+        // let resizeCharts() refine it on later layouts.
+        val ratio = if (visible) 0.4 else 0.8
+        val width = window.innerWidth / 4.0
+        grainChart.size = size(width, window.innerHeight * ratio)
+        fieldChart.size = size(width, window.innerHeight * ratio)
+        grainChart.renderRequest()
+        fieldChart.renderRequest()
+
+        resizeCharts()
     }
 
     override var readOnly: Boolean
@@ -375,7 +398,7 @@ class ModelController(
 
     val grainChart: PlotterController = PlotterController(
         page.i18n("Grains"), page.i18n("Step"),
-        createGrainPlots(), size(window.innerWidth/4.0, window.innerHeight * if (expertMode) 0.4 else 0.8),
+        createGrainPlots(), size(window.innerWidth/4.0, window.innerHeight * if (data.model.fields.isEmpty()) 0.8 else 0.4),
         roundPoints = true,
     ).apply {
         push(0, simulationController.simulator.grainsCounts().values.map { it.toDouble() })
@@ -384,7 +407,7 @@ class ModelController(
     val fieldChart: PlotterController = PlotterController(
         page.i18n("Fields"), page.i18n("Step"),
         createFieldPlots(), size(window.innerWidth/4.0, window.innerHeight/3.0)
-    ).apply { hidden = !expertMode }
+    ).apply { hidden = this@ModelController.data.model.fields.isEmpty() }
 
     // shared display mode for both charts: full history (step 0 -> current) or sliding window
     private val windowValues = (10..500 step 10).toList()
@@ -459,7 +482,7 @@ class ModelController(
     fun resizeCharts() {
         val grainParent = grainChart.root.parentElement
         if (grainParent is HTMLElement) {
-            val ratio = if (expertMode) 0.4 else 0.8
+            val ratio = if (fieldChart.hidden) 0.8 else 0.4
             // prevent resizing if size is < 0
             val x = grainParent.offsetWidth - 30.0
             if (x > 0) grainChart.size = size(x, window.innerHeight * ratio)
