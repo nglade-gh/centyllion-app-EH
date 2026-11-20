@@ -51,6 +51,10 @@ class PersistenceTest {
         val full = Behaviour(
             name = "b1", description = "complete behaviour", probability = 0.75,
             agePredicate = Predicate(Operator.GreaterThan, 7),
+            agePredicates = listOf(
+                Predicate(Operator.LessThanOrEquals, 30),
+                Predicate(Operator.NotEquals, 12)
+            ),
             formula = "step > 3 && count(1) >= 2 && age(1) > 1",
             actions = "Add(1, 1, 0), SetField(0, 0, 0, 0.5)",
             fieldPredicates = listOf(
@@ -127,6 +131,11 @@ class PersistenceTest {
 
         val b = model.behaviours.first { it.name == "b1" }
         assertEquals(Predicate(Operator.GreaterThan, 7), b.agePredicate)
+        assertEquals(
+            listOf(Predicate(Operator.LessThanOrEquals, 30), Predicate(Operator.NotEquals, 12)),
+            b.agePredicates,
+            "every simulation age line must be kept"
+        )
         assertEquals("step > 3 && count(1) >= 2 && age(1) > 1", b.formula)
         assertEquals("Add(1, 1, 0), SetField(0, 0, 0, 0.5)", b.actions)
         assertEquals(0.75, b.probability)
@@ -193,6 +202,7 @@ class PersistenceTest {
 
         val behaviour = loaded.model.behaviours.first()
         assertEquals("", behaviour.formula)
+        assertEquals(emptyList<Predicate<Int>>(), behaviour.agePredicates, "no extra age line in a legacy file")
         assertEquals("", behaviour.actions)
         assertEquals(emptyList(), behaviour.fieldPredicates)
         assertEquals(emptyList(), behaviour.agentCountPredicates)

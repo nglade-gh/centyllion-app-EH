@@ -285,6 +285,14 @@ data class Behaviour(
     val actions: String = "",
     val fieldPredicates: List<Pair<Int, Predicate<Float>>> = emptyList(),
     val agentCountPredicates: List<AgentCountPredicate> = emptyList(),
+    /**
+     * Additional "simulation age" predicates, ANDed together with [agePredicate]
+     * and with the other graphical predicates. The first line of the age
+     * predicates entered in normal mode is stored here (the legacy single
+     * [agePredicate] is kept for backward compatibility and is folded into this
+     * list by the editor when the behaviour is opened).
+     */
+    val agePredicates: List<Predicate<Int>> = emptyList(),
     val mainReactiveId: Int = -1, val mainProductId: Int = -1, val sourceReactive: Int = -1,
     val fieldInfluences: Map<Int, Float> = emptyMap(),
     val reaction: List<Reaction> = emptyList(),
@@ -382,6 +390,42 @@ data class Behaviour(
         return copy(agentCountPredicates = newList)
     }
 
+    /** True when [agePredicate] is the neutral default (`>= 0`, always true). */
+    @Transient
+    val hasDefaultAgePredicate: Boolean
+        get() = agePredicate == Predicate(Operator.GreaterThanOrEquals, 0)
+
+    fun agePredicateIndex(predicate: Predicate<Int>) = agePredicates.identityFirstIndexOf(predicate)
+
+    fun updateAgePredicate(old: Predicate<Int>, new: Predicate<Int>): Behaviour {
+        val index = agePredicateIndex(old)
+        if (index < 0) return this
+
+        val newList = agePredicates.toMutableList()
+        newList[index] = new
+        return copy(agePredicates = newList)
+    }
+
+    fun dropAgePredicate(predicate: Predicate<Int>): Behaviour {
+        val index = agePredicateIndex(predicate)
+        if (index < 0) return this
+
+        val newList = agePredicates.toMutableList()
+        newList.removeAt(index)
+        return copy(agePredicates = newList)
+    }
+
+    /**
+     * Folds the legacy single [agePredicate] into [agePredicates] as its first
+     * line, leaving the neutral default behind. Used by the behaviour editor so
+     * that every "simulation age" line is stored and edited the same way.
+     * Idempotent.
+     */
+    fun migrateLegacyAgePredicate(): Behaviour = if (hasDefaultAgePredicate) this else copy(
+        agePredicate = Predicate(Operator.GreaterThanOrEquals, 0),
+        agePredicates = listOf(agePredicate) + agePredicates
+    )
+
     /**
      * Is behavior applicable for given [grain], [age] and [neighbours] ?
      *
@@ -403,6 +447,10 @@ data class Behaviour(
             if (grain == null || mainReactiveId != grain.id) return false
         }
         if (!agePredicate.check(age)) return false
+        // additional "simulation age" predicates: all of them must hold (AND)
+        for (p in agePredicates) {
+            if (!p.check(age)) return false
+        }
         // checks field predicate
         for (p in fieldPredicates) {
             val value = (fields.find { it.first == p.first }?.second ?: 0f).flatten(minFieldLevel)

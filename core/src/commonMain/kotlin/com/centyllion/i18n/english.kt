@@ -147,7 +147,7 @@ object English: Locale {
         "reactive %0" -> "reactive %0"
         "Field thresholds" -> "Field thresholds"
         "Field influences" -> "Field influences"
-        "When age" -> "When age"
+        "Simulation age" -> "Simulation age"
         "Age" -> "Age"
         "Reactions" -> "Reactions"
         "Predicates" -> "Predicates"

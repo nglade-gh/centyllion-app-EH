@@ -179,7 +179,8 @@ Le cœur du simulateur repose sur **trois abstractions** :
 
 - `name`, `description`
 - `probability` (0..1) → fréquence
-- `agePredicate` : `Predicate<Int>` → condition sur l'âge du grain actif
+- `agePredicate` : `Predicate<Int>` → condition sur l'âge du grain actif (prédicat « historique », conservé pour la compatibilité des fichiers)
+- `agePredicates` : `List<Predicate<Int>>` → lignes supplémentaires du prédicat graphique « Âge de la simulation » ; **toutes** les lignes (et `agePredicate`) doivent être vraies simultanément (ET)
 - `fieldPredicates` : `List<Pair<Int, Predicate<Float>>>` → `Pair(id du champ, prédicat)` sur la valeur du champ
 - `mainReactiveId` / `mainProductId` → grain principal (réactif → produit)
 - `sourceReactive` (0 = l'âge du grain lui-même ; >0 = âge du voisin de réactif `sourceReactive`) → pour "éclosion" avec âge différent
@@ -402,6 +403,7 @@ La sauvegarde (`.netbiodyn`) sérialise le **modèle**, indépendamment du mode 
 
 - Couverture vérifiée par `core/src/commonTest/.../PersistenceTest.kt` : aller-retour d'un modèle complet (toutes les clés ci-dessus, `updatePlan` séquentiel, `settings`), avec ré-encodage identique au bit près, puis contrôle valeur par valeur ; second test : un fichier « ancien » (sans `formula`, `actions`, `fieldPredicates`, `agentCountPredicates`, `boundaryConditions`, `toric`) se charge avec les valeurs par défaut documentées et se ré-enregistre.
 - Valeurs par défaut **écrites explicitement** quand elles sont significatives : `sourceReactive = 0` (héritage d'âge), `reaction[].sourceReactive = 0`, `agentCountPredicates[].grainId = 0`, seuils de champs `>= 0` (l'objet `Predicate` n'a pas de valeur par défaut).
+- `agePredicates` (lignes « Âge de la simulation », omises si la liste est vide) : le prédicat unique historique `agePredicate` reste écrit et évalué ; l'éditeur le replie dans la liste à l'ouverture (`migrateLegacyAgePredicate`), donc un ancien fichier continue de fonctionner et se normalise dès la première édition.
 - Compatibilité : une ancienne simulation reste chargeable par cette version. En revanche, un fichier produit ici n'est pas lisible par `centyllion-app` d'origine : son `Json` n'active pas `ignoreUnknownKeys` et rejette donc les clés ajoutées (`formula`, `actions`, `fieldPredicates`, `agentCountPredicates`, `toric`, `boundaryConditions`, `sourceReactive` de réaction). NISMA, lui, ignore les clés inconnues et préserve désormais toutes ces clés lors de ses propres sauvegardes.
 
 ---
@@ -516,7 +518,7 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 | Élément | Mode normal | Mode expert |
 |---|---|---|
 | Nom, description | oui | oui |
-| Prédicat graphique d'âge (« Avec l'âge ») | oui | — |
+| Prédicat graphique d'âge (« Âge de la simulation », plusieurs lignes via +) | oui | — |
 | Prédicat graphique « Seuils des champs » (si au moins un champ existe) | oui | — |
 | Prédicat graphique « Nb voisins » (grain + relation + valeur 0..8) | oui | — |
 | Formule de prédicat (+ aide) | — | oui |
