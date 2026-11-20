@@ -63,6 +63,12 @@ fun Behaviour.diagnose(model: GrainModel, locale: Locale, result: MutableList<Pr
         result.add(Problem(this, "Age Predicate", locale.i18n("Age predicate value must be positive or zero")))
     }
 
+    agePredicates.forEach { predicate ->
+        if (predicate.constant < 0) {
+            result.add(Problem(this, "Age Predicate", locale.i18n("Age predicate value must be positive or zero")))
+        }
+    }
+
     fieldPredicates.forEach { predicate ->
         if (predicate.second.constant < 0f || predicate.second.constant > 1f) {
             val field = model.fieldForId(predicate.first)

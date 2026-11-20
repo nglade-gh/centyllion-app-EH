@@ -148,7 +148,7 @@ object French: Locale {
         "Field thresholds" -> "Seuils des champs"
         "Field influences" -> "Influences des champs"
         "Misc" -> "Information"
-        "When age" -> "Avec l'âge"
+        "Simulation age" -> "Âge de la simulation"
         "Age" -> "Âge"
         "Reactions" -> "Réactions"
         "Predicates" -> "Prédicats"

@@ -23,7 +23,7 @@ class BehaviourEditController(
             nameController.data = new.name
             descriptionController.data = new.description
             probabilityController.data = "${new.probability}"
-            agePredicateController.data = new.agePredicate
+            agePredicatesController.data = new.agePredicates
             formulaController.data = new.formula
             actionsController.data = new.actions
             mainReactiveController.data = context.grainForId(new.mainReactiveId)
@@ -66,12 +66,13 @@ class BehaviourEditController(
     override var readOnly: Boolean by observable(false) { _, old, new ->
         if (old != new) {
             addReactionButton.invisible = new
+            addAgePredicateButton.invisible = new
             addFieldPredicateButton.invisible = new
             addCountPredicateButton.invisible = new
             nameController.readOnly = new
             descriptionController.readOnly = new
             probabilityController.readOnly = new
-            agePredicateController.readOnly = new
+            agePredicatesController.readOnly = new
             formulaController.readOnly = new
             actionsController.readOnly = new
             mainReactiveController.readOnly = new
@@ -126,18 +127,27 @@ class BehaviourEditController(
         }
     )
 
-    val agePredicateController = IntPredicateController(
-        locale = page.appContext.locale,
-        predicate = data.agePredicate,
-        placeHolder = page.i18n("Age"),
-        minValue = 0,
-        onUpdate = { _, new, _ ->
-            this.data = this.data.copy(agePredicate = new)
-        }
-    )
+    val addAgePredicateButton = iconButton(Icon("plus", Size.Small), ElementColor.Primary, true, size = Size.Small) {
+        val predicate = Predicate(Operator.GreaterThanOrEquals, 0)
+        this.data = data.copy(agePredicates = data.agePredicates + predicate)
+    }
 
-    val agePredicateLine = HorizontalField(Label(page.i18n("When age")), agePredicateController.container)
-        .apply { hidden = expertMode }
+    val agePredicatesController = noContextColumnsController(data.agePredicates) { predicate, previous ->
+        previous ?: AgePredicateLineController(
+            page.appContext.locale, predicate,
+            { old, new, _ -> if (old != new) this.data = data.updateAgePredicate(old, new) },
+            { delete, _ -> this.data = data.dropAgePredicate(delete) }
+        )
+    }
+
+    val agePredicatesGroup = Column(
+        Level(
+            left = listOf(Label(page.i18n("Simulation age"))),
+            right = listOf(addAgePredicateButton)
+        ),
+        agePredicatesController,
+        size = ColumnSize.Full
+    ).apply { hidden = expertMode }
 
     fun helpLine(name: String, description: String) = TableRow(
         TableCell(name).apply { root.classList.add("has-text-weight-bold") },
@@ -445,7 +455,7 @@ class BehaviourEditController(
         // middle block: predicates (graphical in normal mode, formula in expert mode)
         HtmlWrapper(createHr().also { it.classList.add("centy-block-separator") }),
         blockTitle(page.i18n("Predicates")),
-        agePredicateLine,
+        agePredicatesGroup,
         fieldThresholdsGroup,
         countPredicatesGroup,
         formulaLine,
@@ -458,13 +468,21 @@ class BehaviourEditController(
         actionsLine
     )
 
+    init {
+        // A single age predicate written by an older version becomes the first
+        // line of the "simulation age" list, so every line is stored and edited
+        // the same way. Idempotent: nothing happens once migrated.
+        val migrated = data.migrateLegacyAgePredicate()
+        if (migrated != data) this.data = migrated
+    }
+
     override fun refresh() {
         addReactionButton.disabled = data.reaction.size >= 8
 
         nameController.refresh()
         descriptionController.refresh()
         probabilityController.refresh()
-        agePredicateController.refresh()
+        agePredicatesController.refresh()
         formulaController.refresh()
         actionsController.refresh()
         mainReactiveController.refresh()
@@ -476,7 +494,7 @@ class BehaviourEditController(
         countPredicatesController.refresh()
 
         // mode-dependent visibility
-        agePredicateLine.hidden = expertMode
+        agePredicatesGroup.hidden = expertMode
         formulaLine.hidden = !expertMode
         actionsLine.hidden = !expertMode
         countPredicatesGroup.hidden = expertMode
