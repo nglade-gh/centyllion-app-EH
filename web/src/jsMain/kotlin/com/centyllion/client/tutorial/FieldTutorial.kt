@@ -29,11 +29,6 @@ class FieldTutorial(
 
     override val steps: List<TutorialStep> = listOf(
         TutorialStep(
-            i18n("Expert Mode"), listOf(span(i18n("Activate expert mode to access fields."))),
-            { page.expertModeSwitch.root },
-            { page.expertMode }
-        ),
-        TutorialStep(
             i18n("Create a sugar field"),
             listOf(
                 span(i18n("Click on ")),

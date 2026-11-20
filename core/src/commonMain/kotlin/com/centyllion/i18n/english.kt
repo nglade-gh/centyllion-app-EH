@@ -153,6 +153,7 @@ object English: Locale {
         "Predicates" -> "Predicates"
         "Nb Neighbours" -> "Nb Neighbours"
         "Nb" -> "Nb"
+        "All agents" -> "All agents"
         "Action list" -> "Action list"
         "Url" -> "Url"
         "Position (x,y,z)" -> "Position (x,y,z)"

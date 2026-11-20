@@ -3,32 +3,47 @@ package com.centyllion.client.controller.model
 import bulma.*
 import com.centyllion.i18n.Locale
 import com.centyllion.model.AgentCountPredicate
+import com.centyllion.model.Grain
 import com.centyllion.model.Operator
 import kotlinx.browser.window
 import org.w3c.dom.events.Event
 import kotlin.properties.Delegates.observable
 
 /**
- * One "number of neighbours" predicate line: [Nb] [relation] [value 0..8] [delete].
- * The predicate counts occupied neighbour cells (any agent) among the 8 directions,
- * so the value is bounded between 0 and 8.
+ * One "number of neighbours" predicate line: [Nb] [grain] [relation] [value 0..8] [delete].
+ *
+ * The predicate counts neighbour cells (8 directions). The grain drop-down selects
+ * which agents are counted: "all agents" ([AgentCountPredicate.grainId] < 0) or one
+ * grain only (the equivalent of `count(grainId)` in a predicate formula).
+ * The value is bounded between 0 and 8.
  */
 class CountPredicateController(
-    locale: Locale, value: AgentCountPredicate,
+    private val locale: Locale, value: AgentCountPredicate, grains: List<Grain>,
     var onUpdate: (old: AgentCountPredicate, new: AgentCountPredicate, controller: CountPredicateController) -> Unit =
         { _, _, _ -> },
     var onDelete: (AgentCountPredicate, controller: CountPredicateController) -> Unit = { _, _ -> }
-) : NoContextController<AgentCountPredicate, Column>() {
+) : Controller<AgentCountPredicate, List<Grain>, Column> {
 
-    override var data by observable(value) { _, old, new ->
+    /** label used when every grain is counted (grainId < 0) */
+    private val allAgentsLabel: String = locale.i18n("All agents")
+
+    override var data: AgentCountPredicate by observable(value) { _, old, new ->
         if (old != new) {
             onUpdate(old, new, this@CountPredicateController)
             refresh()
         }
     }
 
+    override var context: List<Grain> by observable(grains) { _, old, new ->
+        if (old != new) {
+            grainDropdown.items = grainItems()
+            refresh()
+        }
+    }
+
     override var readOnly: Boolean by observable(false) { _, old, new ->
         if (old != new) {
+            grainDropdown.disabled = new
             opSelect.disabled = new
             valueSelect.disabled = new
             delete.invisible = new
@@ -36,6 +51,14 @@ class CountPredicateController(
     }
 
     val label = Label(locale.i18n("Nb"))
+
+    val grainIcon = Icon(grainIconName(data.grainId)).apply {
+        root.style.color = grainColor(data.grainId)
+    }
+
+    val grainDropdown: Dropdown = Dropdown(
+        text = grainLabel(data.grainId), icon = grainIcon, rounded = true
+    ).apply { items = grainItems() }
 
     val opSelect = Select(Operator.entries.map { Option(it.label, it.name) }, rounded = true) { _: Event, value: List<Option> ->
         value.firstOrNull()?.value?.let {
@@ -57,17 +80,44 @@ class CountPredicateController(
     override val container = Column(
         Level(
             left = listOf(label),
-            center = listOf(Field(Control(opSelect), Control(valueSelect), addons = true)),
+            center = listOf(Field(Control(grainDropdown), Control(opSelect), Control(valueSelect), addons = true)),
             right = listOf(delete)
         ),
         size = ColumnSize.Full
     )
+
+    private fun grainFor(grainId: Int): Grain? = context.find { it.id == grainId }
+
+    private fun grainLabel(grainId: Int): String =
+        if (grainId < 0) allAgentsLabel else grainFor(grainId)?.label() ?: allAgentsLabel
+
+    private fun grainIconName(grainId: Int): String =
+        if (grainId < 0) "users" else grainFor(grainId)?.icon ?: "users"
+
+    private fun grainColor(grainId: Int): String =
+        if (grainId < 0) "" else grainFor(grainId)?.color ?: ""
+
+    private fun item(grainId: Int, label: String, icon: String, color: String): DropdownSimpleItem {
+        val dropdownIcon = Icon(icon)
+        dropdownIcon.root.style.color = color
+        return DropdownSimpleItem(label, dropdownIcon) {
+            this.data = data.copy(grainId = grainId)
+            this.grainDropdown.toggleDropdown()
+        }
+    }
+
+    private fun grainItems(): List<DropdownSimpleItem> =
+        listOf(item(-1, allAgentsLabel, "users", "")) +
+                context.map { item(it.id, it.label(), it.icon, it.color) }
 
     init {
         refresh()
     }
 
     override fun refresh() {
+        grainDropdown.text = grainLabel(data.grainId)
+        grainIcon.icon = grainIconName(data.grainId)
+        grainIcon.root.style.color = grainColor(data.grainId)
         window.setTimeout({
             opSelect.selectedIndex = Operator.entries.indexOf(data.op)
             valueSelect.selectedIndex = data.count.coerceIn(0, 8)
