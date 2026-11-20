@@ -17,6 +17,14 @@ import org.w3c.dom.HTMLElement
 import org.w3c.dom.events.Event
 import kotlin.properties.Delegates.observable
 
+/** True when [element] (by uuid) is part of this model. */
+private fun GrainModel.holds(element: ModelElement): Boolean = when (element) {
+    is Grain -> grains.any { it.uuid == element.uuid }
+    is Behaviour -> behaviours.any { it.uuid == element.uuid }
+    is Field -> fields.any { it.uuid == element.uuid }
+    else -> false
+}
+
 class ModelController(
     val page: BulmaPage, model: ModelAndSimulation,
     val onUpdate: (old: ModelAndSimulation, new: ModelAndSimulation, controller: ModelController) -> Unit = { _, _, _ -> }
@@ -42,6 +50,12 @@ class ModelController(
                 // problems box is visible is there are problems and was already open
                 problemsMessage.hidden = problems.isEmpty()
                 problemsTable.body = problems.map { it.toBulma() }
+
+                // the selection can belong to a previous model (New Model, load,
+                // import): drop it so the edition panel does not keep showing it
+                selected?.let { selection ->
+                    if (!new.model.holds(selection)) selected = null
+                }
             }
 
             if (old.simulation != new.simulation) {
