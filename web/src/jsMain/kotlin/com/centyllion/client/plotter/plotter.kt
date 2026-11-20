@@ -10,6 +10,9 @@ import io.data2viz.math.pct
 import io.data2viz.scale.Scales
 import io.data2viz.viz.*
 import org.w3c.dom.HTMLCanvasElement
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.properties.Delegates.observable
 
@@ -192,6 +195,15 @@ class LinePlotter(
     }
 
     fun push(x: Int, ys: List<Double>) {
+        // A new run restarted (the simulation was reset, replaced or edited, so
+        // the step counter went back): the previous run must be dropped instead
+        // of drawing the new curve on top of it. Without this guard the chart
+        // keeps the old points and overlays a second run, which looks like
+        // "persistent traces" with apparent discontinuities.
+        if (points.isNotEmpty() && x <= points.last().step) {
+            clear()
+        }
+
         // register point
         points.add(PlotPoint(x, ys))
 
@@ -205,6 +217,11 @@ class LinePlotter(
             }
         }
 
+        // snap the axis to a readable step (1, 2 or 5 x 10^n) instead of one unit:
+        // the tick labels stay round (no 298-like values) and the range changes
+        // only a few times per run instead of on every step
+        yTick = niceStep(maxOf(newMax - newMin, 1e-9))
+
         // updates ranges (a scale change triggers a rebuild that already includes the new point)
         // in window mode xMax follows every pushed step so the window slides
         // continuously instead of jumping by xTick
@@ -213,11 +230,31 @@ class LinePlotter(
 
         // update paths — skip when the rebuild above already contains the new point
         if (x != lastBuildStep) {
-            for (i in plotPaths.indices) {
-                if (!hiddenPlots[i]) plotPaths[i].lineTo(xScale(x), yScale(ys[i]))
+            if (plotPaths.isEmpty()) {
+                // no path yet (first point of a run): build the scene from the points
+                rebuild()
+            } else {
+                for (i in plotPaths.indices) {
+                    if (!hiddenPlots[i]) plotPaths[i].lineTo(xScale(x), yScale(ys[i]))
+                }
             }
         }
         invalidate()
+    }
+
+    /** A readable axis step (1, 2 or 5 x 10^n) for a data span of [span], for about 8 intervals. */
+    private fun niceStep(span: Double): Double {
+        if (span <= 0.0 || span.isNaN() || span.isInfinite()) return 1.0
+        val raw = span / 8.0
+        val magnitude = 10.0.pow(floor(log10(raw)))
+        val normalized = raw / magnitude
+        val multiplier = when {
+            normalized <= 1.0 -> 1.0
+            normalized <= 2.0 -> 2.0
+            normalized <= 5.0 -> 5.0
+            else -> 10.0
+        }
+        return multiplier * magnitude
     }
 
     fun invalidate() {
@@ -226,9 +263,15 @@ class LinePlotter(
 
     fun renderRequest() {
         if (redraw) {
-            // clear the canvas so stale traces from the previous x scale don't remain
-            (canvas.getContext("2d") as? org.w3c.dom.CanvasRenderingContext2D)
-                ?.clearRect(0.0, 0.0, canvas.width.toDouble(), canvas.height.toDouble())
+            // clear the canvas so stale traces from the previous x scale don't remain;
+            // the renderer leaves a device-pixel-ratio scale on the context, so the
+            // clear is done with an identity transform to cover the whole canvas
+            (canvas.getContext("2d") as? org.w3c.dom.CanvasRenderingContext2D)?.let { ctx ->
+                ctx.save()
+                ctx.setTransform(1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+                ctx.clearRect(0.0, 0.0, canvas.width.toDouble(), canvas.height.toDouble())
+                ctx.restore()
+            }
             visual.render()
             redraw = false
         }
