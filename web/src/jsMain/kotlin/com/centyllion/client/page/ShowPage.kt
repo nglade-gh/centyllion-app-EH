@@ -27,6 +27,17 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     private var tutorialLayer: TutorialLayer<ShowPage>? = null
 
+    /** Build date and time of the running bundle (`version.json`), shown in the About dialog. */
+    private var versionDate: String = ""
+
+    /** Public repository of the project, shown in the About dialog. */
+    private val repositoryUrl = "https://github.com/nglade-gh/centyllion-app-EH"
+
+    /** Code name of this distribution, shown in the About dialog. */
+    private val distributionName = "NetBioDyn Forever"
+
+    private val authors = "Pascal Ballet, Jean-Charles Roger, Nicolas Glade"
+
     /** File name (with extension) proposed as the default for the next file save.
      *  Set by the latest file import or file save, and persisted so the same
      *  project keeps its file name across page reloads. */
@@ -97,6 +108,10 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         i18n("Help"), Icon("info-circle"), color = ElementColor.Primary
     ) { window.open("help.html", "_blank") })
 
+    val aboutControl = Control(Button(
+        i18n("About"), Icon("info"), color = ElementColor.Primary
+    ) { showAbout() })
+
     val expertModeSwitch = Switch(
         text = i18n("Expert Mode"),
         color =  ElementColor.Primary,
@@ -112,20 +127,18 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         saveAsControl,
         tutorialControl,
         helpControl,
+        aboutControl,
         Control(undoRedo.undoButton), Control(undoRedo.redoButton),
         // TODO hide tutorial for now tutorialControl,
         grouped = true, groupedMultiline = true
     )
-
-    private val currentVersion = p("")
 
     val container: BulmaElement = Div(
         Columns(
             Column(
                 Level(
                     left = listOf(
-                        Label("NetBioDyn", size = Size.Large),
-                        currentVersion
+                        Label("NetBioDyn", size = Size.Large)
                     ),
                     center = listOf(tools),
                     right = listOf(expertModeSwitch)
@@ -138,6 +151,41 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     )
 
     override val root: HTMLElement = container.root
+
+    /** Shows the About dialog: distribution name, build date and time, authors and repository. */
+    fun showAbout() {
+        fun row(name: String, value: BulmaElement) = TableRow(
+            TableCell(i18n(name)).apply { root.classList.add("has-text-weight-bold") },
+            TableCell(body = arrayOf(value))
+        )
+
+        val body = Section(
+            p(i18n("Multi-agent modelling and simulation environment.")),
+            Table(
+                body = listOf(
+                    row("Name", span(distributionName)),
+                    row("Version", span(versionDate.ifBlank { i18n("unknown") })),
+                    row("Authors", span(authors)),
+                    TableRow(
+                        TableCell(i18n("Git repository")).apply { root.classList.add("has-text-weight-bold") },
+                        TableCell(body = arrayOf(
+                            span(repositoryUrl),
+                            Button(i18n("Open"), size = Size.Small, color = ElementColor.Info) {
+                                window.open(repositoryUrl, "_blank")
+                            }
+                        ))
+                    )
+                ),
+                fullWidth = true, striped = true
+            )
+        )
+
+        modalDialog(
+            i18n("About NetBioDyn"),
+            listOf(body),
+            Button(i18n("Close"), color = ElementColor.Primary) {}
+        )
+    }
 
     fun startTutorial() {
         // Activates tutorial
@@ -291,7 +339,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         }
 
         appContext.api.fetchVersion().then {
-            currentVersion.text = i18n("version of %0", it.date)
+            versionDate = it.date
         }
 
         // restore the file handle of the last saved file (quick save across restarts)
