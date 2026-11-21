@@ -29,6 +29,13 @@ L'archive contient le contenu de ``web/webroot`` **à la racine** (pas de
 dossier ``webroot/``). ``certs/`` (clés privées), les ``test_*.json`` et les
 ``.DS_Store`` sont exclus. Aucune dépendance externe (bibliothèque standard).
 
+Portabilité : aucun chemin n'est codé en dur (tout est déduit de l'emplacement du
+script). Pour « forever », le dépôt voisin est cherché à côté d'Endless Bloom ;
+``--forever-path`` permet de le désigner ailleurs. Le bundle Kotlin/JS n'étant pas
+versionné, une copie fraîche du dépôt doit d'abord être construite — ce qui
+réclame les identifiants du dépôt Maven privé de bulma-kotlin (``grpUser`` /
+``grpToken``), ou un ``webroot`` déjà construit.
+
 Après déploiement, vérifier la date affichée dans le menu About : le navigateur
 ressert l'ancienne version si les en-têtes de cache ne sont pas en ``no-cache``.
 """
@@ -54,6 +61,11 @@ VERSIONS = {
     },
     "forever": {
         "project": os.path.join(CENTYLLION, "NetBioDyn_Forever"),
+        "candidates": (
+            os.path.join(CENTYLLION, "NetBioDyn_Forever"),
+            os.path.join(CENTYLLION, "..", "NetBioDyn_Forever"),
+            os.path.join(CENTYLLION, "..", "..", "NetBioDyn_Forever"),
+        ),
         "slug": "netbiodyn-forever",
         "branch": "NetBioDyn_Forever",
         "title": "NetBioDyn Forever",
@@ -112,7 +124,14 @@ def make_archive(project, out):
     webroot = os.path.join(project, "web", "webroot")
     missing = [name for name in REQUIRED if not os.path.isfile(os.path.join(webroot, name))]
     if missing:
-        sys.exit("bundle incomplet (construire d'abord le projet) : " + ", ".join(missing))
+        sys.exit(
+            "bundle incomplet : " + ", ".join(missing) + "\n"
+            "  Le bundle n'est pas versionné par git : une copie fraîche n'en a pas.\n"
+            "  Construisez-le (./gradlew :web:jsBrowserProductionWebpack :web:syncJs) ;\n"
+            "  la construction réclame les propriétés Gradle grpUser et grpToken\n"
+            "  (dépôt privé maven.pkg.github.com/centyllion/bulma-kotlin), à passer par\n"
+            "  -PgrpUser=… -PgrpToken=… ou dans ~/.gradle/gradle.properties."
+        )
 
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     count = 0
@@ -136,11 +155,25 @@ def digest(path):
     return sha.hexdigest()
 
 
+def locate(key, args):
+    """Path of the project to archive: the containing repository, or the neighbouring one."""
+    version = VERSIONS[key]
+    if key == "bloom":
+        return version["project"]
+    if getattr(args, "forever_path", None):
+        return os.path.abspath(args.forever_path)
+    for candidate in version["candidates"]:
+        if os.path.isdir(candidate):
+            return os.path.normpath(candidate)
+    sys.exit(
+        "dépôt NetBioDyn Forever introuvable : clonez-le à côté d'Endless Bloom,\n"
+        "ou indiquez son chemin avec --forever-path /chemin/vers/NetBioDyn_Forever"
+    )
+
+
 def release(key, args):
     version = VERSIONS[key]
-    project = version["project"]
-    if not os.path.isdir(project):
-        sys.exit(f"répertoire absent : {project}")
+    project = locate(key, args)
 
     print(f"\n=== {version['title']} ({os.path.basename(project)})")
     state = git(project, "status", "--porcelain")
@@ -189,6 +222,8 @@ def main():
     parser.add_argument("--label", help="étiquette de version dans le nom de l'archive")
     parser.add_argument("--no-build", action="store_true", help="archiver le bundle existant")
     parser.add_argument("--out", help="répertoire de sortie")
+    parser.add_argument("--forever-path", dest="forever_path",
+                        help="chemin du dépôt NetBioDyn Forever (défaut : dépôt voisin)")
     args = parser.parse_args()
 
     if args.version == "all":

@@ -152,6 +152,16 @@ L'archive (`<version>/dist/<nom>-<version>-web.zip`) contient le contenu de
 directement dans le répertoire servi par le serveur web. Le script affiche la
 branche et le SHA archivés, la taille, le nombre de fichiers et le `sha256`.
 
+Le script ne contient aucun chemin absolu : tout est déduit de son emplacement.
+`forever` utilise le dépôt voisin `../NetBioDyn_Forever` ; s'il est ailleurs,
+`--forever-path /chemin/vers/NetBioDyn_Forever`.
+
+Le bundle `web/webroot/js/centyllion/centyllion.js` n'est pas versionné : une
+copie fraîche du dépôt doit d'abord être construite, ce qui réclame les
+identifiants du dépôt Maven privé de bulma-kotlin (`grpUser` / `grpToken`, en
+propriétés Gradle). Sans ces identifiants, seule une arborescence déjà
+construite peut être archivée (`--no-build`).
+
 Après mise à jour sur le serveur, vérifier la date affichée dans le menu About :
 le navigateur ressert l'ancienne version si les en-têtes de cache ne sont pas en
 `no-cache`.
