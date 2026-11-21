@@ -433,6 +433,8 @@ object French: Locale {
         "Write current * 0.98 for a field that slowly fades without moving." -> "Écrivez current * 0.98 pour un champ qui s'estompe lentement sans se déplacer."
         "Write min(1, count(0) / 8) to paint the field where the agents are dense." -> "Écrivez min(1, count(0) / 8) pour peindre le champ là où les agents sont denses."
         "Write 0.5 + 0.5 * sin((x - y) / 8 - step / 4) for a diagonal wave." -> "Écrivez 0.5 + 0.5 * sin((x - y) / 8 - step / 4) pour une onde diagonale."
+        "Value info" -> "Info valeurs"
+        "No field" -> "Aucun champ"
         else -> null
     }
 }
