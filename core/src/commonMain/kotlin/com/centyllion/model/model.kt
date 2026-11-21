@@ -519,6 +519,41 @@ data class Behaviour(
 
 }
 
+/**
+ * A block of execution: an ordered group of [Behaviour]s evaluated together during a
+ * simulation step.
+ *
+ * A model owns a list of blocks; during a step they are considered in list order (the
+ * first block of the tree first). A block is only executed when it is [enabled], its
+ * [probability] won the draw of the step, and its predicate holds for the step (same
+ * answer for every cell of the grid). Inside a block, behaviours have no priority among
+ * themselves, as in NetBioDyn Forever.
+ *
+ * Transitional note: [behaviours] is the reference list of the model for now; each block
+ * mirrors the behaviours it owns. Execution is unchanged until blocks are actually
+ * executed one after the other.
+ */
+@Serializable
+data class ExecutionBlock(
+    val name: String = "",
+    val description: String = "",
+    /** Unchecked: the block is never executed (same as a probability of 0). */
+    val enabled: Boolean = true,
+    /** Probability (0..1) that the block is executed on a given step: 0 never, 1 always. */
+    val probability: Double = 1.0,
+    /** Expert-mode predicate: raw formula, empty when unused. */
+    val formula: String = "",
+    /** Normal-mode predicate: age predicates, ANDed together. */
+    val agePredicates: List<Predicate<Int>> = emptyList(),
+    val agentCountPredicates: List<AgentCountPredicate> = emptyList(),
+    val fieldPredicates: List<Pair<Int, Predicate<Float>>> = emptyList(),
+    /** 0..n behaviours, executed without any priority among themselves. */
+    val behaviours: List<Behaviour> = emptyList(),
+) {
+    /** True when the block may be executed at all (enabled and probability above 0). */
+    val executable: Boolean get() = enabled && probability > 0.0
+}
+
 @Serializable
 data class Position(
     val x: Int, val y: Int, val z: Int = 0
@@ -544,12 +579,32 @@ data class GrainModel(
     val updatePlan: String = "Parallel",
     val grains: List<Grain> = emptyList(),
     val behaviours: List<Behaviour> = emptyList(),
+    /** Execution blocks, in execution order. Absent in files written before blocks existed. */
+    val executionBlocks: List<ExecutionBlock> = emptyList(),
     val fields: List<Field> = emptyList(),
     @Transient override val uuid: Uuid = uuid4(),
 ) : ModelElement {
 
     /** True when the update plan is "Sequential". */
     val isSequentialUpdate: Boolean get() = updatePlan == SEQUENTIAL_UPDATE_PLAN
+
+    /**
+     * Returns a copy whose [executionBlocks] are populated, without changing anything else.
+     *
+     * Files written before execution blocks existed carry no `executionBlocks` key: every
+     * behaviour then becomes the content of a single block (enabled, probability 1), which
+     * reproduces exactly the previous behaviour because the simulator still reads
+     * [behaviours]. A model without any behaviour still gets one empty block, which is the
+     * state of a freshly created model. Idempotent: calling it twice changes nothing.
+     */
+    fun migrated(): GrainModel {
+        if (executionBlocks.any { it.behaviours.isNotEmpty() }) return this
+        return when {
+            behaviours.isNotEmpty() -> copy(executionBlocks = listOf(ExecutionBlock(behaviours = behaviours)))
+            executionBlocks.isEmpty() -> copy(executionBlocks = listOf(ExecutionBlock()))
+            else -> this
+        }
+    }
 
     val label: String
         get() = when {
@@ -893,6 +948,9 @@ data class ModelAndSimulation(
         return if (simulation.parallelUpdate == parallel) this
         else copy(simulation = simulation.copy(parallelUpdate = parallel))
     }
+
+    /** Returns a copy whose model carries its execution blocks. Call after loading a file. */
+    fun migrated(): ModelAndSimulation = copy(model = model.migrated())
 
     /**
      * Model needs expert mode if a behaviour uses a raw predicate formula or a raw

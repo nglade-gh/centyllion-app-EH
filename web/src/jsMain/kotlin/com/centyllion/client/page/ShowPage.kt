@@ -289,7 +289,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
                 currentFileName = selectedFile.name
                 // a loaded project must not be quick-saved into the previous file
                 saveHandle = null
-                setModel(netbiodynJson.decodeFromString(text))
+                setModel(decodeModelAndSimulation(text))
             }
             reader.readAsText(selectedFile)
         }
@@ -401,7 +401,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         if (modelUrl != null) {
             appContext.api.fetch("GET", modelUrl)
                 .then(
-                    onFulfilled = { setModel(netbiodynJson.decodeFromString(it)) },
+                    onFulfilled = { setModel(decodeModelAndSimulation(it)) },
                     onRejected = { notification("Can't load model at $modelUrl", ElementColor.Danger) },
                 )
         } else {

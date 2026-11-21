@@ -261,14 +261,16 @@ fun renderMarkdown(source: String): String {
 
 fun loadFromStorage(): ModelAndSimulation? =
     try {
-        window.localStorage.getItem("model")?.let {
-            netbiodynJson.decodeFromString(ModelAndSimulation.serializer(), it)
-        }
+        window.localStorage.getItem("model")?.let { decodeModelAndSimulation(it) }
     } catch (_: Throwable) {
         // A model stored by an older version may no longer deserialize: ignore it.
         console.warn("Could not load the model from local storage, ignoring it.")
         null
     }
+
+/** Decodes a project and completes it (execution blocks of models written before them). */
+fun decodeModelAndSimulation(text: String): ModelAndSimulation =
+    netbiodynJson.decodeFromString(ModelAndSimulation.serializer(), text).migrated()
 
 fun saveToStorage(model: ModelAndSimulation) {
     window.setTimeout({
