@@ -118,6 +118,72 @@ de fichiers.
 > présentent pas). Utilisez Chrome/Chromium, Edge ou Firefox pour un affichage
 > fiable des graphiques.
 
+#### Déploiement (serveur universitaire)
+
+NetBioDyn Forever est servi comme **site statique** : aucun backend, aucune base
+de données (le module `db/` est optionnel et désactivé par défaut). L'archive
+prête à déployer est déposée dans `dist/` :
+
+```bash
+# 1) construire le bundle de production (grpUser/grpToken requis pour bulma-kotlin)
+./gradlew :web:jsBrowserProductionWebpack :web:syncJs
+
+# 2) fabriquer l'archive : contenu de web/webroot à la racine (pas de dossier
+#    webroot/), sans certificats ni fichiers de test. Script fourni, sans
+#    dépendance externe (il vérifie que le bundle existe).
+python3 tools/make_release_zip.py
+#    -> dist/netbiodyn-forever-1.0-web.zip
+```
+
+L'archive n'est pas versionnée (`/dist/` figure dans `.gitignore`) : c'est un
+produit de build, reconstruit à chaque release.
+
+Contenu de l'archive (9 fichiers, ~1 Mo) : `index.html`, `help.html`,
+`favicon.ico`, `version.json`, `css/centyllion.css`,
+`js/centyllion/centyllion.js` (+ `.js.map`), `font/`.
+
+```bash
+# sur le serveur
+sudo mkdir -p /var/www/netbiodyn-forever
+sudo unzip netbiodyn-forever-1.0-web.zip -d /var/www/netbiodyn-forever
+# puis ouvrir http://<serveur>/netbiodyn-forever/
+```
+
+**En-têtes de cache — à ne pas négliger** : les noms de fichiers sont fixes
+(`centyllion.js`, sans empreinte dans le nom). Sans revalidation, un navigateur
+peut continuer à servir l'ancienne application après un déploiement. Avec nginx :
+
+```nginx
+location = /index.html   { add_header Cache-Control "no-cache"; }
+location = /version.json { add_header Cache-Control "no-cache"; }
+location /js/            { add_header Cache-Control "no-cache"; }
+location /css/           { add_header Cache-Control "no-cache"; }
+```
+
+(Apache : `Header set Cache-Control "no-cache"` dans un `.htaccess`, module
+`headers` activé.)
+
+**HTTP ou HTTPS** : le bouton **Save As** n'utilise l'explorateur natif
+(API File System Access) qu'en contexte sécurisé (HTTPS ou `localhost`). En
+HTTP, l'application se rabat sur `save_bridge.py` s'il tourne sur la machine de
+l'utilisateur, sinon sur un simple téléchargement — voir la section
+« Sauvegarde de fichiers » ci-dessus. Les deux modes de service fonctionnent,
+avec ces limitations de sauvegarde.
+
+**À ne pas déployer** : `web/certs/` (clés privées), `web/webroot/test_*.json`
+(modèles de test), les sources, `dist/`.
+
+**Mise à jour** : reconstruire l'archive, la déployer, puis vérifier la
+date/heure affichée par le bouton **About** — le dialogue lit `version.json`,
+régénéré à chaque build. Si le navigateur affiche encore l'ancienne date,
+forcer un rechargement (Ctrl+Shift+R) et vérifier les en-têtes de cache.
+
+**Diffusion publique** : pour un utilisateur qui ne dispose pas des identifiants
+du paquet `bulma-kotlin`, joindre cette même archive `dist/netbiodyn-forever-1.0-web.zip`
+à la *release* GitHub du tag `forever-1.0` (le code source seul ne suffit pas :
+le bundle JS/CSS n'est pas versionné et ne peut pas être reconstruit sans ces
+identifiants).
+
 ### 3.3 Serveur de développement web
 
 ```bash
