@@ -61,6 +61,7 @@ class ModelController(
             if (old.simulation != new.simulation) {
                 simulationController.data = data.simulation
                 settingsController.data = data.simulation.settings
+                settingsController.refreshSeed(data.simulation.seed)
             }
 
             onUpdate(old, new, this@ModelController)
@@ -367,6 +368,10 @@ class ModelController(
         initialUpdatePlan = model.model.updatePlan,
         onUpdatePlan = { newPlan ->
             data = data.copy(model = data.model.copy(updatePlan = newPlan))
+        },
+        initialSeed = model.simulation.seed,
+        onUpdateSeed = { newSeed ->
+            data = data.copy(simulation = data.simulation.copy(seed = newSeed))
         }
     ) { _, new, _ ->
         data = data.copy(simulation = data.simulation.updateSettings(new))
@@ -379,7 +384,7 @@ class ModelController(
 
     val editionItem: TabPage = TabPage(TabItem(page.i18n("Model"), "boxes"), editorColumn)
     val simulationItem: TabPage = TabPage(TabItem(page.i18n("Simulation"), "play"), simulationController)
-    val environmentItem: TabPage = TabPage(TabItem(page.i18n("Environment"), "cogs"), settingsController)
+    val environmentItem: TabPage = TabPage(TabItem(page.i18n("Settings"), "cogs"), settingsController)
 
     val editionTabs = Tabs(fullWidth = true, boxed = true)
     val editionTabPages = TabPages(simulationItem, editionItem, environmentItem, tabs = editionTabs) {

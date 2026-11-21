@@ -354,6 +354,8 @@ object English: Locale {
         "Feed bacterias with sugar" -> "Feed bacterias with sugar"
         "Value info" -> "Value info"
         "No field" -> "No field"
+        "Settings" -> "Settings"
+        "Random seed" -> "Random seed"
         else -> key
     }
 }
