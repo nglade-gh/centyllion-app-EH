@@ -352,6 +352,8 @@ object English: Locale {
         "Prevents the sources from moving." -> "Prevents the sources from moving."
         "Makes the bacterias consume the sugar (production to -0.5)." -> "Makes the bacterias consume the sugar (production to -0.5)."
         "Feed bacterias with sugar" -> "Feed bacterias with sugar"
+        "Value info" -> "Value info"
+        "No field" -> "No field"
         else -> key
     }
 }

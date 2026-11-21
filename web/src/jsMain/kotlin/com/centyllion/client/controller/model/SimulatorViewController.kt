@@ -137,8 +137,18 @@ class SimulatorViewController(
 
     // ------------------------------------------------------------------ layout
 
-    /** Zoom factor applied to the fit-to-window size (1 = whole grid visible). */
+    /** Zoom applied inside the view: 1 = whole grid visible, above = magnified then panned. */
     private var zoom = 1.0
+
+    /** Pixels per cell of the fitted view (zoom 1): depends on the available box only. */
+    private var fitCell = 1.0
+
+    /** Pixels per cell actually painted (fitCell * zoom). */
+    private var cellScale = 1.0
+
+    /** Offset of the grid inside the canvas, in CSS pixels (0 or negative when panned). */
+    private var offsetX = 0.0
+    private var offsetY = 0.0
 
     private fun availableSize(): Pair<Int, Int> {
         val parent = container.root.parentElement as? HTMLElement
@@ -154,6 +164,8 @@ class SimulatorViewController(
     /** Refits the grid to the window (the former "reset camera"). */
     fun resetCamera() {
         zoom = 1.0
+        offsetX = 0.0
+        offsetY = 0.0
         layout()
     }
 
@@ -167,10 +179,12 @@ class SimulatorViewController(
         val simulation = data.simulation
         val cellsW = simulation.width.coerceAtLeast(1)
         val cellsH = simulation.height.coerceAtLeast(1)
-        val fit = min(availableWidth.toDouble() / cellsW, availableHeight.toDouble() / cellsH)
-        val cellCss = (fit * zoom).coerceAtLeast(0.2)
-        cssWidth = max(1.0, cellsW * cellCss)
-        cssHeight = max(1.0, cellsH * cellCss)
+        // the canvas keeps the fitted size: zoom magnifies inside it, so a square grid
+        // stays square and never grows beyond the available box
+        fitCell = max(0.2, min(availableWidth.toDouble() / cellsW, availableHeight.toDouble() / cellsH))
+        cellScale = fitCell * zoom
+        cssWidth = max(1.0, cellsW * fitCell)
+        cssHeight = max(1.0, cellsH * fitCell)
 
         display.style.width = "${cssWidth.roundToInt()}px"
         display.style.height = "${cssHeight.roundToInt()}px"
@@ -185,7 +199,23 @@ class SimulatorViewController(
             buffer.height = cellsH
             image = null
         }
+        clampOffset()
         render()
+    }
+
+    /** Keeps the magnified grid covering the canvas: no blank band while zoomed in. */
+    private fun clampOffset() {
+        val simulation = data.simulation
+        if (zoom <= 1.0) {
+            offsetX = 0.0
+            offsetY = 0.0
+            return
+        }
+        // how far the magnified grid overflows the canvas: the offset can slide in [-overflow, 0]
+        val overflowX = max(0.0, simulation.width * cellScale - cssWidth)
+        val overflowY = max(0.0, simulation.height * cellScale - cssHeight)
+        offsetX = offsetX.coerceIn(-overflowX, 0.0)
+        offsetY = offsetY.coerceIn(-overflowY, 0.0)
     }
 
     // ----------------------------------------------------------------- drawing
@@ -262,7 +292,8 @@ class SimulatorViewController(
         ctx.setTransform(ratio, 0.0, 0.0, ratio, 0.0, 0.0)
         ctx.clearRect(0.0, 0.0, cssWidth, cssHeight)
         ctx.imageSmoothingEnabled = false
-        ctx.drawImage(buffer, 0.0, 0.0, cssWidth, cssHeight)
+        val simulation = data.simulation
+        ctx.drawImage(buffer, offsetX, offsetY, simulation.width * cellScale, simulation.height * cellScale)
 
         drawGrid(ctx)
         drawPointer(ctx)
@@ -272,22 +303,32 @@ class SimulatorViewController(
     private fun drawGrid(ctx: CanvasRenderingContext2D) {
         val simulation = data.simulation
         if (!simulation.settings.showGrid) return
-        val cellPx = cssWidth / simulation.width
+        val cellPx = cellScale
         if (cellPx < 4.0) return
+
+        // only the cells currently visible are stroked: a zoomed grid can be far larger
+        val left = max(0.0, offsetX)
+        val top = max(0.0, offsetY)
+        val right = min(cssWidth, offsetX + simulation.width * cellPx)
+        val bottom = min(cssHeight, offsetY + simulation.height * cellPx)
+        val firstX = max(1, ceil((left - offsetX) / cellPx).toInt())
+        val lastX = min(simulation.width - 1, floor((right - offsetX) / cellPx).toInt())
+        val firstY = max(1, ceil((top - offsetY) / cellPx).toInt())
+        val lastY = min(simulation.height - 1, floor((bottom - offsetY) / cellPx).toInt())
 
         ctx.save()
         ctx.strokeStyle = "rgba(255, 255, 255, 0.22)"
         ctx.lineWidth = 1.0
         ctx.beginPath()
-        for (x in 1 until simulation.width) {
-            val px = x * cellPx
-            ctx.moveTo(px, 0.0)
-            ctx.lineTo(px, cssHeight)
+        for (x in firstX..lastX) {
+            val px = offsetX + x * cellPx
+            ctx.moveTo(px, top)
+            ctx.lineTo(px, bottom)
         }
-        for (y in 1 until simulation.height) {
-            val py = y * cellPx
-            ctx.moveTo(0.0, py)
-            ctx.lineTo(cssWidth, py)
+        for (y in firstY..lastY) {
+            val py = offsetY + y * cellPx
+            ctx.moveTo(left, py)
+            ctx.lineTo(right, py)
         }
         ctx.stroke()
         ctx.restore()
@@ -297,7 +338,7 @@ class SimulatorViewController(
     private fun drawPointer(ctx: CanvasRenderingContext2D) {
         if (hoverX < 0 || hoverY < 0) return
         val simulation = data.simulation
-        val cellPx = cssWidth / simulation.width
+        val cellPx = cellScale
         val size = selectedTool.actualSize(selectedSize)
         val half = (size / 2).coerceAtLeast(1)
 
@@ -312,11 +353,11 @@ class SimulatorViewController(
             else -> selectedGrain?.color?.let { colorHex(it) } ?: "#338033"
         }
         if (half <= 1) {
-            ctx.fillRect(hoverX * cellPx, hoverY * cellPx, cellPx, cellPx)
+            ctx.fillRect(offsetX + hoverX * cellPx, offsetY + hoverY * cellPx, cellPx, cellPx)
         } else {
             ctx.beginPath()
             ctx.ellipse(
-                (hoverX + 0.5) * cellPx, (hoverY + 0.5) * cellPx,
+                offsetX + (hoverX + 0.5) * cellPx, offsetY + (hoverY + 0.5) * cellPx,
                 half * cellPx, half * cellPx, 0.0, 0.0, 2 * PI
             )
             ctx.fill()
@@ -346,17 +387,18 @@ class SimulatorViewController(
     private fun cellAt(evt: MouseEvent): Pair<Int, Int>? {
         val rect = display.getBoundingClientRect()
         if (rect.width <= 0.0 || rect.height <= 0.0) return null
-        val x = ((evt.clientX - rect.left) / rect.width * data.simulation.width).toInt()
-        val y = ((evt.clientY - rect.top) / rect.height * data.simulation.height).toInt()
+        val x = floor((evt.clientX - rect.left - offsetX) / cellScale).toInt()
+        val y = floor((evt.clientY - rect.top - offsetY) / cellScale).toInt()
         return if (data.simulation.positionInside(x, y)) x to y else null
     }
 
     private fun panBy(evt: MouseEvent) {
-        val parent = container.root.parentElement as? HTMLElement ?: return
-        parent.scrollLeft = parent.scrollLeft - (evt.clientX - panX)
-        parent.scrollTop = parent.scrollTop - (evt.clientY - panY)
+        offsetX += evt.clientX - panX
+        offsetY += evt.clientY - panY
         panX = evt.clientX.toDouble()
         panY = evt.clientY.toDouble()
+        clampOffset()
+        render()
     }
 
     private fun installListeners() {
@@ -384,10 +426,12 @@ class SimulatorViewController(
         display.addEventListener("pointermove", { event ->
             val evt = event as MouseEvent
             if (panning) {
+                hideTooltip()
                 panBy(evt)
                 return@addEventListener
             }
             val cell = cellAt(evt)
+            updateTooltip(evt, cell)
             if (cell == null) {
                 hoverX = -1
                 hoverY = -1
@@ -431,6 +475,7 @@ class SimulatorViewController(
             hoverX = -1
             hoverY = -1
             drawStep = -1
+            hideTooltip()
             render()
         })
 
@@ -438,8 +483,20 @@ class SimulatorViewController(
             val evt = event as WheelEvent
             evt.preventDefault()
             val factor = if (evt.deltaY < 0) 1.2 else 1.0 / 1.2
-            zoom = (zoom * factor).coerceIn(0.25, 16.0)
-            layout()
+            val newZoom = (zoom * factor).coerceIn(1.0, 24.0)
+            if (newZoom == zoom) return@addEventListener
+            // the cell under the pointer stays under the pointer
+            val rect = display.getBoundingClientRect()
+            val mouseX = evt.clientX - rect.left
+            val mouseY = evt.clientY - rect.top
+            val anchorX = (mouseX - offsetX) / cellScale
+            val anchorY = (mouseY - offsetY) / cellScale
+            zoom = newZoom
+            cellScale = fitCell * zoom
+            offsetX = mouseX - anchorX * cellScale
+            offsetY = mouseY - anchorY * cellScale
+            clampOffset()
+            render()
         })
     }
 
@@ -600,13 +657,92 @@ class SimulatorViewController(
         render()
     }
 
+    /** "Value info" mode: hovering a cell shows the field concentrations at that point. */
+    private var valueInfo = false
+
+    private val tooltip: Div = Div(classes = "cent-value-info").also { div ->
+        with(div.root.style) {
+            position = "absolute"
+            setProperty("pointer-events", "none")
+            background = "rgba(20, 20, 20, 0.82)"
+            color = "#ffffff"
+            padding = "3px 7px"
+            borderRadius = "4px"
+            fontSize = "12px"
+            lineHeight = "1.35"
+            whiteSpace = "pre"
+            zIndex = "40"
+            display = "none"
+        }
+    }
+
+    val valueInfoCheckbox = Checkbox(page.i18n("Value info"), false) { _, checked ->
+        valueInfo = checked
+        if (!checked) hideTooltip()
+        render()
+    }
+
     val toolbar = Level(
-        center = listOf(toolsField, sizeDropdown, randomAddField, clearAllButton)
+        center = listOf(toolsField, sizeDropdown, randomAddField, clearAllButton, valueInfoCheckbox)
     )
 
-    /** Scrollable area holding the canvas: zoomed grids are panned with the Move tool. */
-    private val viewport = Div(simulationCanvas, classes = "has-text-centered").apply {
-        root.style.setProperty("overflow", "auto")
+    /** Cell of the grid under the mouse, with the field concentrations when value info is on. */
+    private fun updateTooltip(evt: MouseEvent, cell: Pair<Int, Int>?) {
+        if (!valueInfo || cell == null) {
+            hideTooltip()
+            return
+        }
+        val (x, y) = cell
+        val index = data.simulation.toIndex(x, y)
+        val lines = mutableListOf("($x, $y)")
+        val fields = data.model.fields
+        if (fields.isEmpty()) lines.add(page.i18n("No field"))
+        fields.forEach { field ->
+            val level = data.field(field.id).getOrElse(index) { 0f }
+            val name = field.name.ifBlank { "field ${field.id}" }
+            lines.add("$name : ${formatLevel(level)}")
+        }
+        tooltip.root.textContent = lines.joinToString("\n")
+        tooltip.root.style.display = "block"
+
+        val viewportRect = viewport.root.getBoundingClientRect()
+        val width = tooltip.root.offsetWidth.toDouble()
+        val height = tooltip.root.offsetHeight.toDouble()
+        val left = evt.clientX - viewportRect.left + 14.0
+        val top = evt.clientY - viewportRect.top + 14.0
+        val maxLeft = max(0.0, viewportRect.width - width - 4.0)
+        val maxTop = max(0.0, viewportRect.height - height - 4.0)
+        tooltip.root.style.left = "${left.coerceIn(0.0, maxLeft).roundToInt()}px"
+        tooltip.root.style.top = "${top.coerceIn(0.0, maxTop).roundToInt()}px"
+    }
+
+    private fun hideTooltip() {
+        tooltip.root.style.display = "none"
+    }
+
+    /** Field values are in 0..1: three decimals, scientific notation for the very small ones. */
+    private fun formatLevel(value: Float): String {
+        val sign = if (value < 0f) "-" else ""
+        val magnitude = abs(value)
+        // fields are concentrations in 0..1: below this, the value is numerically nothing
+        if (value == 0f || magnitude < 1e-9f) return "0"
+        return if (magnitude >= 0.001f) {
+            sign + (round(magnitude * 1000f) / 1000f).toString()
+        } else {
+            var mantissa = magnitude
+            var exponent = 0
+            while (mantissa < 1f && exponent > -12) {
+                mantissa *= 10f
+                exponent -= 1
+            }
+            sign + (round(mantissa * 100f) / 100f).toString() + "e" + exponent
+        }
+    }
+
+    /** Area holding the canvas: the grid is magnified inside it and panned with the Move tool. */
+    private val viewport = Div(simulationCanvas, tooltip, classes = "has-text-centered").apply {
+        root.style.setProperty("overflow", "hidden")
+        root.style.setProperty("position", "relative")
     }
 
     override val container = Div(viewport, toolbar)
