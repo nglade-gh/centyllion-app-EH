@@ -356,6 +356,7 @@ object English: Locale {
         "No field" -> "No field"
         "Settings" -> "Settings"
         "Random seed" -> "Random seed"
+        "Curves" -> "Curves"
         else -> key
     }
 }

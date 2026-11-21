@@ -437,6 +437,7 @@ object French: Locale {
         "No field" -> "Aucun champ"
         "Settings" -> "Paramètres"
         "Random seed" -> "Graine aléatoire"
+        "Curves" -> "Courbes"
         else -> null
     }
 }

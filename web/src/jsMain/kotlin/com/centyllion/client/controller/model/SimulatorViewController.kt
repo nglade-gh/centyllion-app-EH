@@ -657,8 +657,9 @@ class SimulatorViewController(
         render()
     }
 
-    /** "Value info" mode: hovering a cell shows the field concentrations at that point. */
-    private var valueInfo = false
+    /** "Value info" mode: hovering a cell shows the field concentrations at that point.
+     *  On by default; the switch lives in the Settings tab. */
+    private var valueInfo = true
 
     private val tooltip: Div = Div(classes = "cent-value-info").also { div ->
         with(div.root.style) {
@@ -676,14 +677,8 @@ class SimulatorViewController(
         }
     }
 
-    val valueInfoCheckbox = Checkbox(page.i18n("Value info"), false) { _, checked ->
-        valueInfo = checked
-        if (!checked) hideTooltip()
-        render()
-    }
-
     val toolbar = Level(
-        center = listOf(toolsField, sizeDropdown, randomAddField, clearAllButton, valueInfoCheckbox)
+        center = listOf(toolsField, sizeDropdown, randomAddField, clearAllButton)
     )
 
     /** Cell of the grid under the mouse, with the field concentrations when value info is on. */
@@ -737,6 +732,14 @@ class SimulatorViewController(
             }
             sign + (round(mantissa * 100f) / 100f).toString() + "e" + exponent
         }
+    }
+
+    /** Turns the value tooltip on or off (driven by the switch of the Settings tab). */
+    fun setValueInfo(enabled: Boolean) {
+        if (valueInfo == enabled) return
+        valueInfo = enabled
+        if (!enabled) hideTooltip()
+        render()
     }
 
     /** Area holding the canvas: the grid is magnified inside it and panned with the Move tool. */
