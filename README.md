@@ -144,8 +144,11 @@ python3 tools/version_deployment.py              # menu : quelle version déploy
 python3 tools/version_deployment.py bloom        # Endless Bloom  (branche main)
 python3 tools/version_deployment.py forever      # NetBioDyn Forever (branche NetBioDyn_Forever)
 python3 tools/version_deployment.py all --label 2.0.1
-python3 tools/version_deployment.py bloom --no-build   # archiver le bundle existant
 ```
+
+Le bundle est **toujours reconstruit** à partir des sources avant l'archivage :
+seules les sources sont versionnées, une archive ne contient donc jamais un
+bundle périmé.
 
 L'archive (`<version>/dist/<nom>-<version>-web.zip`) contient le contenu de
 `web/webroot` **à la racine**, sans `certs/` ni `test_*.json` : elle se dézippe
@@ -156,11 +159,8 @@ Le script ne contient aucun chemin absolu : tout est déduit de son emplacement.
 `forever` utilise le dépôt voisin `../NetBioDyn_Forever` ; s'il est ailleurs,
 `--forever-path /chemin/vers/NetBioDyn_Forever`.
 
-Le bundle `web/webroot/js/centyllion/centyllion.js` n'est pas versionné : une
-copie fraîche du dépôt doit d'abord être construite, ce qui réclame les
-identifiants du dépôt Maven privé de bulma-kotlin (`grpUser` / `grpToken`, en
-propriétés Gradle). Sans ces identifiants, seule une arborescence déjà
-construite peut être archivée (`--no-build`).
+La construction réclame les identifiants du dépôt Maven privé de bulma-kotlin
+(`grpUser` / `grpToken`, propriétés Gradle) — ou un cache Gradle déjà chaud.
 
 Après mise à jour sur le serveur, vérifier la date affichée dans le menu About :
 le navigateur ressert l'ancienne version si les en-têtes de cache ne sont pas en

@@ -8,10 +8,13 @@ publiées :
 - **NetBioDyn Forever** : le dépôt voisin ``../NetBioDyn_Forever``
   (branche ``NetBioDyn_Forever``), gelé mais encore déployé.
 
-Il demande quelle version déployer (ou l'accepte en argument), construit le
-bundle Kotlin/JS puis fabrique l'archive du site statique, prête à être
-dézippée dans le répertoire servi par le serveur web (NetBioDyn Forever est
-déployé depuis un serveur universitaire).
+Il demande quelle version déployer (ou l'accepte en argument), **construit
+toujours** le bundle Kotlin/JS à partir des sources puis fabrique l'archive du
+site statique, prête à être dézippée dans le répertoire servi par le serveur
+web (NetBioDyn Forever est déployé depuis un serveur universitaire).
+
+Seules les sources sont versionnées : le bundle n'est jamais archivé tel quel,
+une archive ne peut donc contenir que le résultat d'une construction.
 
     python3 tools/version_deployment.py              # menu interactif
     python3 tools/version_deployment.py bloom        # Endless Bloom
@@ -22,7 +25,6 @@ Options :
     --label <texte>   étiquette de version dans le nom de l'archive
                       (défaut : ``web/webroot/version.json``, sinon la version
                       de repli déclarée plus bas)
-    --no-build        ne reconstruit pas le bundle, archive l'existant
     --out <dir>       répertoire de sortie (défaut : ``<version>/dist``)
 
 L'archive contient le contenu de ``web/webroot`` **à la racine** (pas de
@@ -31,10 +33,9 @@ dossier ``webroot/``). ``certs/`` (clés privées), les ``test_*.json`` et les
 
 Portabilité : aucun chemin n'est codé en dur (tout est déduit de l'emplacement du
 script). Pour « forever », le dépôt voisin est cherché à côté d'Endless Bloom ;
-``--forever-path`` permet de le désigner ailleurs. Le bundle Kotlin/JS n'étant pas
-versionné, une copie fraîche du dépôt doit d'abord être construite — ce qui
+``--forever-path`` permet de le désigner ailleurs. La construction du bundle
 réclame les identifiants du dépôt Maven privé de bulma-kotlin (``grpUser`` /
-``grpToken``), ou un ``webroot`` déjà construit.
+``grpToken``, propriétés Gradle) — ou un cache Gradle déjà chaud.
 
 Après déploiement, vérifier la date affichée dans le menu About : le navigateur
 ressert l'ancienne version si les en-têtes de cache ne sont pas en ``no-cache``.
@@ -117,7 +118,12 @@ def build(project):
         if result.returncode == 0:
             return
         print(f"  échec avec {' '.join(options) or 'accès réseau'}, nouvel essai…")
-    sys.exit("la construction du bundle a échoué")
+    sys.exit(
+        "la construction du bundle a échoué.\n"
+        "  Vérifiez les propriétés Gradle grpUser et grpToken (dépôt privé\n"
+        "  maven.pkg.github.com/centyllion/bulma-kotlin), à passer par\n"
+        "  -PgrpUser=… -PgrpToken=… ou à déclarer dans ~/.gradle/gradle.properties."
+    )
 
 
 def make_archive(project, out):
@@ -185,8 +191,7 @@ def release(key, args):
     if branch not in (version["branch"], "?"):
         print(f"  ATTENTION : la branche attendue est {version['branch']}")
 
-    if not args.no_build:
-        build(project)
+    build(project)
 
     label = label_for(project, version, args.label)
     out_dir = args.out or os.path.join(project, "dist")
@@ -220,7 +225,6 @@ def main():
     parser.add_argument("version", nargs="?", choices=list(VERSIONS) + ["all"],
                         help="version à déployer (défaut : menu interactif)")
     parser.add_argument("--label", help="étiquette de version dans le nom de l'archive")
-    parser.add_argument("--no-build", action="store_true", help="archiver le bundle existant")
     parser.add_argument("--out", help="répertoire de sortie")
     parser.add_argument("--forever-path", dest="forever_path",
                         help="chemin du dépôt NetBioDyn Forever (défaut : dépôt voisin)")
