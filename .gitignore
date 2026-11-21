@@ -21,3 +21,4 @@ db/docker/db-*.tar
 
 # fichiers de test locaux (modèles injectés dans localStorage)
 web/webroot/test_*.json
+/dist/
