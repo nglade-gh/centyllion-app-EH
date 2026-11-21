@@ -18,6 +18,7 @@ allprojects {
         google()
     }
     group = "com.centyllion"
-    version = "0.0.1"
+    // Endless Bloom (EB) — version majeure : la logique de calcul diffère de NetBioDyn Forever
+    version = "2.0.0"
 }
 

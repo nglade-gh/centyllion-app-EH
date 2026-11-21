@@ -33,6 +33,9 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     private var tutorialLayer: TutorialLayer<ShowPage>? = null
 
+    /** Version number of the running bundle (`version.json`), shown in the About dialog. */
+    private var versionNumber: String = ""
+
     /** Build date and time of the running bundle (`version.json`), shown in the About dialog. */
     private var versionDate: String = ""
 
@@ -40,7 +43,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     private val repositoryUrl = "https://github.com/nglade-gh/centyllion-app-EH"
 
     /** Code name of this distribution, shown in the About dialog. */
-    private val distributionName = "NetBioDyn Forever"
+    private val distributionName = "Endless Bloom"
 
     private val authors = "Pascal Ballet, Jean-Charles Roger, Nicolas Glade"
 
@@ -170,7 +173,14 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
             Table(
                 body = listOf(
                     row("Name", span(distributionName)),
-                    row("Version", span(versionDate.ifBlank { i18n("unknown") })),
+                    row(
+                        "Version",
+                        span(
+                            listOf(versionNumber.ifBlank { i18n("unknown") }, versionDate)
+                                .filter { it.isNotBlank() }
+                                .joinToString(" — ")
+                        )
+                    ),
                     row("Authors", span(authors)),
                     TableRow(
                         TableCell(i18n("Git repository")).apply { root.classList.add("has-text-weight-bold") },
@@ -400,6 +410,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         }
 
         appContext.api.fetchVersion().then {
+            versionNumber = it.version
             versionDate = it.date
         }
 

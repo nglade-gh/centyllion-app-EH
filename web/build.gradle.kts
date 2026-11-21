@@ -107,7 +107,9 @@ tasks {
             val version =  project.version
             val build = properties["build.number"] ?: "dev"
             val sha = properties["build.vcs.number"] ?: "dev"
-            val date = SimpleDateFormat().format(Date())
+            // fixed pattern: the About dialog must show the same date whatever the
+            // machine locale (previous builds produced "11/21/26, 5:45 AM")
+            val date = SimpleDateFormat("dd/MM/yyyy HH:mm").format(Date())
             file("$webRoot/version.json").writeText(
                 """{ "version": "$version", "build": "$build", "sha": "$sha", "date": "$date" }"""
             )
