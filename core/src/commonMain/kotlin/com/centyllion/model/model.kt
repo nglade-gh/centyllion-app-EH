@@ -552,6 +552,17 @@ data class ExecutionBlock(
 ) {
     /** True when the block may be executed at all (enabled and probability above 0). */
     val executable: Boolean get() = enabled && probability > 0.0
+
+    /**
+     * True when this block carries no information of its own: unnamed, enabled, probability
+     * 1 and no predicate. Such a block, when it holds every behaviour of the model, is the
+     * implicit block of a file written before execution blocks existed, so it does not need
+     * to appear in the saved file (see [GrainModel.forSerialization]).
+     */
+    val isTrivial: Boolean
+        get() = name.isBlank() && description.isBlank() && enabled && probability == 1.0 &&
+                formula.isBlank() && agePredicates.isEmpty() && agentCountPredicates.isEmpty() &&
+                fieldPredicates.isEmpty()
 }
 
 @Serializable
@@ -605,6 +616,25 @@ data class GrainModel(
             else -> this
         }
     }
+
+    /**
+     * True when [executionBlocks] is exactly the implicit block: one single block, without
+     * parameter of its own, holding every behaviour of the model in the reference order.
+     * Such a model is indistinguishable from a file written before blocks existed.
+     */
+    val hasImplicitBlock: Boolean
+        get() = executionBlocks.size == 1 &&
+                executionBlocks[0].isTrivial &&
+                executionBlocks[0].behaviours.map { it.uuid } == behaviours.map { it.uuid }
+
+    /**
+     * Copy to encode: an implicit block is left out of the file, so that a project with a
+     * single always-executed block keeps the exact structure of the files written before
+     * execution blocks, and stays readable by the previous readers. Loading it back
+     * re-creates the same block through [migrated], so the round trip is stable.
+     */
+    fun forSerialization(): GrainModel =
+        if (hasImplicitBlock) copy(executionBlocks = emptyList()) else this
 
     val label: String
         get() = when {
@@ -951,6 +981,10 @@ data class ModelAndSimulation(
 
     /** Returns a copy whose model carries its execution blocks. Call after loading a file. */
     fun migrated(): ModelAndSimulation = copy(model = model.migrated())
+
+    /** Copy to encode: the implicit block of a single-block model is not written. */
+    fun forSerialization(): ModelAndSimulation = copy(model = model.forSerialization())
+
 
     /**
      * Model needs expert mode if a behaviour uses a raw predicate formula or a raw

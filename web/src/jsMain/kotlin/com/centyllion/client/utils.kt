@@ -272,9 +272,17 @@ fun loadFromStorage(): ModelAndSimulation? =
 fun decodeModelAndSimulation(text: String): ModelAndSimulation =
     netbiodynJson.decodeFromString(ModelAndSimulation.serializer(), text).migrated()
 
+/**
+ * Encodes a project. The implicit execution block (single block, probability 1, no
+ * predicate) is left out, so a single-block project keeps the file structure of the
+ * versions without execution blocks.
+ */
+fun encodeModelAndSimulation(model: ModelAndSimulation): String =
+    netbiodynJson.encodeToString(ModelAndSimulation.serializer(), model.forSerialization())
+
 fun saveToStorage(model: ModelAndSimulation) {
     window.setTimeout({
-        val value = netbiodynJson.encodeToString(ModelAndSimulation.serializer(), model)
+        val value = encodeModelAndSimulation(model)
         window.localStorage.setItem("model", value)
     }, 25)
 }

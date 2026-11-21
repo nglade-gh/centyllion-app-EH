@@ -127,4 +127,86 @@ class ExecutionBlockTest {
         assertFalse(ExecutionBlock(enabled = false).executable, "unchecked means never")
         assertFalse(ExecutionBlock(enabled = false, probability = 1.0).executable)
     }
+
+    // --- the implicit block is not written (backward compatible files) ---
+
+    private fun encodeForFile(model: GrainModel) =
+        json.encodeToString(ModelAndSimulation.serializer(), project(model).forSerialization())
+
+    @Test
+    fun testImplicitSingleBlockIsNotWritten() {
+        val model = dendriteModel().migrated()
+        assertTrue(model.hasImplicitBlock, "one unnamed block, probability 1, no predicate")
+
+        val text = encodeForFile(model)
+        assertFalse(text.contains("executionBlocks"), "the implicit block stays out of the file")
+
+        // stable round trip: the block is re-created on load, and still implicit
+        val reloaded = json.decodeFromString(ModelAndSimulation.serializer(), text).migrated()
+        assertTrue(reloaded.model.hasImplicitBlock)
+        assertEquals(model.behaviours.map { it.name }, reloaded.model.behaviours.map { it.name })
+        assertEquals(1, reloaded.model.executionBlocks.size)
+    }
+
+    @Test
+    fun testANamedSingleBlockIsWritten() {
+        val base = dendriteModel()
+        val model = base.copy(executionBlocks = listOf(ExecutionBlock(name = "Croissance", behaviours = base.behaviours)))
+        assertFalse(model.hasImplicitBlock)
+        assertTrue(encodeForFile(model).contains("executionBlocks"))
+    }
+
+    @Test
+    fun testASingleBlockWithAProbabilityIsWritten() {
+        val base = dendriteModel()
+        val model = base.copy(
+            executionBlocks = listOf(ExecutionBlock(probability = 0.8, behaviours = base.behaviours))
+        )
+        assertFalse(model.hasImplicitBlock, "a probability below 1 is information")
+        assertTrue(encodeForFile(model).contains("executionBlocks"))
+    }
+
+    @Test
+    fun testASingleBlockWithAPredicateIsWritten() {
+        val base = dendriteModel()
+        val model = base.copy(
+            executionBlocks = listOf(
+                ExecutionBlock(
+                    agePredicates = listOf(Predicate(Operator.GreaterThanOrEquals, 5)),
+                    behaviours = base.behaviours
+                )
+            )
+        )
+        assertFalse(model.hasImplicitBlock)
+        assertTrue(encodeForFile(model).contains("executionBlocks"))
+    }
+
+    @Test
+    fun testASingleUncheckedBlockIsWritten() {
+        val base = dendriteModel()
+        val model = base.copy(executionBlocks = listOf(ExecutionBlock(enabled = false, behaviours = base.behaviours)))
+        assertFalse(model.hasImplicitBlock)
+        assertTrue(encodeForFile(model).contains("executionBlocks"))
+    }
+
+    @Test
+    fun testABlockThatMissesABehaviourIsAlwaysWritten() {
+        // safety: if the block does not hold every behaviour, omitting it would lose some
+        val base = GrainModel(
+            grains = dendriteModel().grains,
+            behaviours = dendriteModel().behaviours + dendriteModel().behaviours.map { it.copy(name = "second") }
+        )
+        val model = base.copy(executionBlocks = listOf(ExecutionBlock(behaviours = base.behaviours.take(1))))
+        assertFalse(model.hasImplicitBlock)
+        assertTrue(encodeForFile(model).contains("executionBlocks"))
+    }
+
+    @Test
+    fun testAnEmptyModelKeepsAnImplicitEmptyBlock() {
+        val model = GrainModel().migrated()
+        assertTrue(model.hasImplicitBlock)
+        val text = encodeForFile(model)
+        assertFalse(text.contains("executionBlocks"))
+        assertTrue(json.decodeFromString(ModelAndSimulation.serializer(), text).migrated().model.hasImplicitBlock)
+    }
 }

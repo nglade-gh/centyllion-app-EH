@@ -304,7 +304,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
      * project has no file yet or the permission is denied.
      */
     fun saveQuick(after: () -> Unit = {}) {
-        val content = netbiodynJson.encodeToString(ModelAndSimulation.serializer(), model)
+        val content = encodeModelAndSimulation(model)
         val handle = saveHandle
         if (handle == null) {
             saveAs(after)
@@ -325,7 +325,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
      * the project as the suggested name.
      */
     fun saveAs(after: () -> Unit = {}) {
-        val content = netbiodynJson.encodeToString(ModelAndSimulation.serializer(), model)
+        val content = encodeModelAndSimulation(model)
         val base = currentFileName ?: if (model.model.name.isNotBlank()) model.model.name else "model"
         val fileName = if (base.endsWith(".netbiodyn")) base else "$base.netbiodyn"
         saveFilePicker(
