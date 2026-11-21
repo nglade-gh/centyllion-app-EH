@@ -363,6 +363,11 @@ class ModelController(
 
     var editorController: Controller<*, dynamic, dynamic>? = null
 
+    // shared display mode for both charts: full history (step 0 -> current) or sliding window
+    private val windowValues = (10..500 step 10).toList()
+    private var plotWindowMode = false
+    private var plotWindowSize = 100
+
     val settingsController = SimulationSettingsController(
         model.simulation.settings, page,
         initialUpdatePlan = model.model.updatePlan,
@@ -372,7 +377,12 @@ class ModelController(
         initialSeed = model.simulation.seed,
         onUpdateSeed = { newSeed ->
             data = data.copy(simulation = data.simulation.copy(seed = newSeed))
-        }
+        },
+        initialValueInfo = true,
+        onValueInfo = { enabled -> simulationController.simulationViewController.setValueInfo(enabled) },
+        initialSlidingWindow = plotWindowMode,
+        initialWindowSize = plotWindowSize,
+        onSlidingWindow = { checked, size -> applyPlotWindow(checked, size) }
     ) { _, new, _ ->
         data = data.copy(simulation = data.simulation.updateSettings(new))
     }
@@ -454,11 +464,6 @@ class ModelController(
         createFieldPlots(), size(window.innerWidth/4.0, window.innerHeight/3.0)
     ).apply { hidden = this@ModelController.data.model.fields.isEmpty() }
 
-    // shared display mode for both charts: full history (step 0 -> current) or sliding window
-    private val windowValues = (10..500 step 10).toList()
-    private var plotWindowMode = false
-    private var plotWindowSize = 100
-
     private fun applyPlotWindow(checked: Boolean, sizeValue: Int) {
         plotWindowMode = checked
         plotWindowSize = sizeValue
@@ -469,25 +474,8 @@ class ModelController(
         fieldChart.renderRequest()
     }
 
-    val windowCheckbox = Checkbox(page.i18n("Sliding window"), false) { _, checked ->
-        applyPlotWindow(checked, plotWindowSize)
-    }
-
-    val windowSelect = Select(
-        options = windowValues.map { Option("$it") },
-        rounded = true,
-        selectedIndex = windowValues.indexOf(100)
-    ) { _: Event, value: List<Option> ->
-        value.firstOrNull()?.value?.toIntOrNull()?.let { applyPlotWindow(plotWindowMode, it) }
-    }
-
-    val plotModeHeader = Level(
-        center = listOf(windowCheckbox, Label(page.i18n("Window")), windowSelect),
-        mobile = true
-    )
-
     val rightColumn = Column(
-        plotModeHeader, chartsHeader, grainChart, fieldChart,
+        chartsHeader, grainChart, fieldChart,
         size = ColumnSize.S3
     )
 

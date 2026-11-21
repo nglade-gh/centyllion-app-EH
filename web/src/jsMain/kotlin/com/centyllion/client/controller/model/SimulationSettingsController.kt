@@ -19,6 +19,11 @@ class SimulationSettingsController (
     var onUpdatePlan: (String) -> Unit = { },
     initialSeed: Long = DEFAULT_SIMULATION_SEED,
     var onUpdateSeed: (Long) -> Unit = { },
+    initialValueInfo: Boolean = true,
+    var onValueInfo: (Boolean) -> Unit = { },
+    initialSlidingWindow: Boolean = false,
+    initialWindowSize: Int = 100,
+    var onSlidingWindow: (Boolean, Int) -> Unit = { _, _ -> },
     var onUpdate: (old: SimulationSettings, new: SimulationSettings, controller: SimulationSettingsController) -> Unit = { _, _, _ -> }
 ) : NoContextController<SimulationSettings, Div>() {
 
@@ -41,6 +46,9 @@ class SimulationSettingsController (
             gridTextureUrlController.readOnly = new
             updatePlanSelect.disabled = new
             seedInput.disabled = new
+            valueInfoSwitch.disabled = new
+            slidingWindowCheckbox.disabled = new
+            windowSizeSelect.disabled = new
         }
     }
 
@@ -61,6 +69,29 @@ class SimulationSettingsController (
     /** Called when another project is loaded: shows its seed. */
     fun refreshSeed(seed: Long) {
         if (seedInput.value != seed.toString()) seedInput.value = seed.toString()
+    }
+
+    /** Hovering a cell shows the field concentrations (on by default). */
+    val valueInfoSwitch = Checkbox(page.i18n("Value info"), initialValueInfo) { _, checked ->
+        onValueInfo(checked)
+    }
+
+    private val windowValues = (10..500 step 10).toList()
+    private var windowSize = initialWindowSize
+
+    val slidingWindowCheckbox = Checkbox(page.i18n("Sliding window"), initialSlidingWindow) { _, checked ->
+        onSlidingWindow(checked, windowSize)
+    }
+
+    val windowSizeSelect = Select(
+        options = windowValues.map { Option("$it") },
+        rounded = true,
+        selectedIndex = windowValues.indexOf(initialWindowSize).coerceAtLeast(0)
+    ) { _: Event, value: List<Option> ->
+        value.firstOrNull()?.value?.toIntOrNull()?.let { size ->
+            windowSize = size
+            onSlidingWindow(slidingWindowCheckbox.checked, size)
+        }
     }
 
     val sizeController = Select(
@@ -114,9 +145,21 @@ class SimulationSettingsController (
                 Label(page.i18n("Grid")),
                 showGridSwitch
             ),
+            Field(Control(valueInfoSwitch)),
             Field(
                 Label(page.i18n("Image URL")),
                 gridTextureUrlController.container
+            )
+        )
+    )
+
+    private val curvesPage = TabPage(
+        TabItem(page.i18n("Curves"), "chart-line"),
+        Box(
+            Field(Control(slidingWindowCheckbox)),
+            Field(
+                Label(page.i18n("Window")),
+                Control(windowSizeSelect)
             )
         )
     )
@@ -125,7 +168,7 @@ class SimulationSettingsController (
 
     override val container = Div(
         tabs,
-        TabPages(simulationPage, environmentPage, tabs = tabs),
+        TabPages(simulationPage, environmentPage, curvesPage, tabs = tabs),
         classes = "editor"
     ).apply { root.style.display = "contents" }
 
