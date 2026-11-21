@@ -133,6 +133,29 @@ xvfb-run -a ./gradlew :compose:shared:run
 
 ---
 
+### 3.5 Archive de déploiement
+
+`tools/version_deployment.py` construit l'archive d'une version et sait faire la
+différence entre les deux dépôts voisins (`Endless_Bloom` et
+`NetBioDyn_Forever`) :
+
+```bash
+python3 tools/version_deployment.py              # menu : quelle version déployer ?
+python3 tools/version_deployment.py bloom        # Endless Bloom  (branche main)
+python3 tools/version_deployment.py forever      # NetBioDyn Forever (branche NetBioDyn_Forever)
+python3 tools/version_deployment.py all --label 2.0.1
+python3 tools/version_deployment.py bloom --no-build   # archiver le bundle existant
+```
+
+L'archive (`<version>/dist/<nom>-<version>-web.zip`) contient le contenu de
+`web/webroot` **à la racine**, sans `certs/` ni `test_*.json` : elle se dézippe
+directement dans le répertoire servi par le serveur web. Le script affiche la
+branche et le SHA archivés, la taille, le nombre de fichiers et le `sha256`.
+
+Après mise à jour sur le serveur, vérifier la date affichée dans le menu About :
+le navigateur ressert l'ancienne version si les en-têtes de cache ne sont pas en
+`no-cache`.
+
 ## 4. Nouvelles fonctionnalités
 
 ### 4.1 Génération spontanée (None → Agent)
