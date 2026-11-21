@@ -438,6 +438,7 @@ object French: Locale {
         "Settings" -> "Paramètres"
         "Random seed" -> "Graine aléatoire"
         "Curves" -> "Courbes"
+        "Window size" -> "Taille fenêtre"
         else -> null
     }
 }

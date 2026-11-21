@@ -357,6 +357,7 @@ object English: Locale {
         "Settings" -> "Settings"
         "Random seed" -> "Random seed"
         "Curves" -> "Curves"
+        "Window size" -> "Window size"
         else -> key
     }
 }

@@ -71,17 +71,26 @@ class SimulationSettingsController (
         if (seedInput.value != seed.toString()) seedInput.value = seed.toString()
     }
 
+    /**
+     * A checkbox is rendered inside a `.help` span (12 px). Dropping that class gives it
+     * the body text size of the tab, like the field labels around it.
+     */
+    private fun <T : bulma.Checkbox> T.alignText(): T {
+        root.classList.remove("help")
+        return this
+    }
+
     /** Hovering a cell shows the field concentrations (on by default). */
     val valueInfoSwitch = Checkbox(page.i18n("Value info"), initialValueInfo) { _, checked ->
         onValueInfo(checked)
-    }
+    }.alignText()
 
     private val windowValues = (10..500 step 10).toList()
     private var windowSize = initialWindowSize
 
     val slidingWindowCheckbox = Checkbox(page.i18n("Sliding window"), initialSlidingWindow) { _, checked ->
         onSlidingWindow(checked, windowSize)
-    }
+    }.alignText()
 
     val windowSizeSelect = Select(
         options = windowValues.map { Option("$it") },
@@ -158,7 +167,7 @@ class SimulationSettingsController (
         Box(
             Field(Control(slidingWindowCheckbox)),
             Field(
-                Label(page.i18n("Window")),
+                Label(page.i18n("Window size")),
                 Control(windowSizeSelect)
             )
         )
