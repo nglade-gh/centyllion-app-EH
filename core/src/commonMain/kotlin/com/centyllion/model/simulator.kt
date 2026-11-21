@@ -7,7 +7,6 @@ import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.roundToInt
-import kotlin.random.Random
 
 const val minField = 1e-15f
 const val minFieldLevel = 1e-14f
@@ -56,7 +55,8 @@ class Simulator(
     val model: GrainModel,
     val simulation: Simulation
 ) {
-    val random = Random.Default
+    /** Deterministic engine: every cell owns a stream derived from [Simulation.seed]. */
+    val random = SimulationRandom(simulation.seed, simulation.dataSize)
 
     val initialAgents: IntArray = IntArray(simulation.agents.size) { simulation.agents[it] }
     var agents: IntArray = initialAgents.copyOf()
@@ -314,9 +314,10 @@ class Simulator(
                 model.fields.forEach { this[it] = 0f }
             }
             val localDead = mutableListOf<Int>()
-            val localRandom = Random(block.index * 31 + step)
+            // cells are disjoint between blocks: each cell draws from its own stream, so the
+            // trajectory does not depend on how the grid is split across threads
             for (i in block.range) {
-                processCell(i, context, localAll, localCount, localFieldAmounts, localDead, localRandom, fields, nextFields)
+                processCell(i, context, localAll, localCount, localFieldAmounts, localDead, random, fields, nextFields)
             }
             BlockResult(localAll, localCount, localFieldAmounts, localDead)
         }
@@ -344,7 +345,7 @@ class Simulator(
         currentCount: MutableMap<Grain, Int>,
         currentFieldAmounts: MutableMap<Field, Float>,
         dead: MutableList<Int>,
-        random: Random,
+        random: SimulationRandom,
         fields: Map<Int, FloatArray>,
         nextFields: Map<Int, FloatArray>
     ) {
@@ -357,7 +358,7 @@ class Simulator(
         val grain = grainAtIndex(i)
         if (grain != null) {
             // does the grain dies ?
-            if (grain.halfLife > 0.0 && random.nextDouble() <= grain.deathProbability) {
+            if (grain.halfLife > 0.0 && random.nextDouble(i) <= grain.deathProbability) {
                 // it dies, doesn't count
                 transform(i, i, null)
                 dead.add(i)
@@ -375,13 +376,13 @@ class Simulator(
 
                     // searches for applicable behaviours and filters by probability
                     val applicable = allBehaviours.filter {
-                        it.applicable(grain, age, fieldValues, neighbours, position, this) && random.nextDouble() < speeds[it]!!
+                        it.applicable(grain, age, fieldValues, neighbours, position, this) && random.nextDouble(i) < speeds[it]!!
                     }
 
                     // selects behaviour if any is applicable
                     if (applicable.isNotEmpty()) {
                         // selects one at random
-                        val behaviour = applicable[random.nextInt(applicable.size)]
+                        val behaviour = applicable[random.nextInt(i, applicable.size)]
 
                         // for each reaction, find all possible reactives
                         val possibleReactions = behaviour.reaction
@@ -399,7 +400,7 @@ class Simulator(
                         val chosenCombination = when {
                             // optimized case when no field is used for the behaviour
                             model.fields.isEmpty() || !behaviour.fieldInfluenced -> {
-                                random.nextInt(allCombinations.size)
+                                random.nextInt(i, allCombinations.size)
                             }
 
                             else -> {
@@ -430,7 +431,7 @@ class Simulator(
                                 }
 
                                 // chooses one randomly influenced by the fields
-                                val probability = random.nextDouble(current.toDouble())
+                                val probability = random.nextDouble(i) * current
                                 influence.indexOfFirst { probability < it }
                             }
                         }
@@ -451,12 +452,12 @@ class Simulator(
 
             // for generation, use the simulation step as the "age" value
             val applicable = allBehaviours.filter {
-                it.mainReactiveId == -1 && it.applicable(null, step, fieldValues, neighbours, position, this) && random.nextDouble() < speeds[it]!!
+                it.mainReactiveId == -1 && it.applicable(null, step, fieldValues, neighbours, position, this) && random.nextDouble(i) < speeds[it]!!
             }
 
             if (applicable.isNotEmpty()) {
                 // selects one at random
-                val behaviour = applicable[random.nextInt(applicable.size)]
+                val behaviour = applicable[random.nextInt(i, applicable.size)]
 
                 // for each reaction, find all possible reactives
                 val possibleReactions = behaviour.reaction
@@ -473,7 +474,7 @@ class Simulator(
 
                 val chosenCombination = when {
                     model.fields.isEmpty() || !behaviour.fieldInfluenced -> {
-                        random.nextInt(allCombinations.size)
+                        random.nextInt(i, allCombinations.size)
                     }
                     else -> {
                         val influence = FloatArray(allCombinations.size) { c ->
@@ -498,7 +499,7 @@ class Simulator(
                             current += translated
                         }
 
-                        val probability = random.nextDouble(current.toDouble())
+                        val probability = random.nextDouble(i) * current
                         influence.indexOfFirst { probability < it }
                     }
                 }
@@ -572,6 +573,8 @@ class Simulator(
         ages.copyInto(nextAges)
 
         step = 0
+        // rewind the streams: running again after a reset repeats the same trajectory
+        random.reset()
         resetCount()
     }
 

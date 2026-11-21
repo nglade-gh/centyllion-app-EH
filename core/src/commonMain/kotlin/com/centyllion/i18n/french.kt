@@ -435,6 +435,8 @@ object French: Locale {
         "Write 0.5 + 0.5 * sin((x - y) / 8 - step / 4) for a diagonal wave." -> "Écrivez 0.5 + 0.5 * sin((x - y) / 8 - step / 4) pour une onde diagonale."
         "Value info" -> "Info valeurs"
         "No field" -> "Aucun champ"
+        "Settings" -> "Paramètres"
+        "Random seed" -> "Graine aléatoire"
         else -> null
     }
 }

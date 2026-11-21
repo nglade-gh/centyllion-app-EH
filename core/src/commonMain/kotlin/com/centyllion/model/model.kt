@@ -713,6 +713,9 @@ data class GrainModel(
 
 private fun emptyList(size: Int): List<Int> = ArrayList<Int>(size).apply { repeat(size) { add(-1) } }
 
+/** Seed used by every new simulation, and by the files that do not carry one. */
+const val DEFAULT_SIMULATION_SEED: Long = 42
+
 fun createSimulation(
     name: String = "", description: String = "", size: Int = 100,
     agentsInit: (Int) -> Int = { -1 }
@@ -745,6 +748,8 @@ data class Simulation(
     val width: Int = settings.size,
     val height: Int = settings.size,
     val depth: Int = 1,
+    /** Seed of the simulation: two runs sharing a seed follow the same trajectory. */
+    val seed: Long = DEFAULT_SIMULATION_SEED,
     /** If true, all behaviours are computed from the state at the start of the step (parallel update).
      *  If false, behaviours are applied immediately, so later behaviours see earlier changes.
      *  Derived from [GrainModel.updatePlan]; not serialized (the plan is stored on the model). */
@@ -867,6 +872,7 @@ data class Simulation(
         return Simulation(
             name = name,
             description = description,
+            seed = seed,
             settings = newSettings,
             assets = assets,
             agents = newAgents,
