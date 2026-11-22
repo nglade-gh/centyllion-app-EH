@@ -105,7 +105,11 @@ fun Behaviour.diagnose(model: GrainModel, locale: Locale, result: MutableList<Pr
 
     // Check for meaningless behaviour: None -> None
     if (mainReactiveId == -1 && mainProductId == -1 && reaction.all { it.reactiveId == -1 && it.productId == -1 }) {
-        result.add(Problem(this, "Meaningless", locale.i18n("Behaviour has no effect (None -> None)")))
+        // with actions the behaviour is not inert: it acts on the simulation (SetField…)
+        // without producing any agent, which is legitimate but worth an explicit warning
+        val message = if (actions.isBlank()) "Behaviour has no effect (None -> None)"
+        else "Behaviour produces no agent (None -> None): its actions alone act on the simulation, for example SetField(0, 0, 0, 1), possibly under a predicate on the simulation step."
+        result.add(Problem(this, "Meaningless", locale.i18n(message)))
     }
 }
 
