@@ -519,6 +519,8 @@ class Simulator(
                 val id = currentAgents[simulation.moveIndex(i, d)]
                 if (id >= 0) counts[id] = (counts[id] ?: 0) + 1 else empty += 1
             }
+            counts[COUNT_ALL_AGENTS] = counts.values.sum()
+            counts[COUNT_EMPTY_CELLS] = empty
             context.evaluator.agentCounts = counts
             context.evaluator.emptyCount = empty
         }
@@ -702,6 +704,8 @@ class Simulator(
             val id = currentAgents[simulation.moveIndex(index, d)]
             if (id >= 0) counts[id] = (counts[id] ?: 0) + 1 else emptyNeighbours += 1
         }
+        counts[COUNT_ALL_AGENTS] = counts.values.sum()
+        counts[COUNT_EMPTY_CELLS] = emptyNeighbours
         evaluator.agentCounts = counts
         evaluator.emptyCount = emptyNeighbours
 

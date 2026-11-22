@@ -2,7 +2,6 @@ package com.centyllion.model
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -79,9 +78,11 @@ class BehaviourPredicatesTest {
     }
 
     @Test
-    fun testAllAgentCountCannotBeConverted() {
+    fun testAllAgentCountIsConverted() {
+        // the counts map exposes -1 (every agent) and -2 (empty cells): both are expressible
         val model = behaviour(counts = listOf(AgentCountPredicate(grainId = -1, op = Operator.Equals, count = 2)))
-        assertFalse(BehaviourPredicates.convertible(model), "count over every agent has no formula equivalent")
+        assertTrue(BehaviourPredicates.convertible(model), "count over every agent is expressible as count(-1)")
+        assertEquals("count(-1) == 2", BehaviourPredicates.toFormula(model))
     }
 
     @Test

@@ -83,6 +83,14 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     val modelController = ModelController(this, model) { _, new, _ -> model = new }
 
+    init {
+        // the model may refuse to leave the normal mode (graphical predicates): then the
+        // switch must come back to its previous position, and the page owns its state
+        modelController.onExpertModeRefused = {
+            if (expertMode) expertMode = false
+        }
+    }
+
     val simulationController get() = modelController.simulationController
 
     val modelName = EditableStringController(
