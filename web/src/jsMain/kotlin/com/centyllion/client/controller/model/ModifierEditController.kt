@@ -76,6 +76,60 @@ class ModifierEditController(
         this.data = this.data.copy(actions = new)
     }
 
+    private fun helpLine(name: String, description: String) = TableRow(
+        TableCell(name).apply { root.classList.add("has-text-weight-bold") },
+        TableCell(page.i18n(description)),
+    )
+
+    private fun helpButton(title: String, sections: List<BulmaElement>) = Button(
+        page.i18n("Help"), size = Size.Small, color = ElementColor.Info
+    ) {
+        page.modalDialog(page.i18n(title), sections, Button(page.i18n("Close"), color = ElementColor.Primary) {})
+    }
+
+    private val conditionHelp = Section(
+        p(page.i18n("Evaluated once per step, outside any cell. The variables and functions that depend on a cell therefore take explicit coordinates.")),
+        p(page.i18n("The formula must be a logical predicate returning true or false; the mathematical operators and functions (abs, min, max, sin, cos, log…) are available.")),
+        SubTitle(page.i18n("Variables and functions")),
+        Table(
+            body = listOf(
+                helpLine("step", "Number of the current step"),
+                helpLine("agent(x, y)", "Type of the agent at the cell (x, y), -1 when the cell is empty"),
+                helpLine("age(x, y)", "Age of the agent at the cell (x, y), 0 when the cell is empty"),
+                helpLine("count(id, x, y)", "Number of neighbours of type id around the cell (x, y)"),
+                helpLine("field(id, x, y)", "Value of the field id at the cell (x, y)"),
+            ),
+            fullWidth = true, striped = true
+        ),
+        p(page.i18n("Coordinates are wrapped around the grid (toroidal). There is no x, y, z variable and no age(n): those depend on the cell of a behaviour."))
+    )
+
+    private val modifierActionsHelp = Section(
+        p(page.i18n("The actions are executed once per step, after the behaviours, when the condition is true.")),
+        p(page.i18n("Only meta-actions are allowed here: they act on the simulation, not on one cell.")),
+        SubTitle(page.i18n("Meta-actions")),
+        Table(
+            body = listOf(
+                helpLine("pause()", "Pauses the simulation at the end of the current step"),
+                helpLine("Add(id, N)", "Adds N agents of type id anywhere in the environment"),
+                helpLine("AddRect(id, N, x1, y1, x2, y2)", "Adds N agents of type id inside the rectangle (x1, y1)-(x2, y2)"),
+                helpLine("AddDisc(id, N, x, y, radius)", "Adds N agents of type id inside the disc centred on (x, y)"),
+                helpLine("EraseRect(x1, y1, x2, y2)", "Erases every agent of the rectangle, whatever its type"),
+                helpLine("EraseDisc(x, y, radius)", "Erases every agent of the disc, whatever its type"),
+                helpLine("EraseRect(id, x1, y1, x2, y2)", "Erases the agents of type id inside the rectangle"),
+                helpLine("EraseDisc(id, x, y, radius)", "Erases the agents of type id inside the disc"),
+                helpLine("Erase(id)", "Erases every agent of type id in the whole environment"),
+                helpLine("Activate(id)", "Activates the behaviour id (no effect when already active)"),
+                helpLine("Inactivate(id)", "Inactivates the behaviour id (no effect when already inactive)"),
+                helpLine("Use(id)", "Activates the simulation modifier id"),
+                helpLine("Unuse(id)", "Inactivates the simulation modifier id"),
+            ),
+            fullWidth = true, striped = true
+        ),
+        p(page.i18n("The identifiers are those displayed in the explorer, after the name: name (id). Arguments can be expressions built on the condition functions.")),
+        p(page.i18n("AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones."))
+    )
+
     /** Problems of the two formulas, refreshed as they are typed. */
     private val problemsLabel = Label("").apply { root.style.color = "#f14668" }
 
@@ -94,8 +148,16 @@ class ModifierEditController(
         HorizontalField(Label(page.i18n("Description")), descriptionController.container),
         HorizontalField(Label(page.i18n("Probability")), probabilityController.container),
         HorizontalField(Label(page.i18n("Active")), BField(enabledSwitch)),
-        HorizontalField(Label(page.i18n("Condition")), formulaController.container),
-        HorizontalField(Label(page.i18n("Actions")), actionsController.container),
+        HorizontalField(
+            Label(page.i18n("Condition")),
+            BField(Control(helpButton("Condition of a modifier", listOf(conditionHelp)))),
+            formulaController.container
+        ),
+        HorizontalField(
+            Label(page.i18n("Actions")),
+            BField(Control(helpButton("Meta-actions", listOf(modifierActionsHelp)))),
+            actionsController.container
+        ),
         p(page.i18n("The condition and the actions are evaluated once per step, outside any cell: use agent(x, y), age(x, y), count(id, x, y) and field(id, x, y).")),
         problemsLabel
     )
