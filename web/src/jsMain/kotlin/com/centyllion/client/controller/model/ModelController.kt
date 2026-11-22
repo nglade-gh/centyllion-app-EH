@@ -205,6 +205,7 @@ class ModelController(
             fieldsController.updateSelection(newSelection)
             grainsController.updateSelection(newSelection)
             behavioursController.updateSelection(newSelection)
+            updateModifierSelection(newSelection)
 
             // update simulation selected grain
             if (newSelection is Grain) {
@@ -387,12 +388,28 @@ class ModelController(
         mobile = true
     )
 
-    /** Rebuilds the modifier rows: On/Off radio, name (id), delete. */
+    /** Boxes of the modifier rows, to toggle the selection border. */
+    private val modifierRowBoxes = mutableListOf<Pair<SimulationModifier, Box>>()
+
+    /** Rebuilds the modifier rows: On/Off radio, name (id), probability, delete. */
     private fun refreshModifiers() {
-        modifiersHost.body = data.model.modifiers.map { modifier -> modifierRow(modifier) }
+        modifierRowBoxes.clear()
+        modifiersHost.body = data.model.modifiers.map { modifier ->
+            val box = modifierRow(modifier)
+            modifierRowBoxes.add(modifier to box)
+            box
+        }
+        updateModifierSelection(selected)
     }
 
-    private fun modifierRow(modifier: SimulationModifier): BulmaElement {
+    /** Purple border on the selected modifier, as for the grains, the fields and the behaviours. */
+    private fun updateModifierSelection(selection: ModelElement?) {
+        modifierRowBoxes.forEach { (modifier, box) ->
+            box.root.classList.toggle("is-selected", selection is SimulationModifier && selection.uuid == modifier.uuid)
+        }
+    }
+
+    private fun modifierRow(modifier: SimulationModifier): Box {
         val radio = (document.createElement("input") as HTMLInputElement).apply {
             type = "radio"
             name = "modifier-enabled-${modifier.uuid}"
@@ -405,28 +422,33 @@ class ModelController(
                 appendChild(radio)
             }
         )
-        radio.addEventListener("click", {
+        radio.addEventListener("click", { event: Event ->
+            event.stopPropagation()
             val current = data.model.modifiers.firstOrNull { it.uuid == modifier.uuid } ?: modifier
             val target = !current.enabled
             radio.checked = target
             this.data = this.data.copy(model = data.model.updateModifier(current, current.copy(enabled = target)))
         })
         val label = Label("${modifier.name} (${modifier.id})")
-        label.root.style.cursor = "pointer"
-        label.root.addEventListener("click", { selected = modifier })
         val delete = iconButton(Icon("times", Size.Small), ElementColor.Danger, true, size = Size.Small) {
             this.data = this.data.copy(model = data.model.dropModifier(modifier))
             if (selected === modifier) selected = null
         }
+        // the delete click must not bubble to the box (it would re-select a removed modifier)
+        delete.root.addEventListener("click", { event: Event -> event.stopPropagation() })
         // same probability badge as the behaviours
         val probability = textButton(
             modifier.probability.toString(), rounded = true,
             color = ElementColor.Success, size = Size.Small
         )
-        // a white box per modifier, in the same style as the grains, fields and behaviours
-        return Box(
+        // a white box per modifier, in the same style as the grains, fields and behaviours;
+        // a click anywhere in the box selects it
+        val box = Box(
             Level(left = listOf(toggle, label), right = listOf(probability, delete), mobile = true)
         )
+        box.root.style.cursor = "pointer"
+        box.root.addEventListener("click", { selected = modifier })
+        return box
     }
 
     val grainsHeader = sectionHeader(grainIcon, "Grains", grainsController, addGrainButton)
