@@ -8,6 +8,8 @@ import com.centyllion.client.controller.utils.EditableStringController
 import com.centyllion.client.controller.utils.UndoRedoSupport
 import com.centyllion.client.tutorial.ActionsTutorial
 import com.centyllion.client.tutorial.BacteriasTutorial
+import com.centyllion.client.tutorial.DisplayTutorial
+import com.centyllion.client.tutorial.MetaActionsTutorial
 import com.centyllion.client.tutorial.FieldFormulaTutorial
 import com.centyllion.client.tutorial.FieldTutorial
 import com.centyllion.client.tutorial.GameOfLifeTutorial
@@ -222,7 +224,9 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
             beginner to FieldTutorial(this),
             expert to GameOfLifeTutorial(this),
             expert to ActionsTutorial(this),
-            expert to FieldFormulaTutorial(this)
+            expert to FieldFormulaTutorial(this),
+            expert to MetaActionsTutorial(this),
+            beginner to DisplayTutorial(this)
         )
 
         // The tutorial names are long: a native <select> keeps the dialog readable

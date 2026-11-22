@@ -454,6 +454,13 @@ object French: Locale {
         "Height" -> "Hauteur"
         "Preset" -> "Préréglée"
         "Opacity" -> "Opacité"
+        "Meta-actions: act on the whole simulation" -> "Méta-actions : agir sur toute la simulation"
+        "Identifiers, activation, opacity and grid size" -> "Identifiants, activation, opacité et taille de grille"
+        "Populate and erase" -> "Peupler et gommer"
+        "Pause and activation" -> "Pause et activation"
+        "Behaviours: identifier and activation" -> "Comportements : identifiant et activation"
+        "Field opacity" -> "Opacité des champs"
+        "Grid size" -> "Taille de la grille"
         else -> null
     }
 }
