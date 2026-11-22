@@ -111,9 +111,8 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     val fileInput = FileInput(label = i18n("Import"), color = ElementColor.Primary, onChange = ::import)
 
-    val saveControl = Control(Button(
-        i18n("Export"), Icon("save"), color = ElementColor.Primary
-    ) { saveQuick() })
+    // no quick-save button in the toolbar: "Save As" covers it, and the file is now nbd2.
+    // saveQuick() is still used by the save-on-quit prompt.
 
     val saveAsControl = Control(Button(
         i18n("Save As"), Icon("download"), color = ElementColor.Primary
@@ -142,7 +141,6 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         modelName.container,
         newControl,
         Control(fileInput),
-        saveControl,
         saveAsControl,
         tutorialControl,
         helpControl,
@@ -339,7 +337,9 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     fun saveAs(after: () -> Unit = {}) {
         val content = encodeModelAndSimulation(model)
         val base = currentFileName ?: if (model.model.name.isNotBlank()) model.model.name else "model"
-        val fileName = if (base.endsWith(".netbiodyn")) base else "$base.netbiodyn"
+        // the new format is nbd2: an old name is renamed, a new one keeps its extension
+        val stem = base.removeSuffix(".netbiodyn").removeSuffix(".nbd2")
+        val fileName = "$stem.nbd2"
         saveFilePicker(
             suggestedName = fileName,
             content = content,
