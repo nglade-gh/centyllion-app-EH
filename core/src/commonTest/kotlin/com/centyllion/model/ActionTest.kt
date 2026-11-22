@@ -343,3 +343,48 @@ class ActionTest {
         assertEquals("", legacy.model.behaviours[0].actions)
     }
 }
+
+/**
+ * Activate/Inactivate act at run time, and a rewind restores the activation state of the
+ * beginning of the run.
+ */
+class BehaviourActivationTest {
+
+    private fun model() = GrainModel(
+        name = "activation",
+        grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+        behaviours = listOf(
+            Behaviour(
+                name = "switch off", mainReactiveId = 0, mainProductId = 0,
+                id = 0, probability = 1.0, actions = "Inactivate(0)"
+            ),
+        ),
+    )
+
+    @Test
+    fun testInactivateChangesTheRunTimeState() {
+        val simulator = Simulator(model(), createSimulation(size = 8) { if (it == 0) 0 else -1 })
+        assertTrue(simulator.isRuntimeEnabled(0), "a behaviour is active by default")
+        simulator.oneStep()
+        assertTrue(!simulator.isRuntimeEnabled(0), "Inactivate(0) must switch the behaviour off")
+        assertTrue(simulator.activationChanged, "the UI has to be told")
+    }
+
+    @Test
+    fun testRewindRestoresTheInitialActivation() {
+        val simulator = Simulator(model(), createSimulation(size = 8) { if (it == 0) 0 else -1 })
+        simulator.oneStep()
+        assertTrue(!simulator.isRuntimeEnabled(0))
+        simulator.reset()
+        assertTrue(simulator.isRuntimeEnabled(0), "a rewind must restore the activation of the start")
+    }
+
+    @Test
+    fun testModelActivationIsTheInitialState() {
+        val disabled = model().let { m ->
+            m.copy(behaviours = m.behaviours.map { it.copy(enabled = false) })
+        }
+        val simulator = Simulator(disabled, createSimulation(size = 8) { if (it == 0) 0 else -1 })
+        assertTrue(!simulator.isRuntimeEnabled(0), "an inactive behaviour starts inactive")
+    }
+}

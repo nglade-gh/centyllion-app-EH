@@ -80,6 +80,7 @@ class BehaviourDisplayController(val page: BulmaPage, behaviour: Behaviour, mode
             type = "radio"
             name = "behaviour-enabled-${behaviour.uuid}"
             checked = behaviour.enabled
+            setAttribute("data-behaviour-id", "${behaviour.id}")
         }
 
     private val enabledToggle = HtmlWrapper(
