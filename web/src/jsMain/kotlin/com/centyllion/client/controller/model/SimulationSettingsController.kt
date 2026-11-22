@@ -10,6 +10,7 @@ import com.centyllion.model.PARALLEL_UPDATE_PLAN
 import com.centyllion.model.SEQUENTIAL_UPDATE_PLAN
 import com.centyllion.model.SimulationSettings
 import com.centyllion.model.availableSimulationSizes
+import org.w3c.dom.HTMLElement
 import org.w3c.dom.events.Event
 import kotlin.properties.Delegates.observable
 
@@ -77,6 +78,16 @@ class SimulationSettingsController (
      */
     private fun <T : bulma.Checkbox> T.alignText(): T {
         root.classList.remove("help")
+        root.style.fontWeight = "700"
+        return this
+    }
+
+    /** A little breathing room between the fields of a page: Bulma packs them tightly. */
+    private fun <T : bulma.Box> T.spaced(): T {
+        val fields = root.querySelectorAll(".field")
+        for (index in 0 until fields.length) {
+            (fields.item(index) as? HTMLElement)?.style?.marginBottom = "1rem"
+        }
         return this
     }
 
@@ -136,7 +147,7 @@ class SimulationSettingsController (
                 Label(page.i18n("Update Plan")),
                 Control(updatePlanSelect)
             )
-        )
+        ).spaced()
     )
 
     private val environmentPage = TabPage(
@@ -159,7 +170,7 @@ class SimulationSettingsController (
                 Label(page.i18n("Image URL")),
                 gridTextureUrlController.container
             )
-        )
+        ).spaced()
     )
 
     private val curvesPage = TabPage(
@@ -170,7 +181,7 @@ class SimulationSettingsController (
                 Label(page.i18n("Window size")),
                 Control(windowSizeSelect)
             )
-        )
+        ).spaced()
     )
 
     private val tabs = Tabs(boxed = true).apply { root.classList.add("editor") }
