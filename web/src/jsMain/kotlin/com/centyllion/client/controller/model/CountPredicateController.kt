@@ -3,6 +3,8 @@ package com.centyllion.client.controller.model
 import bulma.*
 import com.centyllion.i18n.Locale
 import com.centyllion.model.AgentCountPredicate
+import com.centyllion.model.COUNT_ALL_AGENTS
+import com.centyllion.model.COUNT_EMPTY_CELLS
 import com.centyllion.model.Grain
 import com.centyllion.model.Operator
 import kotlinx.browser.window
@@ -24,8 +26,11 @@ class CountPredicateController(
     var onDelete: (AgentCountPredicate, controller: CountPredicateController) -> Unit = { _, _ -> }
 ) : Controller<AgentCountPredicate, List<Grain>, Column> {
 
-    /** label used when every grain is counted (grainId < 0) */
+    /** label used when every grain is counted (grainId = -1) */
     private val allAgentsLabel: String = locale.i18n("All agents")
+
+    /** label used when the empty neighbour cells are counted (grainId = -2) */
+    private val noAgentLabel: String = locale.i18n("None")
 
     override var data: AgentCountPredicate by observable(value) { _, old, new ->
         if (old != new) {
@@ -88,11 +93,17 @@ class CountPredicateController(
 
     private fun grainFor(grainId: Int): Grain? = context.find { it.id == grainId }
 
-    private fun grainLabel(grainId: Int): String =
-        if (grainId < 0) allAgentsLabel else grainFor(grainId)?.label() ?: allAgentsLabel
+    private fun grainLabel(grainId: Int): String = when {
+        grainId == COUNT_EMPTY_CELLS -> noAgentLabel
+        grainId < 0 -> allAgentsLabel
+        else -> grainFor(grainId)?.label() ?: allAgentsLabel
+    }
 
-    private fun grainIconName(grainId: Int): String =
-        if (grainId < 0) "users" else grainFor(grainId)?.icon ?: "users"
+    private fun grainIconName(grainId: Int): String = when {
+        grainId == COUNT_EMPTY_CELLS -> "times-circle"
+        grainId < 0 -> "users"
+        else -> grainFor(grainId)?.icon ?: "users"
+    }
 
     private fun grainColor(grainId: Int): String =
         if (grainId < 0) "" else grainFor(grainId)?.color ?: ""
@@ -107,8 +118,10 @@ class CountPredicateController(
     }
 
     private fun grainItems(): List<DropdownSimpleItem> =
-        listOf(item(-1, allAgentsLabel, "users", "")) +
-                context.map { item(it.id, it.label(), it.icon, it.color) }
+        listOf(
+            item(COUNT_ALL_AGENTS, allAgentsLabel, "users", ""),
+            item(COUNT_EMPTY_CELLS, noAgentLabel, "times-circle", ""),
+        ) + context.map { item(it.id, it.label(), it.icon, it.color) }
 
     init {
         refresh()

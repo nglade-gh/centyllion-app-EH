@@ -458,8 +458,12 @@ data class Behaviour(
         }
         // checks agent count predicates
         for (p in agentCountPredicates) {
-            val actualCount = if (p.grainId < 0) neighbours.count { it.second.reactiveId >= 0 }
-            else neighbours.count { it.second.reactiveId == p.grainId }
+            val actualCount = when {
+                // counting empty cells, then every agent, then one grain type
+                p.grainId == COUNT_EMPTY_CELLS -> neighbours.count { it.second.reactiveId < 0 }
+                p.grainId < 0 -> neighbours.count { it.second.reactiveId >= 0 }
+                else -> neighbours.count { it.second.reactiveId == p.grainId }
+            }
             if (!p.check(actualCount)) return false
         }
         // checks condition formula if present
@@ -468,6 +472,7 @@ data class Behaviour(
                 val counts = neighbours.groupingBy { it.second.reactiveId }.eachCount()
                 val evaluator = NetbioDynEvaluator(simulator)
                 evaluator.agentCounts = counts
+                evaluator.emptyCount = neighbours.count { it.second.reactiveId < 0 }
                 evaluator.step = simulator.step.v
                 // ages for age(n), 1-based "reactive" numbering (same as the
                 // age-inheritance column): [0] main agent (0 for generation
@@ -797,6 +802,12 @@ data class GrainModel(
 }
 
 private fun emptyList(size: Int): List<Int> = ArrayList<Int>(size).apply { repeat(size) { add(-1) } }
+
+/** [AgentCountPredicate.grainId] counting every occupied neighbour cell. */
+const val COUNT_ALL_AGENTS: Int = -1
+
+/** [AgentCountPredicate.grainId] counting the empty neighbour cells. */
+const val COUNT_EMPTY_CELLS: Int = -2
 
 /** Seed used by every new simulation, and by the files that do not carry one. */
 const val DEFAULT_SIMULATION_SEED: Long = 42

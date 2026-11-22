@@ -57,6 +57,38 @@ class BehaviourEditController(
         }
     }
 
+    /** True when at least one graphical predicate is configured on this behaviour. */
+    fun hasGraphicalPredicates(): Boolean =
+        data.agePredicates.isNotEmpty() || data.agentCountPredicates.isNotEmpty() ||
+                data.fieldPredicates.isNotEmpty() || !data.hasDefaultAgePredicate
+
+    /** True when those predicates have an exact formula equivalent. */
+    fun canConvertPredicates(): Boolean = BehaviourPredicates.convertible(data)
+
+    /** Drops the graphical predicates; an already written formula is left untouched. */
+    fun clearGraphicalPredicates() {
+        data = data.copy(
+            agePredicate = Predicate(Operator.GreaterThanOrEquals, 0),
+            agePredicates = emptyList(),
+            agentCountPredicates = emptyList(),
+            fieldPredicates = emptyList(),
+        )
+    }
+
+    /** Rewrites the graphical predicates as a formula (ANDed with an existing one), then drops them. */
+    fun convertPredicatesToFormula() {
+        if (!canConvertPredicates()) return
+        val formula = BehaviourPredicates.toFormula(data)
+        if (formula.isBlank()) return
+        data = data.copy(
+            formula = listOf(data.formula.trim(), formula).filter { it.isNotBlank() }.joinToString(" && "),
+            agePredicate = Predicate(Operator.GreaterThanOrEquals, 0),
+            agePredicates = emptyList(),
+            agentCountPredicates = emptyList(),
+            fieldPredicates = emptyList(),
+        )
+    }
+
     var expertMode: Boolean by observable(expertMode) { _, old, new ->
         if (old != new) {
             refresh()
