@@ -136,6 +136,9 @@ class Simulator(
     private fun activationSnapshot(): BooleanArray =
         initialEnabled ?: runtimeEnabled.copyOf().also { initialEnabled = it }
 
+    /** Behaviours that already executed their meta-actions during the current step. */
+    private val metaActionsDone = HashSet<Behaviour>()
+
     /** True when Activate/Inactivate changed the runtime state since the last check. */
     var activationChanged: Boolean = false
         private set
@@ -151,6 +154,14 @@ class Simulator(
     }
 
     private fun behaviourIndexForId(id: Int): Int = allBehaviours.indexOfFirst { it.id == id }
+
+    /** True for the actions that act on the simulation as a whole rather than on a cell. */
+    private fun isMetaAction(action: Action): Boolean = when (action) {
+        Action.Pause, is Action.AddMany, is Action.AddRect, is Action.AddDisc,
+        is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
+        is Action.EraseAll, is Action.Activate, is Action.Inactivate -> true
+        else -> false
+    }
 
     /** Calls [block] with the index of every cell of the rectangle, clamped to the grid. */
     private fun forEachCellInRect(x1: Int, y1: Int, x2: Int, y2: Int, block: (Int) -> Unit) {
@@ -305,6 +316,9 @@ class Simulator(
     }
 
     private fun oneStepInternal(): Pair<Collection<ApplicableBehavior>, Collection<Int>> {
+        // a meta-action runs once per behaviour and per step, not once per cell
+        metaActionsDone.clear()
+
         // applies agents dying process (flat counters, indexed by slot)
         val currentCount = IntArray(model.grains.size)
         val currentFieldAmounts = FloatArray(model.fields.size)
@@ -835,7 +849,13 @@ class Simulator(
         val targetAgents = if (parallelUpdate) nextAgents else agents
         val targetAges = if (parallelUpdate) nextAges else this.ages
 
+        // a meta-action acts on the simulation: applying it once per cell would flood the
+        // grid (a behaviour applicable on twelve cells would spawn twelve times N agents)
+        val hasMetaAction = actions.any { isMetaAction(it) }
+        val runMetaActions = !hasMetaAction || metaActionsDone.add(behaviour)
+
         for (action in actions) {
+            if (isMetaAction(action) && !runMetaActions) continue
             try {
                 when (action) {
                     is Action.Add -> {
@@ -915,15 +935,20 @@ class Simulator(
                     is Action.AddRect -> {
                         val id = action.grain.evalInt(evaluator)
                         if (grainForId(id) == null) continue
+                        // N positions drawn among the empty cells of the zone (selection sampling)
                         var remaining = action.count.evalInt(evaluator)
+                        var seen = 0
                         forEachCellInRect(
                             action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
                             action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
                         ) { slot ->
-                            if (remaining > 0 && targetAgents[slot] < 0) {
-                                targetAgents[slot] = id
-                                targetAges[slot] = 0
-                                remaining -= 1
+                            if (targetAgents[slot] < 0) {
+                                seen += 1
+                                if (remaining > 0 && random.nextDouble(index) * seen < remaining) {
+                                    targetAgents[slot] = id
+                                    targetAges[slot] = 0
+                                    remaining -= 1
+                                }
                             }
                         }
                     }
@@ -931,14 +956,19 @@ class Simulator(
                     is Action.AddDisc -> {
                         val id = action.grain.evalInt(evaluator)
                         if (grainForId(id) == null) continue
+                        // N positions drawn among the empty cells of the disc (selection sampling)
                         var remaining = action.count.evalInt(evaluator)
+                        var seen = 0
                         forEachCellInDisc(
                             action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
                         ) { slot ->
-                            if (remaining > 0 && targetAgents[slot] < 0) {
-                                targetAgents[slot] = id
-                                targetAges[slot] = 0
-                                remaining -= 1
+                            if (targetAgents[slot] < 0) {
+                                seen += 1
+                                if (remaining > 0 && random.nextDouble(index) * seen < remaining) {
+                                    targetAgents[slot] = id
+                                    targetAges[slot] = 0
+                                    remaining -= 1
+                                }
                             }
                         }
                     }
