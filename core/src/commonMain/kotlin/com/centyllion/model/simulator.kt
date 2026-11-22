@@ -105,10 +105,13 @@ class Simulator(
 
     /** Per-thread evaluation context. Evaluators are stateful (position, step, current),
      *  so each parallel worker needs its own. */
-    private class ThreadContext(
+    private inner class ThreadContext(
         val evaluator: NetbioDynEvaluator,
         val evaluators: Map<Int, FieldEvaluator>
-    )
+    ) {
+        /** Cell description reused by every cell of this thread. */
+        val cell: CellContext = CellContext(this@Simulator)
+    }
 
     private val mainContext = ThreadContext(expressionEvaluator, evaluators)
 
@@ -179,6 +182,11 @@ class Simulator(
 
     /** Behaviour indexes per agent type: slot 0 = empty cells (mainReactiveId == -1),
      *  slot `grainId + 1` = behaviours reacting on that grain. */
+    /** Neighbour table: index of the eight neighbours of each cell, computed once.
+     *  Directions follow [CellContext.DIRECTIONS]; wrapping is applied here, the
+     *  non-toric walls are still checked with `crossesBorder` where they matter. */
+    private val neighbourIndex: IntArray = IntArray(simulation.dataSize * CellContext.DIRECTIONS.size)
+
     private val behaviourIndexes: Array<IntArray> =
         Array((model.grains.maxOfOrNull { it.id } ?: -1) + 2) { slot ->
             val grainId = slot - 1
@@ -188,6 +196,12 @@ class Simulator(
     init {
         model.grains.forEachIndexed { slot, grain -> grainSlot[grain.id] = slot }
         model.fields.forEachIndexed { slot, field -> fieldSlot[field.id] = slot }
+        for (i in 0 until simulation.dataSize) {
+            val base = i * CellContext.DIRECTIONS.size
+            for (k in CellContext.DIRECTIONS.indices) {
+                neighbourIndex[base + k] = simulation.moveIndex(i, CellContext.DIRECTIONS[k])
+            }
+        }
     }
 
     fun grainAtIndex(index: Int): Grain? {
@@ -236,9 +250,9 @@ class Simulator(
         val currentCount = IntArray(model.grains.size)
         val currentFieldAmounts = FloatArray(model.fields.size)
 
-        // defines values for fields to avoid dynamic call each time
-        val fields = fields
-        val nextFields = nextFields
+        // fields indexed by slot, to avoid a map lookup per cell
+        val fieldArrays = Array(model.fields.size) { fields[model.fields[it].id] }
+        val nextFieldArrays = Array(model.fields.size) { nextFields[model.fields[it].id] }
 
         val dead = mutableListOf<Int>()
 
@@ -248,11 +262,11 @@ class Simulator(
         val all = mutableMapOf<Int, MutableList<ApplicableBehavior>>()
 
         if (shouldParallelize()) {
-            runParallelStep(all, currentCount, currentFieldAmounts, dead, fields, nextFields)
+            runParallelStep(all, currentCount, currentFieldAmounts, dead, fieldArrays, nextFieldArrays)
         } else {
             val context = mainContext
             for (i in 0 until simulation.dataSize) {
-                processCell(i, context, all, currentCount, currentFieldAmounts, dead, random, fields, nextFields)
+                processCell(i, context, all, currentCount, currentFieldAmounts, dead, random, fieldArrays, nextFieldArrays)
             }
         }
 
@@ -320,8 +334,8 @@ class Simulator(
         currentCount: IntArray,
         currentFieldAmounts: FloatArray,
         dead: MutableList<Int>,
-        fields: Map<Int, FloatArray>,
-        nextFields: Map<Int, FloatArray>
+        fields: Array<FloatArray?>,
+        nextFields: Array<FloatArray?>
     ) {
         val blocks = splitIntoBlocks(simulation.dataSize, recommendedThreads())
         ensureThreadContexts(blocks.size)
@@ -356,6 +370,95 @@ class Simulator(
         }
     }
 
+    /** Builds the neighbour view of a cell, only when a behaviour was actually selected. */
+    private fun neighboursFor(cell: CellContext): List<Pair<Direction, Agent>> {
+        val result = ArrayList<Pair<Direction, Agent>>(CellContext.DIRECTIONS.size)
+        for (k in CellContext.DIRECTIONS.indices) {
+            val direction = CellContext.DIRECTIONS[k]
+            val index = cell.neighbourIndices[k]
+            val fieldValues = if (model.fields.isEmpty()) emptyFloatArray
+            else FloatArray(fieldMaxId + 1) { field(it).getOrNull(index) ?: 0f }
+            result.add(direction to Agent(index, direction, cell.neighbourIds[k], cell.neighbourAges[k], fieldValues))
+        }
+        return result
+    }
+
+    /**
+     * Reaction phase of a selected behaviour: candidate reactives, combination choice and
+     * registration for concurrency resolution. Shared by occupied and empty cells.
+     */
+    private fun applyBehaviour(
+        i: Int,
+        cell: CellContext,
+        behaviour: Behaviour,
+        all: MutableMap<Int, MutableList<ApplicableBehavior>>,
+        random: SimulationRandom,
+        ageOfMainAgent: Int
+    ) {
+        val position = cell.position
+        val neighbours = neighboursFor(cell)
+        val fieldValues = fieldsAtIndex(i)
+
+        // for each reaction, find all possible reactives
+        val possibleReactions = behaviour.reaction
+            .map { reaction ->
+                val bc = model.grainForId(reaction.productId)?.boundaryConditions
+                neighbours.filter { (d, a) ->
+                    reaction.reactiveId == a.reactiveId && reaction.allowedDirection.contains(d) &&
+                            (reaction.reactiveId >= 0 || bc == null || !bc.crossed(position, d, simulation.width, simulation.height))
+                }
+            }
+
+        // combines possibilities
+        val allCombinations = possibleReactions.allCombinations()
+
+        val chosenCombination = when {
+            // optimized case when no field is used for the behaviour
+            model.fields.isEmpty() || !behaviour.fieldInfluenced -> {
+                random.nextInt(i, allCombinations.size)
+            }
+
+            else -> {
+                // computes weight of each combination by adding the influence of all neighbours for a combination
+                val influence = FloatArray(allCombinations.size) { c ->
+                    var sum = 0f
+                    allCombinations[c].forEach { (_, agent) ->
+                        behaviour.fieldInfluences.forEach { influence ->
+                            val sourceField = fieldValues
+                                .find { it.first == influence.key }?.second
+                                ?: 0f
+
+                            val delta = log10(agent.fields[influence.key]) - log10(sourceField)
+                            sum += delta * influence.value
+                        }
+                    }
+                    sum
+                }
+
+                val min = influence.minOrNull() ?: 0f
+                var current = 0f
+                for (index in influence.indices) {
+                    // translates influence to positive float and to the power of 6 for a stronger effect
+                    val translated = (influence[index] - min + 1f).pow(6)
+                    // computes the total value
+                    influence[index] = current + translated
+                    current += translated
+                }
+
+                // chooses one randomly influenced by the fields
+                val probability = random.nextDouble(i) * current
+                influence.indexOfFirst { probability < it }
+            }
+        }
+        // registers behaviour for concurrency
+        val usedNeighbours = allCombinations[chosenCombination].map { it.second }
+        val behavior = ApplicableBehavior(i, ageOfMainAgent, behaviour, usedNeighbours)
+        // adds applicable to current agent
+        all.getOrPut(i) { mutableListOf() }.add(behavior)
+        // adds applicable to neighbours
+        usedNeighbours.forEach { all.getOrPut(it.index) { mutableListOf() }.add(behavior) }
+    }
+
     /** Processes one cell: death, ageing, behaviour deliberation and field update. */
     private fun processCell(
         i: Int,
@@ -365,16 +468,47 @@ class Simulator(
         currentFieldAmounts: FloatArray,
         dead: MutableList<Int>,
         random: SimulationRandom,
-        fields: Map<Int, FloatArray>,
-        nextFields: Map<Int, FloatArray>
+        fields: Array<FloatArray?>,
+        nextFields: Array<FloatArray?>
     ) {
+        val cell = context.cell
         val position = simulation.toPosition(i)
+        cell.step = step
+        cell.x = position.x
+        cell.y = position.y
+        cell.z = position.z
+        cell.position = position
+        cell.evaluator = context.evaluator
+        cell.fieldSlot = fieldSlot
+        // the field formulas read the evaluator directly (position and step)
         context.evaluator.step = step.v
         context.evaluator.x = position.x.v
         context.evaluator.y = position.y.v
         context.evaluator.z = position.z.v
+        if (cell.fieldValues.size != fields.size) cell.fieldValues = FloatArray(fields.size)
+        for (slot in fields.indices) {
+            cell.fieldValues[slot] = fields[slot]?.get(i) ?: 0f
+        }
+
+        // neighbours and their counts, computed once for the whole cell (no allocation)
+        val base = i * CellContext.DIRECTIONS.size
+        cell.counts.clear()
+        var empty = 0
+        for (k in CellContext.DIRECTIONS.indices) {
+            val index = neighbourIndex[base + k]
+            val id = currentAgents[index]
+            cell.neighbourIndices[k] = index
+            cell.neighbourIds[k] = id
+            cell.neighbourAges[k] = readAges[index]
+            if (id >= 0) cell.counts[id] = (cell.counts[id] ?: 0) + 1 else empty += 1
+        }
+        cell.emptyCount = empty
+        cell.occupiedCount = CellContext.DIRECTIONS.size - empty
+        cell.counts[COUNT_ALL_AGENTS] = cell.occupiedCount
+        cell.counts[COUNT_EMPTY_CELLS] = empty
 
         val grain = grainAtIndex(i)
+        cell.grain = grain
         if (grain != null) {
             // does the grain dies ?
             if (grain.halfLife > 0.0 && random.nextDouble(i) <= grain.deathProbability) {
@@ -384,175 +518,51 @@ class Simulator(
             } else {
                 currentCount[grainSlot[grain.id]] += 1
                 ageGrain(i)
+                cell.age = ageAtIndex(i)
 
                 val candidates = behaviourIndexes[grain.id + 1]
                 if (candidates.isNotEmpty()) {
-                    // a grain is present, a behaviour can be triggered
-                    val age = ageAtIndex(i)
-                    val fieldValues = fieldsAtIndex(i)
-
-                    // find all neighbours
-                    val neighbours = neighbours(i)
-
                     // searches for applicable behaviours and filters by probability
                     val applicable = ArrayList<Int>(4)
                     for (bi in candidates) {
-                        if (allBehaviours[bi].applicable(grain, age, fieldValues, neighbours, position, this) &&
-                            random.nextDouble(i) < speedOf[bi]
-                        ) applicable.add(bi)
+                        if (allBehaviours[bi].applicable(cell) && random.nextDouble(i) < speedOf[bi]) {
+                            applicable.add(bi)
+                        }
                     }
 
-                    // selects behaviour if any is applicable
+                    // selects behaviour if any is applicable, then one at random
                     if (applicable.isNotEmpty()) {
-                        // selects one at random
                         val behaviour = allBehaviours[applicable[random.nextInt(i, applicable.size)]]
-
-                        // for each reaction, find all possible reactives
-                        val possibleReactions = behaviour.reaction
-                            .map { reaction ->
-                                val bc = model.grainForId(reaction.productId)?.boundaryConditions
-                                neighbours.filter { (d, a) ->
-                                    reaction.reactiveId == a.reactiveId && reaction.allowedDirection.contains(d) &&
-                                            (reaction.reactiveId >= 0 || bc == null || !bc.crossed(position, d, simulation.width, simulation.height))
-                                }
-                            }
-
-                        // combines possibilities
-                        val allCombinations = possibleReactions.allCombinations()
-
-                        val chosenCombination = when {
-                            // optimized case when no field is used for the behaviour
-                            model.fields.isEmpty() || !behaviour.fieldInfluenced -> {
-                                random.nextInt(i, allCombinations.size)
-                            }
-
-                            else -> {
-                                // computes weight of each combination by adding the influence of all neighbours for a combination
-                                val influence = FloatArray(allCombinations.size) { c ->
-                                    var sum = 0f
-                                    allCombinations[c].forEach { (_, agent) ->
-                                        behaviour.fieldInfluences.forEach { influence ->
-                                            val sourceField = fieldValues
-                                                .find { it.first == influence.key }?.second
-                                                ?: 0f
-
-                                            val delta = log10(agent.fields[influence.key]) - log10(sourceField)
-                                            sum += delta * influence.value
-                                        }
-                                    }
-                                    sum
-                                }
-
-                                val min = influence.minOrNull() ?: 0f
-                                var current = 0f
-                                for (index in influence.indices) {
-                                    // translates influence to positive float and to the power of 6 for a stronger effect
-                                    val translated = (influence[index] - min + 1f).pow(6)
-                                    // computes the total value
-                                    influence[index] = current + translated
-                                    current += translated
-                                }
-
-                                // chooses one randomly influenced by the fields
-                                val probability = random.nextDouble(i) * current
-                                influence.indexOfFirst { probability < it }
-                            }
-                        }
-                        // registers behaviour for concurrency
-                        val usedNeighbours = allCombinations[chosenCombination].map { it.second }
-                        val behavior = ApplicableBehavior(i, readAges[i], behaviour, usedNeighbours)
-                        // adds applicable to current agent
-                        all.getOrPut(i) { mutableListOf() }.add(behavior)
-                        // adds applicable to neighbours
-                        usedNeighbours.forEach { all.getOrPut(it.index) { mutableListOf() }.add(behavior) }
+                        applyBehaviour(i, cell, behaviour, all, random, readAges[i])
                     }
                 }
             }
         } else {
             // empty cell: check for generation behaviours (mainReactiveId == -1)
-            val fieldValues = fieldsAtIndex(i)
-            val neighbours = neighbours(i)
-
             // for generation, use the simulation step as the "age" value
+            cell.age = step
             val applicable = ArrayList<Int>(2)
             for (bi in behaviourIndexes[0]) {
-                if (allBehaviours[bi].applicable(null, step, fieldValues, neighbours, position, this) &&
-                    random.nextDouble(i) < speedOf[bi]
-                ) applicable.add(bi)
-            }
-
-            if (applicable.isNotEmpty()) {
-                // selects one at random
-                val behaviour = allBehaviours[applicable[random.nextInt(i, applicable.size)]]
-
-                // for each reaction, find all possible reactives
-                val possibleReactions = behaviour.reaction
-                    .map { reaction ->
-                        val bc = model.grainForId(reaction.productId)?.boundaryConditions
-                        neighbours.filter { (d, a) ->
-                            reaction.reactiveId == a.reactiveId && reaction.allowedDirection.contains(d) &&
-                                    (reaction.reactiveId >= 0 || bc == null || !bc.crossed(position, d, simulation.width, simulation.height))
-                        }
-                    }
-
-                // combines possibilities
-                val allCombinations = possibleReactions.allCombinations()
-
-                val chosenCombination = when {
-                    model.fields.isEmpty() || !behaviour.fieldInfluenced -> {
-                        random.nextInt(i, allCombinations.size)
-                    }
-                    else -> {
-                        val influence = FloatArray(allCombinations.size) { c ->
-                            var sum = 0f
-                            allCombinations[c].forEach { (_, agent) ->
-                                behaviour.fieldInfluences.forEach { influence ->
-                                    val sourceField = fieldValues
-                                        .find { it.first == influence.key }?.second
-                                        ?: 0f
-                                    val delta = log10(agent.fields[influence.key]) - log10(sourceField)
-                                    sum += delta * influence.value
-                                }
-                            }
-                            sum
-                        }
-
-                        val min = influence.minOrNull() ?: 0f
-                        var current = 0f
-                        for (index in influence.indices) {
-                            val translated = (influence[index] - min + 1f).pow(6)
-                            influence[index] = current + translated
-                            current += translated
-                        }
-
-                        val probability = random.nextDouble(i) * current
-                        influence.indexOfFirst { probability < it }
-                    }
+                if (allBehaviours[bi].applicable(cell) && random.nextDouble(i) < speedOf[bi]) {
+                    applicable.add(bi)
                 }
-                val usedNeighbours = allCombinations[chosenCombination].map { it.second }
-                val behavior = ApplicableBehavior(i, 0, behaviour, usedNeighbours)
-                all.getOrPut(i) { mutableListOf() }.add(behavior)
-                usedNeighbours.forEach { all.getOrPut(it.index) { mutableListOf() }.add(behavior) }
+            }
+            if (applicable.isNotEmpty()) {
+                val behaviour = allBehaviours[applicable[random.nextInt(i, applicable.size)]]
+                applyBehaviour(i, cell, behaviour, all, random, 0)
             }
         }
 
         // compute fields values for step
         // count() in field formulas: number of agents in the 8 adjacent cells
         if (fieldsRequireCount) {
-            val counts = mutableMapOf<Int, Int>()
-            var empty = 0
-            for (d in Direction.entries) {
-                val id = currentAgents[simulation.moveIndex(i, d)]
-                if (id >= 0) counts[id] = (counts[id] ?: 0) + 1 else empty += 1
-            }
-            counts[COUNT_ALL_AGENTS] = counts.values.sum()
-            counts[COUNT_EMPTY_CELLS] = empty
-            context.evaluator.agentCounts = counts
-            context.evaluator.emptyCount = empty
+            context.evaluator.agentCounts = cell.counts
+            context.evaluator.emptyCount = cell.emptyCount
         }
-        model.fields.forEach { field ->
-            val current = fields[field.id]
-            val next = nextFields[field.id]
+        for (slot in model.fields.indices) {
+            val field = model.fields[slot]
+            val current = fields[slot]
+            val next = nextFields[slot]
             val count = field.allowedDirection.size
 
             var permeableSum = 0f
@@ -587,7 +597,7 @@ class Simulator(
                 next[i] = evaluated.coerceIn(minField, 1f)
 
                 // count current field amounts
-                currentFieldAmounts[fieldSlot[field.id]] += next[i]
+                currentFieldAmounts[slot] += next[i]
             }
         }
     }
