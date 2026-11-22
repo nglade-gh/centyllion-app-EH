@@ -299,6 +299,10 @@ data class Behaviour(
     val mainReactiveId: Int = -1, val mainProductId: Int = -1, val sourceReactive: Int = -1,
     val fieldInfluences: Map<Int, Float> = emptyMap(),
     val reaction: List<Reaction> = emptyList(),
+    /** Identifier of the behaviour, like those of the grains and the fields. */
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val id: Int = 0,
+    /** False when the behaviour is deactivated: it is never applied. */
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val enabled: Boolean = true,
     @Transient override val uuid: Uuid = uuid4(),
 ) : ModelElement {
 
@@ -770,7 +774,7 @@ data class GrainModel(
         availableName(behaviours.map(Behaviour::name), prefix)
 
     fun newBehaviour(prefix: String = "Behaviour") = (grains.firstOrNull()?.id ?: -1).let {
-        Behaviour(name = availableBehaviourName(prefix), mainReactiveId = it, mainProductId = it, sourceReactive = 0)
+        Behaviour(name = availableBehaviourName(prefix), mainReactiveId = it, mainProductId = it, sourceReactive = 0, id = (behaviours.maxOfOrNull { b -> b.id } ?: -1) + 1)
     }
 
     fun behaviourIndex(behaviour: Behaviour) = behaviours.identityFirstIndexOf(behaviour)

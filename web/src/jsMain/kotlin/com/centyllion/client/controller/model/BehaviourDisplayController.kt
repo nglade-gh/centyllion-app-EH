@@ -8,6 +8,9 @@ import com.centyllion.model.Behaviour
 import com.centyllion.model.GrainModel
 import com.centyllion.model.diagnose
 import com.centyllion.model.hasNoError
+import kotlinx.browser.document
+import org.w3c.dom.HTMLInputElement
+import org.w3c.dom.HTMLLabelElement
 import kotlin.properties.Delegates.observable
 
 class BehaviourDisplayController(val page: BulmaPage, behaviour: Behaviour, model: GrainModel) : Controller<Behaviour, GrainModel, Box> {
@@ -63,7 +66,36 @@ class BehaviourDisplayController(val page: BulmaPage, behaviour: Behaviour, mode
         updateErrorIcon()
     }
 
-    val titleLabel = Label(behaviour.name)
+    val titleLabel = Label("${behaviour.name} (${behaviour.id})")
+
+    /** Called when the On/Off radio of the row is clicked. */
+    var onToggleEnabled: (Boolean) -> Unit = { }
+
+    /**
+     * On/Off radio of the behaviour, in the explorer. Built by hand because Bulma's Radio
+     * cannot be toggled back, and clicking a checked radio must be able to switch it off.
+     */
+    private val enabledInput: HTMLInputElement =
+        (document.createElement("input") as HTMLInputElement).apply {
+            type = "radio"
+            name = "behaviour-enabled-${behaviour.uuid}"
+            checked = behaviour.enabled
+        }
+
+    private val enabledToggle = HtmlWrapper(
+        (document.createElement("label") as HTMLLabelElement).apply {
+            classList.add("radio")
+            appendChild(enabledInput)
+        }
+    )
+
+    init {
+        enabledInput.addEventListener("click", {
+            val target = !data.enabled
+            enabledInput.checked = target
+            onToggleEnabled(target)
+        })
+    }
 
     val grains = Level(center = grains(), mobile = true)
 
@@ -73,7 +105,7 @@ class BehaviourDisplayController(val page: BulmaPage, behaviour: Behaviour, mode
     )
 
     val header = Level(
-        left = listOf(errorIcon, titleLabel),
+        left = listOf(enabledToggle, errorIcon, titleLabel),
         right = listOf(speedValue),
         mobile = true
      )
@@ -96,7 +128,8 @@ class BehaviourDisplayController(val page: BulmaPage, behaviour: Behaviour, mode
     }
 
     override fun refresh() {
-        titleLabel.text = data.name
+        titleLabel.text = "${data.name} (${data.id})"
+        enabledInput.checked = data.enabled
         val speed = data.probability
         speedValue.text = speed.toFixed()
         speedValue.disabled = speed == data.probability

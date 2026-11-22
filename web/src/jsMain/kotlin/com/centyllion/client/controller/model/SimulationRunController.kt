@@ -220,6 +220,11 @@ class SimulationRunController(
 
     private fun executeStep() {
         val (applied, dead) = simulator.oneStep()
+        // the pause() meta-action stops the run at the end of the step
+        if (simulator.pauseRequested) {
+            simulator.clearPauseRequest()
+            stop()
+        }
         // without fields, nothing can change if no behaviour was applied and nothing died
         if (applied.isNotEmpty() || dead.isNotEmpty() || simulator.model.fields.isNotEmpty()) {
             simulationViewController.oneStep(applied, dead)
