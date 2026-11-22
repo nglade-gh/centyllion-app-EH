@@ -396,9 +396,6 @@ class ModelController(
 
     init {
         showModifiers(expertMode)
-        // the rows (and their boxes, used for the selection mark) must exist from the start:
-        // refreshModifiers() was only called when the model changed
-        refreshModifiers()
     }
 
     /** Boxes of the modifier rows, to toggle the selection border. */
@@ -412,13 +409,23 @@ class ModelController(
             modifierRowBoxes.add(modifier to box)
             box
         }
-        updateModifierSelection(selected)
+        updateModifierSelection(modifierSelection)
     }
 
-    /** Purple border on the selected modifier, as for the grains, the fields and the behaviours. */
+    /** Last known selection (the `selected` delegate may not be initialised yet). */
+    private var modifierSelection: ModelElement? = null
+
+    /**
+     * Purple border on the selected modifier. The boxes are read from the DOM so this works
+     * even before the rows have been rebuilt once.
+     */
     private fun updateModifierSelection(selection: ModelElement?) {
-        modifierRowBoxes.forEach { (modifier, box) ->
-            box.root.classList.toggle("is-selected", selection is SimulationModifier && selection.uuid == modifier.uuid)
+        modifierSelection = selection
+        val selectedUuid = (selection as? SimulationModifier)?.uuid?.toString()
+        val boxes = modifiersHost.root.querySelectorAll(".box")
+        for (index in 0 until boxes.length) {
+            val box = boxes.item(index) as? HTMLElement ?: continue
+            box.classList.toggle("is-selected", selectedUuid != null && box.getAttribute("data-modifier-uuid") == selectedUuid)
         }
     }
 
@@ -459,6 +466,7 @@ class ModelController(
         val box = Box(
             Level(left = listOf(toggle, label), right = listOf(probability, delete), mobile = true)
         )
+        box.root.setAttribute("data-modifier-uuid", "${modifier.uuid}")
         box.root.style.cursor = "pointer"
         box.root.addEventListener("click", { selected = modifier })
         return box
