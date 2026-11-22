@@ -117,6 +117,39 @@ class Simulator(
 
     private val threadContexts: MutableList<ThreadContext> = mutableListOf()
 
+    /** Set by the pause() meta-action: the run loop stops after the current step. */
+    var pauseRequested: Boolean = false
+        private set
+
+    /** Clears the pause request once the run loop has stopped. */
+    fun clearPauseRequest() {
+        pauseRequested = false
+    }
+
+    /** Activation state at run time, initialised from the model and changed by Activate/Inactivate. */
+    private val runtimeEnabled: BooleanArray by lazy { BooleanArray(allBehaviours.size) { allBehaviours[it].enabled } }
+
+    private fun behaviourIndexForId(id: Int): Int = allBehaviours.indexOfFirst { it.id == id }
+
+    /** Calls [block] with the index of every cell of the rectangle, clamped to the grid. */
+    private fun forEachCellInRect(x1: Int, y1: Int, x2: Int, y2: Int, block: (Int) -> Unit) {
+        val left = minOf(x1, x2).coerceIn(0, simulation.width - 1)
+        val right = maxOf(x1, x2).coerceIn(0, simulation.width - 1)
+        val top = minOf(y1, y2).coerceIn(0, simulation.height - 1)
+        val bottom = maxOf(y1, y2).coerceIn(0, simulation.height - 1)
+        for (y in top..bottom) for (x in left..right) block(y * simulation.width + x)
+    }
+
+    /** Calls [block] with the index of every cell of the disc, clamped to the grid. */
+    private fun forEachCellInDisc(centerX: Int, centerY: Int, radius: Int, block: (Int) -> Unit) {
+        val r = maxOf(0, radius)
+        forEachCellInRect(centerX - r, centerY - r, centerX + r, centerY + r) { index ->
+            val dx = index % simulation.width - centerX
+            val dy = index / simulation.width - centerY
+            if (dx * dx + dy * dy <= r * r) block(index)
+        }
+    }
+
     /** Collector reused by the sequential path (no map, no per-step allocation). */
     private val sequentialCollector = FastCollector(simulation.dataSize)
 
@@ -550,6 +583,7 @@ class Simulator(
                     // searches for applicable behaviours and filters by probability
                     val applicable = ArrayList<Int>(4)
                     for (bi in candidates) {
+                        if (!runtimeEnabled[bi]) continue
                         if (allBehaviours[bi].applicable(cell) && random.nextDouble(i) < speedOf[bi]) {
                             applicable.add(bi)
                         }
@@ -568,6 +602,7 @@ class Simulator(
             cell.age = step
             val applicable = ArrayList<Int>(2)
             for (bi in behaviourIndexes[0]) {
+                if (!runtimeEnabled[bi]) continue
                 if (allBehaviours[bi].applicable(cell) && random.nextDouble(i) < speedOf[bi]) {
                     applicable.add(bi)
                 }
@@ -830,6 +865,119 @@ class Simulator(
                         nextFields[fieldId]?.let { array ->
                             array[target] = (array[target] + action.delta.evalFloat(evaluator)).coerceIn(0f, 1f)
                         }
+                    }
+
+                    Action.Pause -> pauseRequested = true
+
+                    is Action.AddMany -> {
+                        val id = action.grain.evalInt(evaluator)
+                        if (grainForId(id) == null) continue
+                        var remaining = action.count.evalInt(evaluator)
+                        var guard = 0
+                        while (remaining > 0 && guard < targetAgents.size * 4) {
+                            val slot = random.nextInt(index, targetAgents.size)
+                            if (targetAgents[slot] < 0) {
+                                targetAgents[slot] = id
+                                targetAges[slot] = 0
+                                remaining -= 1
+                            }
+                            guard += 1
+                        }
+                    }
+
+                    is Action.AddRect -> {
+                        val id = action.grain.evalInt(evaluator)
+                        if (grainForId(id) == null) continue
+                        var remaining = action.count.evalInt(evaluator)
+                        forEachCellInRect(
+                            action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                        ) { slot ->
+                            if (remaining > 0 && targetAgents[slot] < 0) {
+                                targetAgents[slot] = id
+                                targetAges[slot] = 0
+                                remaining -= 1
+                            }
+                        }
+                    }
+
+                    is Action.AddDisc -> {
+                        val id = action.grain.evalInt(evaluator)
+                        if (grainForId(id) == null) continue
+                        var remaining = action.count.evalInt(evaluator)
+                        forEachCellInDisc(
+                            action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                        ) { slot ->
+                            if (remaining > 0 && targetAgents[slot] < 0) {
+                                targetAgents[slot] = id
+                                targetAges[slot] = 0
+                                remaining -= 1
+                            }
+                        }
+                    }
+
+                    is Action.EraseRectAll -> {
+                        forEachCellInRect(
+                            action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                        ) { slot ->
+                            targetAgents[slot] = -1
+                            targetAges[slot] = -1
+                        }
+                    }
+
+                    is Action.EraseDiscAll -> {
+                        forEachCellInDisc(
+                            action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                        ) { slot ->
+                            targetAgents[slot] = -1
+                            targetAges[slot] = -1
+                        }
+                    }
+
+                    is Action.EraseRect -> {
+                        val id = action.grain.evalInt(evaluator)
+                        forEachCellInRect(
+                            action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                        ) { slot ->
+                            if (targetAgents[slot] == id) {
+                                targetAgents[slot] = -1
+                                targetAges[slot] = -1
+                            }
+                        }
+                    }
+
+                    is Action.EraseDisc -> {
+                        val id = action.grain.evalInt(evaluator)
+                        forEachCellInDisc(
+                            action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                        ) { slot ->
+                            if (targetAgents[slot] == id) {
+                                targetAgents[slot] = -1
+                                targetAges[slot] = -1
+                            }
+                        }
+                    }
+
+                    is Action.EraseAll -> {
+                        val id = action.grain.evalInt(evaluator)
+                        for (slot in targetAgents.indices) {
+                            if (targetAgents[slot] == id) {
+                                targetAgents[slot] = -1
+                                targetAges[slot] = -1
+                            }
+                        }
+                    }
+
+                    is Action.Activate -> {
+                        val behaviourIndex = behaviourIndexForId(action.behaviourId.evalInt(evaluator))
+                        if (behaviourIndex >= 0) runtimeEnabled[behaviourIndex] = true
+                    }
+
+                    is Action.Inactivate -> {
+                        val behaviourIndex = behaviourIndexForId(action.behaviourId.evalInt(evaluator))
+                        if (behaviourIndex >= 0) runtimeEnabled[behaviourIndex] = false
                     }
 
                     is Action.ClearField -> {

@@ -27,10 +27,22 @@ class ActionTest {
         // unknown action
         assertTrue(validateActionFormula("Create(0, 1, 0)")!!.contains("Unknown action"))
         // wrong argument count
-        assertTrue(validateActionFormula("Add(0, 1)")!!.contains("expects 3 arguments"))
+        assertTrue(validateActionFormula("Add(0)")!!.contains("expects 2 or 3 arguments"))
         assertTrue(validateActionFormula("Move(0, 0, 0, 1)")!!.contains("expects 5 arguments"))
         // non-numeric argument
         assertTrue(validateActionFormula("Add(true, 1, 0)")!!.contains("must be a number"))
+        // meta-actions
+        assertNull(validateActionFormula("pause()"))
+        assertNull(validateActionFormula("Add(0, 10)"))
+        assertNull(validateActionFormula("AddRect(0, 10, 1, 2, 5, 6)"))
+        assertNull(validateActionFormula("AddDisc(0, 5, 10, 10, 3)"))
+        assertNull(validateActionFormula("EraseRect(1, 2, 5, 6)"))
+        assertNull(validateActionFormula("EraseRect(0, 1, 2, 5, 6)"))
+        assertNull(validateActionFormula("EraseDisc(10, 10, 3)"))
+        assertNull(validateActionFormula("EraseDisc(0, 10, 10, 3)"))
+        assertNull(validateActionFormula("Erase(0)"))
+        assertNull(validateActionFormula("Activate(1), Inactivate(2)"))
+        assertTrue(validateActionFormula("AddRect(0, 10, 1, 2)")!!.contains("expects 6 arguments"))
         // not an action call
         assertTrue(validateActionFormula("toto")!!.contains("Expected a list of actions"))
     }
@@ -48,7 +60,7 @@ class ActionTest {
     fun testActionDiagnose() {
         // invalid actions formula produces a model problem on the "Actions" property
         val model = GrainModel(grains = listOf(Grain(id = 0, name = "A")))
-        val behaviour = Behaviour(name = "B", mainReactiveId = 0, actions = "Add(0, 1)")
+        val behaviour = Behaviour(name = "B", mainReactiveId = 0, actions = "Add(0)")
         val problems = buildList { behaviour.diagnose(model, Locales.default, this) }
         assertTrue(problems.any { it.property == "Actions" })
     }

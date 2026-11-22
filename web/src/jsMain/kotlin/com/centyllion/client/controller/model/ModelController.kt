@@ -294,6 +294,12 @@ class ModelController(
         columnsController(data.model.behaviours, data.model, onClick = { behaviour, _ -> selected = behaviour })
         { behaviour, previous ->
             previous ?: BehaviourDisplayController(page, behaviour, data.model).wrap { controller ->
+                controller.onToggleEnabled = { enabled ->
+                    // the radio only changes the activation flag of the behaviour
+                    data = data.copy(
+                        model = data.model.updateBehaviour(controller.data, controller.data.copy(enabled = enabled))
+                    )
+                }
                 controller.onDelete = {
                     data = data.dropBehaviour(controller.data)
                     selected = null
