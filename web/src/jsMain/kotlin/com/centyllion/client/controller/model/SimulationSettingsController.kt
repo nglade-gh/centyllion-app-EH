@@ -22,6 +22,8 @@ class SimulationSettingsController (
     var onUpdateSeed: (Long) -> Unit = { },
     initialValueInfo: Boolean = true,
     var onValueInfo: (Boolean) -> Unit = { },
+    initialWarnings: Boolean = true,
+    var onWarnings: (Boolean) -> Unit = { },
     initialSlidingWindow: Boolean = false,
     initialWindowSize: Int = 100,
     var onSlidingWindow: (Boolean, Int) -> Unit = { _, _ -> },
@@ -49,6 +51,7 @@ class SimulationSettingsController (
             seedInput.disabled = new
             valueInfoSwitch.disabled = new
             slidingWindowCheckbox.disabled = new
+            warningsCheckbox.disabled = new
             windowSizeSelect.disabled = new
         }
     }
@@ -94,6 +97,11 @@ class SimulationSettingsController (
     /** Hovering a cell shows the field concentrations (on by default). */
     val valueInfoSwitch = Checkbox(page.i18n("Value info"), initialValueInfo) { _, checked ->
         onValueInfo(checked)
+    }.alignText()
+
+    /** Shows the non-blocking warnings of the model in the problems table. */
+    val warningsCheckbox = Checkbox(page.i18n("Display warnings"), initialWarnings) { _, checked ->
+        onWarnings(checked)
     }.alignText()
 
     private val windowValues = (10..500 step 10).toList()
@@ -184,11 +192,18 @@ class SimulationSettingsController (
         ).spaced()
     )
 
+    private val modelPage = TabPage(
+        TabItem(page.i18n("Model"), "boxes"),
+        Box(
+            Field(Control(warningsCheckbox))
+        ).spaced()
+    )
+
     private val tabs = Tabs(boxed = true).apply { root.classList.add("editor") }
 
     override val container = Div(
         tabs,
-        TabPages(simulationPage, environmentPage, curvesPage, tabs = tabs),
+        TabPages(simulationPage, environmentPage, curvesPage, modelPage, tabs = tabs),
         classes = "editor"
     ).apply { root.style.display = "contents" }
 

@@ -27,7 +27,9 @@ interface Ided {
 data class Problem(
     val source: ModelElement,
     val property: String,
-    val message: String
+    val message: String,
+    /** Non-blocking remark: the model stays playable, but something deserves attention. */
+    val warning: Boolean = false
 )
 
 @Serializable

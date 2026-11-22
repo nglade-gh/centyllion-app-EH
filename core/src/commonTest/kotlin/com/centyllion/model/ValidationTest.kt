@@ -58,6 +58,17 @@ class ValidationTest {
     }
 
     @Test
+    fun testTheNoneToNoneWarningIsFlaggedAsAWarning() {
+        val problems = buildList {
+            noneToNone(actions = "SetField(0, 0, 0, 1)").diagnose(GrainModel(), English, this)
+        }
+        assertTrue(problems.all { it.warning }, "this remark is non-blocking: $problems")
+
+        val errors = buildList { noneToNone().diagnose(GrainModel(), English, this) }
+        assertTrue(errors.none { it.warning }, "a behaviour without any effect is an error: $errors")
+    }
+
+    @Test
     fun testTheWarningIsTranslated() {
         val french = com.centyllion.i18n.French
         val message = french.i18n(
