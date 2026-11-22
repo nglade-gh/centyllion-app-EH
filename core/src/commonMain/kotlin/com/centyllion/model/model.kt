@@ -434,11 +434,15 @@ data class Behaviour(
      * addition to `count(grainId)`, `age(n)`, `step` (the current simulation
      * step) and `x`/`y`/`z` (the [position] of the cell).
      */
-    fun applicable(
-        grain: Grain?, age: Int, fields: List<Pair<Int, Float>>,
-        neighbours: List<Pair<Direction, Agent>>, position: Position,
-        simulator: Simulator
-    ): Boolean {
+    /**
+     * True when this behaviour may apply to the cell described by [c].
+     *
+     * [c] is filled once per cell per step and reused by every candidate behaviour of that
+     * cell: no neighbour list, no per-behaviour map and no evaluator allocation.
+     */
+    fun applicable(c: CellContext): Boolean {
+        val grain = c.grain
+        val age = c.age
         // checks main reactive and age
         // mainReactiveId == -1 means the cell must be empty (None -> something)
         if (mainReactiveId == -1) {
@@ -453,48 +457,51 @@ data class Behaviour(
         }
         // checks field predicate
         for (p in fieldPredicates) {
-            val value = (fields.find { it.first == p.first }?.second ?: 0f).flatten(minFieldLevel)
+            val value = c.fieldValue(p.first).flatten(minFieldLevel)
             if (!p.second.check(value)) return false
         }
-        // checks agent count predicates
+        // checks agent count predicates (counts are computed once per cell)
         for (p in agentCountPredicates) {
             val actualCount = when {
                 // counting empty cells, then every agent, then one grain type
-                p.grainId == COUNT_EMPTY_CELLS -> neighbours.count { it.second.reactiveId < 0 }
-                p.grainId < 0 -> neighbours.count { it.second.reactiveId >= 0 }
-                else -> neighbours.count { it.second.reactiveId == p.grainId }
+                p.grainId == COUNT_EMPTY_CELLS -> c.emptyCount
+                p.grainId == COUNT_ALL_AGENTS -> c.occupiedCount
+                else -> c.counts[p.grainId] ?: 0
             }
             if (!p.check(actualCount)) return false
         }
         // checks condition formula if present
         if (formula.isNotBlank()) {
             try {
-                val counts = neighbours.groupingBy { it.second.reactiveId }.eachCount().toMutableMap()
-                // aggregates, so a formula can count every agent or the empty cells
-                counts[COUNT_ALL_AGENTS] = neighbours.count { it.second.reactiveId >= 0 }
-                counts[COUNT_EMPTY_CELLS] = neighbours.count { it.second.reactiveId < 0 }
-                val evaluator = NetbioDynEvaluator(simulator)
-                evaluator.agentCounts = counts
-                evaluator.emptyCount = counts.getValue(COUNT_EMPTY_CELLS)
-                evaluator.step = simulator.step.v
+                val evaluator = c.evaluator
+                evaluator.agentCounts = c.counts
+                evaluator.emptyCount = c.emptyCount
+                evaluator.step = c.step.v
                 // ages for age(n), 1-based "reactive" numbering (same as the
                 // age-inheritance column): [0] main agent (0 for generation
                 // behaviours), [1..] one entry per reaction. When a reaction
                 // has several matching neighbours, the first one in direction
                 // order is used (the actual one is chosen later, by random or
                 // field influence); no match (or out of range) -> 0.
-                val agesList = buildList {
-                    add(if (grain != null) age else 0)
-                    for (r in reaction) {
-                        add(neighbours.firstOrNull { (d, a) ->
-                            a.reactiveId == r.reactiveId && r.allowedDirection.contains(d)
-                        }?.second?.age ?: 0)
+                val agesList = c.agesBuffer
+                agesList.clear()
+                agesList.add(if (grain != null) age else 0)
+                for (r in reaction) {
+                    var found = 0
+                    for (k in c.neighbourIds.indices) {
+                        if (c.neighbourIds[k] == r.reactiveId &&
+                            r.allowedDirection.contains(CellContext.DIRECTIONS[k])
+                        ) {
+                            found = c.neighbourAges[k]
+                            break
+                        }
                     }
+                    agesList.add(found)
                 }
                 evaluator.ages = agesList
-                evaluator.x = position.x.v
-                evaluator.y = position.y.v
-                evaluator.z = position.z.v
+                evaluator.x = c.x.v
+                evaluator.y = c.y.v
+                evaluator.z = c.z.v
                 val expr: com.centyllion.expression.Expression =
                     parsedCondition ?: formula.parseExpression()
                 parsedCondition = expr
@@ -511,10 +518,11 @@ data class Behaviour(
         // (missing product grain -> no restriction). Reactions with
         // reactiveId >= 0 transform an agent in place: never restricted.
         for (r in reaction) {
-            val bc = if (r.reactiveId == -1) simulator.model.grainForId(r.productId)?.boundaryConditions else null
+            val bc = if (r.reactiveId == -1) c.simulator.model.grainForId(r.productId)?.boundaryConditions else null
             if (r.allowedDirection.none { d ->
-                    neighbours.any { it.first == d && it.second.reactiveId == r.reactiveId &&
-                        (bc == null || !bc.crossed(position, it.first, simulator.simulation.width, simulator.simulation.height)) }
+                    val k = CellContext.DIRECTIONS.indexOf(d)
+                    k >= 0 && c.neighbourIds[k] == r.reactiveId &&
+                            (bc == null || !bc.crossed(c.position, d, c.simulator.simulation.width, c.simulator.simulation.height))
                 }) return false
         }
         return true
@@ -807,6 +815,60 @@ data class GrainModel(
 private fun emptyList(size: Int): List<Int> = ArrayList<Int>(size).apply { repeat(size) { add(-1) } }
 
 /** [AgentCountPredicate.grainId] counting every occupied neighbour cell. */
+/**
+ * Mutable, reusable description of one cell, filled once per cell per step and shared by
+ * every candidate behaviour of that cell. It replaces the former per-cell allocations
+ * (`List<Pair<Direction, Agent>>`, eight `Agent` objects, one `FloatArray` per neighbour,
+ * one `NetbioDynEvaluator` and two counting maps per formula evaluation).
+ */
+class CellContext(val simulator: Simulator) {
+    var grain: Grain? = null
+    var age: Int = 0
+    var step: Int = 0
+    var x: Int = 0
+    var y: Int = 0
+    var z: Int = 0
+    var position: Position = Position(0, 0, 0)
+
+    /** Field values at this cell, indexed by field slot. */
+    var fieldValues: FloatArray = FloatArray(0)
+
+    /** Field id -> slot (or -1 when the field is unknown). */
+    var fieldSlot: IntArray = IntArray(0)
+
+    /** Grain id -> number of neighbours of that grain (occupied and empty aggregates included). */
+    val counts: MutableMap<Int, Int> = HashMap()
+
+    var emptyCount: Int = 0
+    var occupiedCount: Int = 0
+
+    /** Neighbour grain ids, indexed like [DIRECTIONS]. */
+    val neighbourIds: IntArray = IntArray(DIRECTIONS.size)
+
+    /** Neighbour ages, indexed like [DIRECTIONS]. */
+    val neighbourAges: IntArray = IntArray(DIRECTIONS.size)
+
+    /** Neighbour cell indexes, indexed like [DIRECTIONS]. */
+    val neighbourIndices: IntArray = IntArray(DIRECTIONS.size)
+
+    /** Reused buffer for the `age(n)` values of a formula. */
+    val agesBuffer: MutableList<Int> = ArrayList(4)
+
+    /** Evaluator of the current thread, reused for every formula evaluation. */
+    var evaluator: NetbioDynEvaluator = NetbioDynEvaluator(simulator)
+
+    fun fieldValue(fieldId: Int): Float {
+        if (fieldId < 0 || fieldId >= fieldSlot.size) return 0f
+        val slot = fieldSlot[fieldId]
+        return if (slot in fieldValues.indices) fieldValues[slot] else 0f
+    }
+
+    companion object {
+        /** Neighbour order of [neighbourIds] and [neighbourAges]. */
+        val DIRECTIONS: List<Direction> = Direction.entries
+    }
+}
+
 const val COUNT_ALL_AGENTS: Int = -1
 
 /** [AgentCountPredicate.grainId] counting the empty neighbour cells. */

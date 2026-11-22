@@ -68,3 +68,27 @@ fun availableColor(used: Collection<String>): String {
 }
 
 fun Float.flatten(threshold: Float, line: Float = 0f) = if (this <= threshold) line else this
+
+/**
+ * Read-only view of the cartesian product of [lists], without materialising it.
+ *
+ * Combination `c` is read in mixed-radix order: the last list varies fastest. The former
+ * `allCombinations()` built a list of lists for every cell, which dominated the allocation
+ * profile of a step; the order of enumeration is unchanged, so the drawn combination and
+ * the probability law stay identical.
+ */
+class CombinationView<T>(private val lists: List<List<T>>) {
+    /** Number of combinations (0 when one of the lists is empty). */
+    val size: Int = lists.fold(1) { acc, list -> acc * list.size }
+
+    /** Element of the combination [combination] coming from the list [listIndex]. */
+    fun get(combination: Int, listIndex: Int): T {
+        var radix = 1
+        for (k in listIndex + 1 until lists.size) radix *= lists[k].size
+        val digit = if (radix == 0) 0 else (combination / radix) % lists[listIndex].size
+        return lists[listIndex][digit]
+    }
+
+    /** All the elements of [combination], in list order. */
+    fun elements(combination: Int): List<T> = List(lists.size) { get(combination, it) }
+}
