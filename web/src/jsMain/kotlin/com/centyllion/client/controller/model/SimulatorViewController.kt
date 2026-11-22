@@ -10,6 +10,7 @@ import org.khronos.webgl.Uint8Array
 import org.khronos.webgl.get
 import org.khronos.webgl.set
 import org.w3c.dom.CanvasRenderingContext2D
+import org.w3c.dom.Path2D
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.ImageData
@@ -262,13 +263,17 @@ class SimulatorViewController(
                 val alpha = fieldAlpha(values[i])
                 if (alpha <= 0) continue
                 val p = i * 4
-                val a = alpha / 255.0
-                val r = (pixels[p].toInt() and 0xff) * (1.0 - a) + fr * a
-                val g = (pixels[p + 1].toInt() and 0xff) * (1.0 - a) + fg * a
-                val b = (pixels[p + 2].toInt() and 0xff) * (1.0 - a) + fb * a
-                pixels[p] = r.roundToInt().coerceIn(0, 255).toByte()
-                pixels[p + 1] = g.roundToInt().coerceIn(0, 255).toByte()
-                pixels[p + 2] = b.roundToInt().coerceIn(0, 255).toByte()
+                if (alpha >= 255) {
+                    pixels[p] = fr.toByte()
+                    pixels[p + 1] = fg.toByte()
+                    pixels[p + 2] = fb.toByte()
+                    continue
+                }
+                // integer blend: (src * a + dst * (255 - a)) / 255, no floating point
+                val inverse = 255 - alpha
+                pixels[p] = (((fr * alpha + (pixels[p].toInt() and 0xff) * inverse) / 255)).toByte()
+                pixels[p + 1] = (((fg * alpha + (pixels[p + 1].toInt() and 0xff) * inverse) / 255)).toByte()
+                pixels[p + 2] = (((fb * alpha + (pixels[p + 2].toInt() and 0xff) * inverse) / 255)).toByte()
             }
         }
 
@@ -300,6 +305,9 @@ class SimulatorViewController(
         display.classList.toggle("is-danger", data.step > 0)
     }
 
+    private var gridPath: Path2D? = null
+    private var gridKey: String = ""
+
     private fun drawGrid(ctx: CanvasRenderingContext2D) {
         val simulation = data.simulation
         if (!simulation.settings.showGrid) return
@@ -316,21 +324,28 @@ class SimulatorViewController(
         val firstY = max(1, ceil((top - offsetY) / cellPx).toInt())
         val lastY = min(simulation.height - 1, floor((bottom - offsetY) / cellPx).toInt())
 
+        // the path only changes when the view changes (zoom, pan, size), not every frame
+        val key = "$firstX:$lastX:$firstY:$lastY:$cellPx:$offsetX:$offsetY:$left:$top:$right:$bottom"
+        if (key != gridKey || gridPath == null) {
+            val path = Path2D()
+            for (x in firstX..lastX) {
+                val px = offsetX + x * cellPx
+                path.moveTo(px, top)
+                path.lineTo(px, bottom)
+            }
+            for (y in firstY..lastY) {
+                val py = offsetY + y * cellPx
+                path.moveTo(left, py)
+                path.lineTo(right, py)
+            }
+            gridPath = path
+            gridKey = key
+        }
+
         ctx.save()
         ctx.strokeStyle = "rgba(255, 255, 255, 0.22)"
         ctx.lineWidth = 1.0
-        ctx.beginPath()
-        for (x in firstX..lastX) {
-            val px = offsetX + x * cellPx
-            ctx.moveTo(px, top)
-            ctx.lineTo(px, bottom)
-        }
-        for (y in firstY..lastY) {
-            val py = offsetY + y * cellPx
-            ctx.moveTo(left, py)
-            ctx.lineTo(right, py)
-        }
-        ctx.stroke()
+        ctx.stroke(gridPath!!)
         ctx.restore()
     }
 

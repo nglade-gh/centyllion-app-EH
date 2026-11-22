@@ -220,7 +220,10 @@ class SimulationRunController(
 
     private fun executeStep() {
         val (applied, dead) = simulator.oneStep()
-        simulationViewController.oneStep(applied, dead)
+        // without fields, nothing can change if no behaviour was applied and nothing died
+        if (applied.isNotEmpty() || dead.isNotEmpty() || simulator.model.fields.isNotEmpty()) {
+            simulationViewController.oneStep(applied, dead)
+        }
         stepLabel.text = "${currentSimulator.step}"
         onStep(simulator)
     }
