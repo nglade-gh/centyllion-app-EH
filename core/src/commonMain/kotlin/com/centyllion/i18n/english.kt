@@ -358,6 +358,8 @@ object English: Locale {
         "Random seed" -> "Random seed"
         "Curves" -> "Curves"
         "Window size" -> "Window size"
+        "Behaviour has no effect (None -> None)" -> "Behaviour has no effect (None -> None)"
+        "Behaviour produces no agent (None -> None): its actions alone act on the simulation, for example SetField(0, 0, 0, 1), possibly under a predicate on the simulation step." -> "Behaviour produces no agent (None -> None): its actions alone act on the simulation, for example SetField(0, 0, 0, 1), possibly under a predicate on the simulation step."
         else -> key
     }
 }
