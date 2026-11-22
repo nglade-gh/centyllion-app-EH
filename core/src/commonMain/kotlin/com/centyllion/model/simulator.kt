@@ -169,6 +169,27 @@ class Simulator(
 
     fun grainForId(id: Int): Grain? = if (id < 0) null else grainIdArray[id]
 
+    // Flat slots for the per-step counters: grain and field ids are not necessarily
+    // contiguous, and hashing a data class per cell was a major cost.
+    private val grainSlot: IntArray = IntArray((model.grains.maxOfOrNull { it.id } ?: -1) + 1) { -1 }
+    private val fieldSlot: IntArray = IntArray(fieldMaxId + 1) { -1 }
+
+    /** Speeds indexed like [allBehaviours], to avoid a hash lookup per cell. */
+    private val speedOf: DoubleArray = DoubleArray(allBehaviours.size) { allBehaviours[it].probability }
+
+    /** Behaviour indexes per agent type: slot 0 = empty cells (mainReactiveId == -1),
+     *  slot `grainId + 1` = behaviours reacting on that grain. */
+    private val behaviourIndexes: Array<IntArray> =
+        Array((model.grains.maxOfOrNull { it.id } ?: -1) + 2) { slot ->
+            val grainId = slot - 1
+            allBehaviours.indices.filter { allBehaviours[it].mainReactiveId == grainId }.toIntArray()
+        }
+
+    init {
+        model.grains.forEachIndexed { slot, grain -> grainSlot[grain.id] = slot }
+        model.fields.forEachIndexed { slot, field -> fieldSlot[field.id] = slot }
+    }
+
     fun grainAtIndex(index: Int): Grain? {
         val id = idAtIndex(index)
         return if (id < 0) null else grainIdArray[id]
@@ -184,6 +205,8 @@ class Simulator(
 
     fun setSpeed(behaviour: Behaviour, speed: Double) {
         speeds[behaviour] = speed
+        val index = allBehaviours.indexOf(behaviour)
+        if (index >= 0) speedOf[index] = speed
     }
 
     /** Executes one step and returns the applied behaviours and the dead indexes. */
@@ -209,13 +232,9 @@ class Simulator(
     }
 
     private fun oneStepInternal(): Pair<Collection<ApplicableBehavior>, Collection<Int>> {
-        // applies agents dying process
-        val currentCount = mutableMapOf<Grain, Int>().apply {
-            model.grains.forEach { this[it] = 0 }
-        }
-        val currentFieldAmounts = mutableMapOf<Field, Float>().apply {
-            model.fields.forEach { this[it] = 0f }
-        }
+        // applies agents dying process (flat counters, indexed by slot)
+        val currentCount = IntArray(model.grains.size)
+        val currentFieldAmounts = FloatArray(model.fields.size)
 
         // defines values for fields to avoid dynamic call each time
         val fields = fields
@@ -247,15 +266,19 @@ class Simulator(
         toExecute.forEach { it.apply(this) }
 
         // stores count for each grain
-        currentCount.forEach {
-            grainCountHistory[it.key]?.add(it.value)
-            maxGrainCount[it.key.id] = max(maxGrainCount[it.key.id] ?: 0, it.value)
+        for (slot in currentCount.indices) {
+            val grain = model.grains[slot]
+            val value = currentCount[slot]
+            grainCountHistory[grain]?.add(value)
+            maxGrainCount[grain.id] = max(maxGrainCount[grain.id] ?: 0, value)
         }
 
         // stores field amounts
-        currentFieldAmounts.forEach {
-            fieldAmountHistory[it.key]?.add(it.value)
-            maxFieldAmount[it.key.id] = max(maxFieldAmount[it.key.id] ?: 0f, it.value)
+        for (slot in currentFieldAmounts.indices) {
+            val field = model.fields[slot]
+            val value = currentFieldAmounts[slot]
+            fieldAmountHistory[field]?.add(value)
+            maxFieldAmount[field.id] = max(maxFieldAmount[field.id] ?: 0f, value)
         }
 
         // swap fields
@@ -285,8 +308,8 @@ class Simulator(
     /** Result of processing one block of cells. */
     private data class BlockResult(
         val all: Map<Int, List<ApplicableBehavior>>,
-        val count: Map<Grain, Int>,
-        val fieldAmounts: Map<Field, Float>,
+        val count: IntArray,
+        val fieldAmounts: FloatArray,
         val dead: List<Int>
     )
 
@@ -294,8 +317,8 @@ class Simulator(
      *  Each block builds its own accumulators; results are merged afterwards. */
     private fun runParallelStep(
         all: MutableMap<Int, MutableList<ApplicableBehavior>>,
-        currentCount: MutableMap<Grain, Int>,
-        currentFieldAmounts: MutableMap<Field, Float>,
+        currentCount: IntArray,
+        currentFieldAmounts: FloatArray,
         dead: MutableList<Int>,
         fields: Map<Int, FloatArray>,
         nextFields: Map<Int, FloatArray>
@@ -307,12 +330,8 @@ class Simulator(
         val results = executor.mapBlocks(blocks) { block ->
             val context = threadContexts[block.index]
             val localAll = mutableMapOf<Int, MutableList<ApplicableBehavior>>()
-            val localCount = mutableMapOf<Grain, Int>().apply {
-                model.grains.forEach { this[it] = 0 }
-            }
-            val localFieldAmounts = mutableMapOf<Field, Float>().apply {
-                model.fields.forEach { this[it] = 0f }
-            }
+            val localCount = IntArray(model.grains.size)
+            val localFieldAmounts = FloatArray(model.fields.size)
             val localDead = mutableListOf<Int>()
             // cells are disjoint between blocks: each cell draws from its own stream, so the
             // trajectory does not depend on how the grid is split across threads
@@ -327,11 +346,11 @@ class Simulator(
             r.all.forEach { (index, behaviours) ->
                 all.getOrPut(index) { mutableListOf() }.addAll(behaviours)
             }
-            r.count.forEach { (grain, count) ->
-                currentCount[grain] = (currentCount[grain] ?: 0) + count
+            for (slot in currentCount.indices) {
+                currentCount[slot] += r.count[slot]
             }
-            r.fieldAmounts.forEach { (field, amount) ->
-                currentFieldAmounts[field] = (currentFieldAmounts[field] ?: 0f) + amount
+            for (slot in currentFieldAmounts.indices) {
+                currentFieldAmounts[slot] += r.fieldAmounts[slot]
             }
             dead.addAll(r.dead)
         }
@@ -342,8 +361,8 @@ class Simulator(
         i: Int,
         context: ThreadContext,
         all: MutableMap<Int, MutableList<ApplicableBehavior>>,
-        currentCount: MutableMap<Grain, Int>,
-        currentFieldAmounts: MutableMap<Field, Float>,
+        currentCount: IntArray,
+        currentFieldAmounts: FloatArray,
         dead: MutableList<Int>,
         random: SimulationRandom,
         fields: Map<Int, FloatArray>,
@@ -363,10 +382,11 @@ class Simulator(
                 transform(i, i, null)
                 dead.add(i)
             } else {
-                currentCount[grain] = currentCount.getOrElse(grain) { 0 } + 1
+                currentCount[grainSlot[grain.id]] += 1
                 ageGrain(i)
 
-                if (reactiveGrains.contains(grain)) {
+                val candidates = behaviourIndexes[grain.id + 1]
+                if (candidates.isNotEmpty()) {
                     // a grain is present, a behaviour can be triggered
                     val age = ageAtIndex(i)
                     val fieldValues = fieldsAtIndex(i)
@@ -375,14 +395,17 @@ class Simulator(
                     val neighbours = neighbours(i)
 
                     // searches for applicable behaviours and filters by probability
-                    val applicable = allBehaviours.filter {
-                        it.applicable(grain, age, fieldValues, neighbours, position, this) && random.nextDouble(i) < speeds[it]!!
+                    val applicable = ArrayList<Int>(4)
+                    for (bi in candidates) {
+                        if (allBehaviours[bi].applicable(grain, age, fieldValues, neighbours, position, this) &&
+                            random.nextDouble(i) < speedOf[bi]
+                        ) applicable.add(bi)
                     }
 
                     // selects behaviour if any is applicable
                     if (applicable.isNotEmpty()) {
                         // selects one at random
-                        val behaviour = applicable[random.nextInt(i, applicable.size)]
+                        val behaviour = allBehaviours[applicable[random.nextInt(i, applicable.size)]]
 
                         // for each reaction, find all possible reactives
                         val possibleReactions = behaviour.reaction
@@ -451,13 +474,16 @@ class Simulator(
             val neighbours = neighbours(i)
 
             // for generation, use the simulation step as the "age" value
-            val applicable = allBehaviours.filter {
-                it.mainReactiveId == -1 && it.applicable(null, step, fieldValues, neighbours, position, this) && random.nextDouble(i) < speeds[it]!!
+            val applicable = ArrayList<Int>(2)
+            for (bi in behaviourIndexes[0]) {
+                if (allBehaviours[bi].applicable(null, step, fieldValues, neighbours, position, this) &&
+                    random.nextDouble(i) < speedOf[bi]
+                ) applicable.add(bi)
             }
 
             if (applicable.isNotEmpty()) {
                 // selects one at random
-                val behaviour = applicable[random.nextInt(i, applicable.size)]
+                val behaviour = allBehaviours[applicable[random.nextInt(i, applicable.size)]]
 
                 // for each reaction, find all possible reactives
                 val possibleReactions = behaviour.reaction
@@ -561,7 +587,7 @@ class Simulator(
                 next[i] = evaluated.coerceIn(minField, 1f)
 
                 // count current field amounts
-                currentFieldAmounts[field] = (currentFieldAmounts[field] ?: 0f) + next[i]
+                currentFieldAmounts[fieldSlot[field.id]] += next[i]
             }
         }
     }
