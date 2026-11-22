@@ -82,13 +82,19 @@ sealed class Action {
 
     /** Inactivates a behaviour by its identifier (no effect when already inactive). */
     data class Inactivate(val behaviourId: Expression) : Action()
+
+    /** Activates a simulation modifier by its identifier (no effect when already active). */
+    data class Use(val modifierId: Expression) : Action()
+
+    /** Inactivates a simulation modifier by its identifier (no effect when already inactive). */
+    data class Unuse(val modifierId: Expression) : Action()
 }
 
 /** True for the actions that act on the simulation as a whole rather than on one cell. */
 fun isMetaAction(action: Action): Boolean = when (action) {
     Action.Pause, is Action.AddMany, is Action.AddRect, is Action.AddDisc,
     is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
-    is Action.EraseAll, is Action.Activate, is Action.Inactivate -> true
+    is Action.EraseAll, is Action.Activate, is Action.Inactivate, is Action.Use, is Action.Unuse -> true
     else -> false
 }
 
@@ -108,10 +114,12 @@ private val actionArities = mapOf(
     "Erase" to intArrayOf(1),
     "Activate" to intArrayOf(1),
     "Inactivate" to intArrayOf(1),
+    "Use" to intArrayOf(1),
+    "Unuse" to intArrayOf(1),
 )
 
 private const val availableActions =
-    "Add, Remove, Move, SetField, AddField, ClearField, pause, AddRect, AddDisc, EraseRect, EraseDisc, Erase, Activate, Inactivate"
+    "Add, Remove, Move, SetField, AddField, ClearField, pause, AddRect, AddDisc, EraseRect, EraseDisc, Erase, Activate, Inactivate, Use, Unuse"
 
 /** Splits [text] on top-level commas (commas inside parentheses are kept). */
 private fun splitTopLevel(text: String): List<String> {
@@ -186,7 +194,9 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
             else Action.EraseDisc(args[0], args[1], args[2], args[3])
             "Erase" -> Action.EraseAll(args[0])
             "Activate" -> Action.Activate(args[0])
-            else -> Action.Inactivate(args[0])
+            "Inactivate" -> Action.Inactivate(args[0])
+            "Use" -> Action.Use(args[0])
+            else -> Action.Unuse(args[0])
         }
         if (!allowMeta && isMetaAction(parsed)) {
             throw IllegalArgumentException(

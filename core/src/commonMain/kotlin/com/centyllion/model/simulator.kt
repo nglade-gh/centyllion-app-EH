@@ -138,6 +138,22 @@ class Simulator(
     private fun activationSnapshot(): BooleanArray =
         initialEnabled ?: runtimeEnabled.copyOf().also { initialEnabled = it }
 
+    /** Run time activation of the simulation modifiers, changed by Use(id) / Unuse(id). */
+    private val runtimeModifierEnabled: BooleanArray by lazy {
+        BooleanArray(model.modifiers.size) { model.modifiers[it].enabled }
+    }
+
+    private var initialModifierEnabled: BooleanArray? = null
+
+    private fun modifierSnapshot(): BooleanArray =
+        initialModifierEnabled ?: runtimeModifierEnabled.copyOf().also { initialModifierEnabled = it }
+
+    /** Run time activation of the modifier with that id (true when the id is unknown). */
+    fun isModifierUsed(id: Int): Boolean {
+        val index = model.modifiers.indexOfFirst { it.id == id }
+        return index < 0 || runtimeModifierEnabled[index]
+    }
+
     /** Behaviours that already executed their meta-actions during the current step. */
     private val metaActionsDone = HashSet<Behaviour>()
 
@@ -295,8 +311,9 @@ class Simulator(
 
     /** Executes one step and returns the applied behaviours and the dead indexes. */
     fun oneStep(): Pair<Collection<ApplicableBehavior>, Collection<Int>> {
-        // the rewind state must be captured before any Activate/Inactivate runs
+        // the rewind state must be captured before any Activate/Inactivate/Use runs
         activationSnapshot()
+        modifierSnapshot()
         // In parallel mode, prepare the next-state buffers and pre-increment ages
         // so that all behaviours are computed from the state at the start of the step.
         if (parallelUpdate) {
@@ -707,6 +724,7 @@ class Simulator(
     fun reset() {
         // rewind: the activation state comes back to what it was at the start of the run
         activationSnapshot().copyInto(runtimeEnabled)
+        modifierSnapshot().copyInto(runtimeModifierEnabled)
         activationChanged = true
         pauseRequested = false
         initialAgents.copyInto(agents)
@@ -800,8 +818,10 @@ class Simulator(
         evaluator.absoluteCoordinates = true
         evaluator.step = step.v
         try {
-            for (modifier in model.modifiers) {
-                if (!modifier.enabled) continue
+            for (modifierIndex in model.modifiers.indices) {
+                val modifier = model.modifiers[modifierIndex]
+                // Use(id) / Unuse(id) drive this state; the model gives the initial value
+                if (!runtimeModifierEnabled[modifierIndex]) continue
                 // probability drawn once per step, like the behaviour probabilities
                 if (modifier.probability < 1.0 && random.nextDouble(0) >= modifier.probability) continue
                 val condition = modifier.formula
@@ -913,6 +933,22 @@ class Simulator(
                         val index = behaviourIndexForId(action.behaviourId.evalInt(evaluator))
                         if (index >= 0 && runtimeEnabled[index]) {
                             runtimeEnabled[index] = false
+                            activationChanged = true
+                        }
+                    }
+
+                    is Action.Use -> {
+                        val index = model.modifiers.indexOfFirst { it.id == action.modifierId.evalInt(evaluator) }
+                        if (index >= 0 && !runtimeModifierEnabled[index]) {
+                            runtimeModifierEnabled[index] = true
+                            activationChanged = true
+                        }
+                    }
+
+                    is Action.Unuse -> {
+                        val index = model.modifiers.indexOfFirst { it.id == action.modifierId.evalInt(evaluator) }
+                        if (index >= 0 && runtimeModifierEnabled[index]) {
+                            runtimeModifierEnabled[index] = false
                             activationChanged = true
                         }
                     }
@@ -1176,6 +1212,8 @@ class Simulator(
                             activationChanged = true
                         }
                     }
+
+                    is Action.Use, is Action.Unuse -> { /* modifier activation: modifiers only */ }
 
                     is Action.ClearField -> {
                         val fieldId = action.field.evalInt(evaluator)

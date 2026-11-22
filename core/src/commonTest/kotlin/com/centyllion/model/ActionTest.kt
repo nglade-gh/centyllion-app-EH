@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 class ActionTest {
 
@@ -523,5 +524,55 @@ class SimulationModifierTest {
     fun testOnlyMetaActionsAreAllowedInAModifier() {
         assertNull(validateModifierActions("AddRect(0, 5, 2, 2, 4, 4), pause()"))
         assertTrue(validateModifierActions("Add(0, 1, 0)")!!.contains("meta-actions"))
+    }
+}
+
+/** Use(id) and Unuse(id) switch the simulation modifiers on and off at run time. */
+class ModifierUseTest {
+
+    private fun model() = GrainModel(
+        name = "use",
+        grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+        modifiers = listOf(
+            SimulationModifier(name = "switcher", id = 0, actions = "Unuse(1)"),
+            SimulationModifier(name = "seeder", id = 1, actions = "AddRect(0, 4, 1, 1, 4, 4)"),
+        ),
+    )
+
+    @Test
+    fun testUnuseStopsAModifier() {
+        val simulator = Simulator(model(), createSimulation("use", size = 10) { -1 })
+        simulator.oneStep()
+        // the first modifier ran and switched the second one off, so nothing was seeded
+        assertEquals(0, simulator.agents.count { it >= 0 })
+        assertFalse(simulator.isModifierUsed(1), "Unuse(1) must switch the modifier off")
+    }
+
+    @Test
+    fun testUseReactivatesIt() {
+        val simulator = Simulator(model(), createSimulation("use", size = 10) { -1 })
+        simulator.oneStep()
+        assertFalse(simulator.isModifierUsed(1))
+        val reseeded = model().let { m ->
+            m.copy(modifiers = m.modifiers.map { if (it.id == 0) it.copy(actions = "Use(1)") else it })
+        }
+        val second = Simulator(reseeded, createSimulation("use", size = 10) { -1 })
+        second.oneStep()
+        assertTrue(second.isModifierUsed(1))
+    }
+
+    @Test
+    fun testRewindRestoresTheModifiers() {
+        val simulator = Simulator(model(), createSimulation("use", size = 10) { -1 })
+        simulator.oneStep()
+        assertFalse(simulator.isModifierUsed(1))
+        simulator.reset()
+        assertTrue(simulator.isModifierUsed(1), "a rewind restores the modifiers of the start")
+    }
+
+    @Test
+    fun testUseAndUnuseAreMetaActions() {
+        assertTrue(validateActionFormula("Use(1)")!!.contains("meta-action"))
+        assertNull(validateModifierActions("Use(1), Unuse(0)"))
     }
 }
