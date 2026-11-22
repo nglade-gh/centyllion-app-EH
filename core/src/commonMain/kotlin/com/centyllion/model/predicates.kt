@@ -54,8 +54,7 @@ object BehaviourPredicates {
      * True when every graphical predicate has an exact formula equivalent, i.e. when the
      * behaviour can move to expert mode without changing its meaning.
      */
-    fun convertible(behaviour: Behaviour): Boolean =
-        behaviour.agentCountPredicates.none { it.grainId == COUNT_ALL_AGENTS }
+    fun convertible(behaviour: Behaviour): Boolean = true
 
     /** Formula equivalent to the graphical predicates; empty when the behaviour has none. */
     fun toFormula(behaviour: Behaviour): String {
@@ -66,7 +65,12 @@ object BehaviourPredicates {
         }
         behaviour.agePredicates.forEach { parts += "$ageVariable ${it.op.token()} ${it.constant}" }
         behaviour.agentCountPredicates.forEach {
-            val call = if (it.grainId == COUNT_EMPTY_CELLS) "countEmpty()" else "count(${it.grainId})"
+            // -1 and -2 are real keys of the counts map: count(-1) every agent, countEmpty() none
+            val call = when (it.grainId) {
+                COUNT_EMPTY_CELLS -> "countEmpty()"
+                COUNT_ALL_AGENTS -> "count(-1)"
+                else -> "count(${it.grainId})"
+            }
             parts += "$call ${it.op.token()} ${it.count}"
         }
         behaviour.fieldPredicates.forEach { (id, predicate) ->

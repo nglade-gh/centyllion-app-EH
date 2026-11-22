@@ -469,10 +469,13 @@ data class Behaviour(
         // checks condition formula if present
         if (formula.isNotBlank()) {
             try {
-                val counts = neighbours.groupingBy { it.second.reactiveId }.eachCount()
+                val counts = neighbours.groupingBy { it.second.reactiveId }.eachCount().toMutableMap()
+                // aggregates, so a formula can count every agent or the empty cells
+                counts[COUNT_ALL_AGENTS] = neighbours.count { it.second.reactiveId >= 0 }
+                counts[COUNT_EMPTY_CELLS] = neighbours.count { it.second.reactiveId < 0 }
                 val evaluator = NetbioDynEvaluator(simulator)
                 evaluator.agentCounts = counts
-                evaluator.emptyCount = neighbours.count { it.second.reactiveId < 0 }
+                evaluator.emptyCount = counts.getValue(COUNT_EMPTY_CELLS)
                 evaluator.step = simulator.step.v
                 // ages for age(n), 1-based "reactive" numbering (same as the
                 // age-inheritance column): [0] main agent (0 for generation

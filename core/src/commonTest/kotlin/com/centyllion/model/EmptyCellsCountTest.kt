@@ -67,6 +67,32 @@ class EmptyCellsCountTest {
     }
 
     @Test
+    fun testCountOfAllAgentsIsTheFormulaEquivalent() {
+        // a cell next to the only agent has exactly one occupied neighbour
+        val graphical = step(model(AgentCountPredicate(grainId = COUNT_ALL_AGENTS, op = Operator.Equals, count = 1)))
+        val formula = step(model(formula = "count(-1) == 1"))
+        assertEquals(graphical, formula, "count(-1) must count every agent, like the graphical predicate")
+        assertTrue((graphical[0] ?: 0) > 1, "the neighbours of the lone cell must be born: $graphical")
+    }
+
+    @Test
+    fun testCountOfAllAgentsIsConvertedBothWays() {
+        val behaviour = Behaviour(
+            name = "all agents",
+            mainReactiveId = -1, mainProductId = 0,
+            agentCountPredicates = listOf(
+                AgentCountPredicate(grainId = COUNT_ALL_AGENTS, op = Operator.GreaterThanOrEquals, count = 2)
+            ),
+        )
+        assertTrue(BehaviourPredicates.convertible(behaviour))
+        val formula = BehaviourPredicates.toFormula(behaviour)
+        assertEquals("count(-1) >= 2", formula)
+        val back = BehaviourPredicates.fromFormula(formula)
+        assertTrue(back != null && back.agentCountPredicates.single().grainId == COUNT_ALL_AGENTS,
+            "count(-1) must be read back as an all-agents count: $back")
+    }
+
+    @Test
     fun testCountEmptyIsConvertedBothWays() {
         val behaviour = Behaviour(
             name = "empty",
