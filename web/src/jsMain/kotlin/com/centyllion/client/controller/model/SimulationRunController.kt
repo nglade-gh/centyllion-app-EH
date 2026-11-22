@@ -1,6 +1,8 @@
 package com.centyllion.client.controller.model
 
 import bulma.*
+import kotlinx.browser.document
+import org.w3c.dom.HTMLInputElement
 import bulma.extension.Slider
 import com.centyllion.client.page.BulmaPage
 import com.centyllion.client.toggleElementToFullScreen
@@ -209,9 +211,21 @@ class SimulationRunController(
         running = false
     }
 
+    /** Copies the run time activation of each behaviour into its On/Off radio. */
+    private fun syncActivationRadios(simulator: Simulator) {
+        val inputs = document.querySelectorAll("input[data-behaviour-id]")
+        for (index in 0 until inputs.length) {
+            val input = inputs.item(index) as? HTMLInputElement ?: continue
+            val id = input.getAttribute("data-behaviour-id")?.toIntOrNull() ?: continue
+            input.checked = simulator.isRuntimeEnabled(id)
+        }
+    }
+
     fun reset() {
         if (!running) {
             currentSimulator.reset()
+            // a rewind restores the activation state of the beginning of the run
+            syncActivationRadios(currentSimulator)
             refresh()
             onReset(currentSimulator)
             stepLabel.text = "${currentSimulator.step}"
@@ -221,6 +235,11 @@ class SimulationRunController(
     private fun executeStep() {
         val (applied, dead) = simulator.oneStep()
         // the pause() meta-action stops the run at the end of the step
+        // Activate/Inactivate change the run time state: the radios must follow
+        if (simulator.activationChanged) {
+            simulator.clearActivationChanged()
+            syncActivationRadios(simulator)
+        }
         if (simulator.pauseRequested) {
             simulator.clearPauseRequest()
             stop()

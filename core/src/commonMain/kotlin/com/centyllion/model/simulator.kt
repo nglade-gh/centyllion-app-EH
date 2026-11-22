@@ -129,6 +129,27 @@ class Simulator(
     /** Activation state at run time, initialised from the model and changed by Activate/Inactivate. */
     private val runtimeEnabled: BooleanArray by lazy { BooleanArray(allBehaviours.size) { allBehaviours[it].enabled } }
 
+    /** Activation state at the start of the run, restored by [reset] (rewind). */
+    private var initialEnabled: BooleanArray? = null
+
+    /** Snapshot of the activation taken before the very first step. */
+    private fun activationSnapshot(): BooleanArray =
+        initialEnabled ?: runtimeEnabled.copyOf().also { initialEnabled = it }
+
+    /** True when Activate/Inactivate changed the runtime state since the last check. */
+    var activationChanged: Boolean = false
+        private set
+
+    fun clearActivationChanged() {
+        activationChanged = false
+    }
+
+    /** Runtime activation of the behaviour with that id (true when the id is unknown). */
+    fun isRuntimeEnabled(id: Int): Boolean {
+        val index = behaviourIndexForId(id)
+        return index < 0 || runtimeEnabled[index]
+    }
+
     private fun behaviourIndexForId(id: Int): Int = allBehaviours.indexOfFirst { it.id == id }
 
     /** Calls [block] with the index of every cell of the rectangle, clamped to the grid. */
@@ -261,6 +282,8 @@ class Simulator(
 
     /** Executes one step and returns the applied behaviours and the dead indexes. */
     fun oneStep(): Pair<Collection<ApplicableBehavior>, Collection<Int>> {
+        // the rewind state must be captured before any Activate/Inactivate runs
+        activationSnapshot()
         // In parallel mode, prepare the next-state buffers and pre-increment ages
         // so that all behaviours are computed from the state at the start of the step.
         if (parallelUpdate) {
@@ -663,6 +686,10 @@ class Simulator(
     }
 
     fun reset() {
+        // rewind: the activation state comes back to what it was at the start of the run
+        activationSnapshot().copyInto(runtimeEnabled)
+        activationChanged = true
+        pauseRequested = false
         initialAgents.copyInto(agents)
         for (i in ages.indices) {
             ages[i] = if (agents[i] != -1) 0 else -1
@@ -972,12 +999,18 @@ class Simulator(
 
                     is Action.Activate -> {
                         val behaviourIndex = behaviourIndexForId(action.behaviourId.evalInt(evaluator))
-                        if (behaviourIndex >= 0) runtimeEnabled[behaviourIndex] = true
+                        if (behaviourIndex >= 0 && !runtimeEnabled[behaviourIndex]) {
+                            runtimeEnabled[behaviourIndex] = true
+                            activationChanged = true
+                        }
                     }
 
                     is Action.Inactivate -> {
                         val behaviourIndex = behaviourIndexForId(action.behaviourId.evalInt(evaluator))
-                        if (behaviourIndex >= 0) runtimeEnabled[behaviourIndex] = false
+                        if (behaviourIndex >= 0 && runtimeEnabled[behaviourIndex]) {
+                            runtimeEnabled[behaviourIndex] = false
+                            activationChanged = true
+                        }
                     }
 
                     is Action.ClearField -> {
