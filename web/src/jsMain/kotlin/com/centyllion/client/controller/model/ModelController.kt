@@ -45,11 +45,7 @@ class ModelController(
                 refreshFieldPanels()
 
                 // handles problems display
-                val problems = new.model.diagnose(page.appContext.locale)
-
-                // problems box is visible is there are problems and was already open
-                problemsMessage.hidden = problems.isEmpty()
-                problemsTable.body = problems.map { it.toBulma() }
+                refreshProblems(new.model)
 
                 // the selection can belong to a previous model (New Model, load,
                 // import): drop it so the edition panel does not keep showing it
@@ -67,6 +63,17 @@ class ModelController(
             onUpdate(old, new, this@ModelController)
             refresh()
         }
+    }
+
+    /** Non-blocking warnings of the model can be hidden (Settings > Model). */
+    private var showWarnings = true
+
+    /** Fills the problems table, warnings included only when asked. */
+    private fun refreshProblems(model: GrainModel) {
+        val problems = model.diagnose(page.appContext.locale).filter { showWarnings || !it.warning }
+        // problems box is visible is there are problems and was already open
+        problemsMessage.hidden = problems.isEmpty()
+        problemsTable.body = problems.map { it.toBulma() }
     }
 
     var expertMode: Boolean by observable(false) { _, old, new ->
@@ -380,6 +387,11 @@ class ModelController(
         },
         initialValueInfo = true,
         onValueInfo = { enabled -> simulationController.simulationViewController.setValueInfo(enabled) },
+        initialWarnings = showWarnings,
+        onWarnings = { enabled ->
+            showWarnings = enabled
+            refreshProblems(data.model)
+        },
         initialSlidingWindow = plotWindowMode,
         initialWindowSize = plotWindowSize,
         onSlidingWindow = { checked, size -> applyPlotWindow(checked, size) }

@@ -109,7 +109,7 @@ fun Behaviour.diagnose(model: GrainModel, locale: Locale, result: MutableList<Pr
         // without producing any agent, which is legitimate but worth an explicit warning
         val message = if (actions.isBlank()) "Behaviour has no effect (None -> None)"
         else "Behaviour produces no agent (None -> None): its actions alone act on the simulation, for example SetField(0, 0, 0, 1), possibly under a predicate on the simulation step."
-        result.add(Problem(this, "Meaningless", locale.i18n(message)))
+        result.add(Problem(this, "Meaningless", locale.i18n(message), warning = actions.isNotBlank()))
     }
 }
 
