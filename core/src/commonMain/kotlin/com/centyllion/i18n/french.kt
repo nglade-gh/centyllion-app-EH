@@ -449,6 +449,10 @@ object French: Locale {
         "Cancel" -> "Annuler"
         "Expert mode" -> "Mode expert"
         "None" -> "Aucun"
+        "Custom" -> "Personnalisée"
+        "Width" -> "Largeur"
+        "Height" -> "Hauteur"
+        "Preset" -> "Préréglée"
         else -> null
     }
 }
