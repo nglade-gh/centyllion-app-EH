@@ -11705,6 +11705,12 @@ div.field-label {
   border-radius: 6px;
 }
 
+/* the simulation modifiers are boxes, not columns: same selection mark */
+.box.is-selected {
+  background-color: #6533a7;
+  border-radius: 6px;
+}
+
 .tabs.editor li.is-active a {
   color: #4a4a4a;
 }

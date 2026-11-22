@@ -57,7 +57,7 @@ object French: Locale {
         "Simulation Description" -> "Description de la Simulation"
         "Clone Model" -> "Cloner le Modèle"
         "Clone Simulation" -> "Cloner la Simulation"
-        "Import" -> "Charger"
+        "Import" -> "Import"
         "Export" -> "Sauver"
         "Save As" -> "Enregistrer sous…"
         "Expert Mode" -> "Mode Expert"

@@ -22,6 +22,8 @@ import kotlin.properties.Delegates.observable
 
 /** True when [element] (by uuid) is part of this model. */
 private fun GrainModel.holds(element: ModelElement): Boolean = when (element) {
+    // the modifiers were forgotten here: any edit closed their editor
+    is SimulationModifier -> modifiers.any { it.uuid == element.uuid }
     is Grain -> grains.any { it.uuid == element.uuid }
     is Behaviour -> behaviours.any { it.uuid == element.uuid }
     is Field -> fields.any { it.uuid == element.uuid }
