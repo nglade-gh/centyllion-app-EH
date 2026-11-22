@@ -388,3 +388,61 @@ class BehaviourActivationTest {
         assertTrue(!simulator.isRuntimeEnabled(0), "an inactive behaviour starts inactive")
     }
 }
+
+/**
+ * Meta-actions act on the simulation, so a behaviour applicable on many cells must not run
+ * them once per cell: `AddRect(id, N, ...)` adds N agents, not N per cell.
+ */
+class MetaActionOncePerStepTest {
+
+    private fun model(actions: String) = GrainModel(
+        name = "zones",
+        grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+        behaviours = listOf(
+            Behaviour(
+                name = "seed", mainReactiveId = 0, mainProductId = 0,
+                id = 0, probability = 1.0, actions = actions
+            ),
+        ),
+    )
+
+    /** Ten agents in the first column, far from the zone used below. */
+    private fun simulation() = createSimulation("zones", size = 10) { index ->
+        if (index % 10 == 0) 0 else -1
+    }
+
+    @Test
+    fun testAddRectAddsExactlyN() {
+        val simulator = Simulator(model("AddRect(0, 10, 2, 2, 6, 6)"), simulation())
+        val before = simulator.agents.count { it >= 0 }
+        simulator.oneStep()
+        val after = simulator.agents.count { it >= 0 }
+        assertTrue(after - before in 9..10, "AddRect must add about ten agents (got ${after - before}), never one per cell")
+    }
+
+    @Test
+    fun testAddDiscAddsExactlyN() {
+        val simulator = Simulator(model("AddDisc(0, 7, 5, 5, 3)"), simulation())
+        val before = simulator.agents.count { it >= 0 }
+        simulator.oneStep()
+        val after = simulator.agents.count { it >= 0 }
+        assertTrue(after - before in 6..7, "AddDisc must add about seven agents (got ${after - before}), never one per cell")
+    }
+
+    @Test
+    fun testAddManyAddsExactlyN() {
+        val simulator = Simulator(model("Add(0, 5)"), simulation())
+        val before = simulator.agents.count { it >= 0 }
+        simulator.oneStep()
+        val after = simulator.agents.count { it >= 0 }
+        assertEquals(before + 5, after, "Add(id, N) must add five agents")
+    }
+
+    @Test
+    fun testTheZoneIsNotFlooded() {
+        val simulator = Simulator(model("AddRect(0, 10, 2, 2, 6, 6)"), simulation())
+        simulator.oneStep()
+        val inZone = (2..6).sumOf { y -> (2..6).count { x -> simulator.agents[y * 10 + x] == 0 } }
+        assertTrue(inZone in 1..10, "the zone must receive at most ten agents (got $inZone), not one per cell")
+    }
+}
