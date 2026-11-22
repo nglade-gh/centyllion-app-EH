@@ -25,6 +25,7 @@ class FieldEditController (
             directionController.context = null to new.color
             directionController.data = new.allowedDirection
             halfLifeController.data = "${new.halfLife}"
+            opacityController.data = "${new.opacity}"
             formulaController.data = new.formula
             toricSwitch.checked = new.toric
             onUpdate(old, new, this@FieldEditController)
@@ -48,6 +49,7 @@ class FieldEditController (
             speedController.readOnly = new
             directionController.readOnly = new
             halfLifeController.readOnly = new
+            opacityController.readOnly = new
             formulaController.readOnly = new
         }
     }
@@ -84,6 +86,11 @@ class FieldEditController (
     val halfLifeController = editableIntController(
         page.appContext.locale, data.halfLife, page.i18n("Half-life"), 0
     ) { _, new, _ -> this.data = this.data.copy(halfLife = new) }
+
+    /** Opacity of the field rendering, in percent. */
+    val opacityController = editableIntController(
+        page.appContext.locale, data.opacity, page.i18n("Opacity"), 0, 100
+    ) { _, new, _ -> this.data = this.data.copy(opacity = new.coerceIn(0, 100)) }
 
 
     val formulaController = EditableStringController(
@@ -177,7 +184,17 @@ class FieldEditController (
             BField(Control(directionController)),
         ),
         HorizontalField(Label(page.i18n("Boundary conditions")), BField(toricSwitch)),
-        HorizontalField(Label(page.i18n("Formula")), BField(Control(formulaHelpButton)), formulaController.container)
+        HorizontalField(Label(page.i18n("Formula")), BField(Control(formulaHelpButton)), formulaController.container),
+        // blue separator: the settings below it only affect the display
+        Div(classes = "field").apply {
+            root.style.borderTop = "2px solid #3273dc"
+            root.style.marginTop = "0.9rem"
+            root.style.marginBottom = "0.7rem"
+        },
+        HorizontalField(
+            Label(page.i18n("Opacity") + " (%)"),
+            opacityController.container
+        )
     )
 
     override fun refresh() {
@@ -187,6 +204,7 @@ class FieldEditController (
         speedController.refresh()
         directionController.refresh()
         halfLifeController.refresh()
+        opacityController.refresh()
         formulaController.refresh()
     }
 

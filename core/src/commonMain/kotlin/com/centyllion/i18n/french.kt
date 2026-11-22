@@ -453,6 +453,7 @@ object French: Locale {
         "Width" -> "Largeur"
         "Height" -> "Hauteur"
         "Preset" -> "Préréglée"
+        "Opacity" -> "Opacité"
         else -> null
     }
 }

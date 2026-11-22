@@ -98,6 +98,9 @@ data class Field(
     val speed: Float = 0.8f,
     val halfLife: Int = 10,
     val allowedDirection: Set<Direction> = Direction.default,
+    /** Opacity of the field rendering, in percent: 0 = invisible, 100 = fully opaque. */
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val opacity: Int = 100,
+
     /** Toric boundary (wrap-around, default). When false the field has an
      *  impermeable boundary: it does not diffuse across the grid edges
      *  (best-effort: no exchange through the walls). */

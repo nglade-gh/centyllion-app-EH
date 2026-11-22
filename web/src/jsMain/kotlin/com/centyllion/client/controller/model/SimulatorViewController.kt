@@ -255,12 +255,15 @@ class SimulatorViewController(
         // field overlay, in model order (same stacking as the former 3D alpha planes)
         data.model.fields.forEach { field ->
             if (field.invisible || page.appContext.hiddenFieldIds.contains(field.id)) return@forEach
+            if (field.opacity <= 0) return@forEach
             val values = data.field(field.id)
             if (values.isEmpty()) return@forEach
             val (fr, fg, fb) = rgbOf(field.color) ?: return@forEach
+            // one table per field: base alpha (0..255) scaled by the field opacity
+            val opacityLut = opacityLut(field)
             val limit = min(count, values.size)
             for (i in 0 until limit) {
-                val alpha = fieldAlpha(values[i])
+                val alpha = opacityLut[fieldAlpha(values[i])]
                 if (alpha <= 0) continue
                 val p = i * 4
                 if (alpha >= 255) {
@@ -278,6 +281,22 @@ class SimulatorViewController(
         }
 
         ctx.putImageData(img, 0.0, 0.0)
+    }
+
+    /** Base alpha of a field value, before the field opacity. */
+    private val opacityLuts = HashMap<Int, Pair<Int, IntArray>>()
+
+    /**
+     * Alpha table of a field: the 256 base alphas scaled by its opacity, so the per-pixel
+     * cost stays a single table read. Rebuilt only when the opacity changes.
+     */
+    private fun opacityLut(field: com.centyllion.model.Field): IntArray {
+        val cached = opacityLuts[field.id]
+        if (cached != null && cached.first == field.opacity) return cached.second
+        val opacity = field.opacity.coerceIn(0, 100)
+        val lut = IntArray(256) { (it * opacity) / 100 }
+        opacityLuts[field.id] = opacity to lut
+        return lut
     }
 
     /** Opacity of a field value (same mapping as the former 3D alpha texture). */
