@@ -497,11 +497,13 @@ class SimulationModifierTest {
 
     @Test
     fun testTheConditionIsEvaluatedWithoutACell() {
-        val simulator = Simulator(model(formula = "step >= 2"), simulation())
+        // the modifier sees the number of the step that has just been computed, like the
+        // behaviours: 0 during the first step, 1 during the second
+        val simulator = Simulator(model(formula = "step >= 1"), simulation())
         simulator.oneStep()
-        assertEquals(0, simulator.agents.count { it >= 0 }, "step is still 1 after the first step")
+        assertEquals(0, simulator.agents.count { it >= 0 }, "step is 0 during the first step")
         simulator.oneStep()
-        assertEquals(5, simulator.agents.count { it >= 0 }, "step is 2 now")
+        assertEquals(5, simulator.agents.count { it >= 0 }, "step is 1 now")
     }
 
     @Test

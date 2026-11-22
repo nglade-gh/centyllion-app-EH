@@ -157,6 +157,10 @@ class Simulator(
     /** Behaviours that already executed their meta-actions during the current step. */
     private val metaActionsDone = HashSet<Behaviour>()
 
+    /** True when a simulation modifier changed the state during the last step. */
+    var modifiersChanged: Boolean = false
+        private set
+
     /** True when Activate/Inactivate changed the runtime state since the last check. */
     var activationChanged: Boolean = false
         private set
@@ -398,11 +402,13 @@ class Simulator(
             nextAges = tmpAges
         }
 
+        // the modifiers act once per step, after the behaviours, on the state of the step
+        // that has just been computed (same step number as the behaviours saw)
+        modifiersChanged = false
+        applyModifiers()
+
         // count a step
         step += 1
-
-        // the simulation modifiers act once per step, on the state of the new step
-        applyModifiers()
 
         return toExecute to dead
     }
@@ -842,6 +848,13 @@ class Simulator(
 
     /** Executes the meta-actions of a modifier, directly on the current state (no cell). */
     private fun executeMetaActions(actions: List<Action>, evaluator: NetbioDynEvaluator) {
+        // the view must redraw even when no behaviour was applied
+        if (actions.any {
+                it is Action.AddMany || it is Action.AddRect || it is Action.AddDisc ||
+                    it is Action.EraseRectAll || it is Action.EraseDiscAll ||
+                    it is Action.EraseRect || it is Action.EraseDisc || it is Action.EraseAll
+            }
+        ) modifiersChanged = true
         for (action in actions) {
             try {
                 when (action) {

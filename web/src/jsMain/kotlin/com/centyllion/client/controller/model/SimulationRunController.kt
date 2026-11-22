@@ -251,7 +251,8 @@ class SimulationRunController(
             stop()
         }
         // without fields, nothing can change if no behaviour was applied and nothing died
-        if (applied.isNotEmpty() || dead.isNotEmpty() || simulator.model.fields.isNotEmpty()) {
+        // a modifier can change the state even when no behaviour was applied
+        if (applied.isNotEmpty() || dead.isNotEmpty() || simulator.modifiersChanged || simulator.model.fields.isNotEmpty()) {
             simulationViewController.oneStep(applied, dead)
         }
         stepLabel.text = "${currentSimulator.step}"
