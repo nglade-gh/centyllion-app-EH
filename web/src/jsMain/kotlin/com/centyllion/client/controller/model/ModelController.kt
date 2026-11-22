@@ -1,6 +1,9 @@
 package com.centyllion.client.controller.model
 
 import bulma.*
+import kotlinx.browser.document
+import org.w3c.dom.HTMLInputElement
+import org.w3c.dom.HTMLLabelElement
 import com.centyllion.client.controller.utils.SearchController
 import com.centyllion.client.controller.utils.filtered
 import com.centyllion.client.download
@@ -43,6 +46,7 @@ class ModelController(
                 grainChart.data = createGrainPlots()
                 fieldChart.data = createFieldPlots()
                 refreshFieldPanels()
+                refreshModifiers()
 
                 // handles problems display
                 refreshProblems(new.model)
@@ -187,6 +191,10 @@ class ModelController(
 
                 is Behaviour -> BehaviourEditController(newSelection, data.model, page, expertMode) { old, new, _ ->
                     data = data.updateBehaviour(old, new)
+                }
+
+                is SimulationModifier -> ModifierEditController(newSelection, data.model, page) { old, new, _ ->
+                    data = data.copy(model = data.model.updateModifier(old, new))
                 }
 
                 else -> null
@@ -364,6 +372,55 @@ class ModelController(
         )
     }
 
+    val addModifierButton = iconButton(Icon("plus"), ElementColor.Primary, true, size = Size.Small) {
+        val modifier = data.model.newModifier(page.i18n("Modifier"))
+        this.data = data.copy(model = data.model.copy(modifiers = data.model.modifiers + modifier))
+        selected = modifier
+        editionTabPages.selectedPage = editionItem
+    }
+
+    val modifiersHost = Column()
+
+    val modifiersHeader = Level(
+        left = listOf(Icon("sliders-h"), Title(page.i18n("Simulation modifiers"), TextSize.S4)),
+        right = listOf(addModifierButton),
+        mobile = true
+    )
+
+    /** Rebuilds the modifier rows: On/Off radio, name (id), delete. */
+    private fun refreshModifiers() {
+        modifiersHost.body = data.model.modifiers.map { modifier -> modifierRow(modifier) }
+    }
+
+    private fun modifierRow(modifier: SimulationModifier): BulmaElement {
+        val radio = (document.createElement("input") as HTMLInputElement).apply {
+            type = "radio"
+            name = "modifier-enabled-${modifier.uuid}"
+            checked = modifier.enabled
+            setAttribute("data-modifier-id", "${modifier.id}")
+        }
+        val toggle = HtmlWrapper(
+            (document.createElement("label") as HTMLLabelElement).apply {
+                classList.add("radio")
+                appendChild(radio)
+            }
+        )
+        radio.addEventListener("click", {
+            val current = data.model.modifiers.firstOrNull { it.uuid == modifier.uuid } ?: modifier
+            val target = !current.enabled
+            radio.checked = target
+            this.data = this.data.copy(model = data.model.updateModifier(current, current.copy(enabled = target)))
+        })
+        val label = Label("${modifier.name} (${modifier.id})")
+        label.root.style.cursor = "pointer"
+        label.root.addEventListener("click", { selected = modifier })
+        val delete = iconButton(Icon("times", Size.Small), ElementColor.Danger, true, size = Size.Small) {
+            this.data = this.data.copy(model = data.model.dropModifier(modifier))
+            if (selected === modifier) selected = null
+        }
+        return Level(left = listOf(toggle, label), right = listOf(delete), mobile = true)
+    }
+
     val grainsHeader = sectionHeader(grainIcon, "Grains", grainsController, addGrainButton)
     val behavioursHeader = sectionHeader(behaviourIcon, "Behaviours", behavioursController, addBehaviourButton)
     val fieldsHeader = sectionHeader(fieldIcon, "Fields", fieldsController, addFieldButton)
@@ -372,10 +429,12 @@ class ModelController(
         searchController,
         grainsHeader,
         grainsController,
-        behavioursHeader,
-        behavioursController,
         fieldsHeader,
         fieldsController,
+        behavioursHeader,
+        behavioursController,
+        modifiersHeader,
+        modifiersHost,
         problemsMessage,
         size = ColumnSize.S3
     ).apply {

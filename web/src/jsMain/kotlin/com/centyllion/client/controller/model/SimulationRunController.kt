@@ -219,6 +219,12 @@ class SimulationRunController(
             val id = input.getAttribute("data-behaviour-id")?.toIntOrNull() ?: continue
             input.checked = simulator.isRuntimeEnabled(id)
         }
+        val modifiers = document.querySelectorAll("input[data-modifier-id]")
+        for (index in 0 until modifiers.length) {
+            val input = modifiers.item(index) as? HTMLInputElement ?: continue
+            val id = input.getAttribute("data-modifier-id")?.toIntOrNull() ?: continue
+            input.checked = simulator.isModifierUsed(id)
+        }
     }
 
     fun reset() {
