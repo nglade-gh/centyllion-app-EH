@@ -117,6 +117,9 @@ class Simulator(
 
     private val threadContexts: MutableList<ThreadContext> = mutableListOf()
 
+    /** Collector reused by the sequential path (no map, no per-step allocation). */
+    private val sequentialCollector = FastCollector(simulation.dataSize)
+
     private var parallelExecutor: ParallelExecutor? = null
     private var parallelExecutorThreads: Int = 0
 
@@ -259,24 +262,22 @@ class Simulator(
         // all will contain index of agents as keys associated to a list of applicable behaviors
         // if an agent doesn't contain any applicable behavior it will have an empty list.
         // if an agent can't move and doesn't contain any applicable behavior, it won't be present in the map
-        val all = mutableMapOf<Int, MutableList<ApplicableBehavior>>()
-
-        if (shouldParallelize()) {
+        // filters behaviors that are concurrent to preserve the matter
+        val toExecute: Collection<ApplicableBehavior> = if (shouldParallelize()) {
+            val all = mutableMapOf<Int, MutableList<ApplicableBehavior>>()
             runParallelStep(all, currentCount, currentFieldAmounts, dead, fieldArrays, nextFieldArrays)
+            resolveConflicts(all, random)
         } else {
             val context = mainContext
+            sequentialCollector.reset()
             for (i in 0 until simulation.dataSize) {
-                processCell(i, context, all, currentCount, currentFieldAmounts, dead, random, fieldArrays, nextFieldArrays)
+                processCell(
+                    i, context, sequentialCollector, currentCount, currentFieldAmounts, dead,
+                    random, fieldArrays, nextFieldArrays
+                )
             }
+            sequentialCollector.resolve(random)
         }
-
-        // filters behaviors that are concurrent to preserve the matter
-        val values = all.values.asSequence()
-        val toExclude = values
-            .filter { it.size > 1 }
-            .flatMap { (it - it[random.nextInt(it.size)]).asSequence() }
-            .toSet()
-        val toExecute = (values.flatten() - toExclude).toSet()
         toExecute.forEach { it.apply(this) }
 
         // stores count for each grain
@@ -349,8 +350,9 @@ class Simulator(
             val localDead = mutableListOf<Int>()
             // cells are disjoint between blocks: each cell draws from its own stream, so the
             // trajectory does not depend on how the grid is split across threads
+            val localCollector = MapCollector(localAll)
             for (i in block.range) {
-                processCell(i, context, localAll, localCount, localFieldAmounts, localDead, random, fields, nextFields)
+                processCell(i, context, localCollector, localCount, localFieldAmounts, localDead, random, fields, nextFields)
             }
             BlockResult(localAll, localCount, localFieldAmounts, localDead)
         }
@@ -368,6 +370,29 @@ class Simulator(
             }
             dead.addAll(r.dead)
         }
+    }
+
+    /**
+     * Deterministic resolution of the concurrent behaviours coming from the parallel path:
+     * cells are visited in index order, so the trajectory no longer depends on the hash
+     * order of a map.
+     */
+    private fun resolveConflicts(
+        all: Map<Int, List<ApplicableBehavior>>,
+        random: SimulationRandom
+    ): List<ApplicableBehavior> {
+        val excluded = HashSet<ApplicableBehavior>()
+        for (cellIndex in all.keys.sorted()) {
+            val behaviours = all.getValue(cellIndex)
+            if (behaviours.size <= 1) continue
+            val kept = behaviours[random.nextInt(cellIndex, behaviours.size)]
+            for (behaviour in behaviours) if (behaviour !== kept) excluded.add(behaviour)
+        }
+        val result = LinkedHashSet<ApplicableBehavior>()
+        for (behaviours in all.values) for (behaviour in behaviours) {
+            if (behaviour !in excluded) result.add(behaviour)
+        }
+        return result.toList()
     }
 
     /** Builds the neighbour view of a cell, only when a behaviour was actually selected. */
@@ -391,7 +416,7 @@ class Simulator(
         i: Int,
         cell: CellContext,
         behaviour: Behaviour,
-        all: MutableMap<Int, MutableList<ApplicableBehavior>>,
+        collector: BehaviourCollector,
         random: SimulationRandom,
         ageOfMainAgent: Int
     ) {
@@ -409,20 +434,21 @@ class Simulator(
                 }
             }
 
-        // combines possibilities
-        val allCombinations = possibleReactions.allCombinations()
+        // combines possibilities (read through a view: no list of lists is built)
+        val combinations = CombinationView(possibleReactions)
 
         val chosenCombination = when {
             // optimized case when no field is used for the behaviour
             model.fields.isEmpty() || !behaviour.fieldInfluenced -> {
-                random.nextInt(i, allCombinations.size)
+                random.nextInt(i, combinations.size)
             }
 
             else -> {
                 // computes weight of each combination by adding the influence of all neighbours for a combination
-                val influence = FloatArray(allCombinations.size) { c ->
+                val influence = FloatArray(combinations.size) { c ->
                     var sum = 0f
-                    allCombinations[c].forEach { (_, agent) ->
+                    for (reaction in possibleReactions.indices) {
+                        val agent = combinations.get(c, reaction).second
                         behaviour.fieldInfluences.forEach { influence ->
                             val sourceField = fieldValues
                                 .find { it.first == influence.key }?.second
@@ -451,19 +477,18 @@ class Simulator(
             }
         }
         // registers behaviour for concurrency
-        val usedNeighbours = allCombinations[chosenCombination].map { it.second }
+        val usedNeighbours = combinations.elements(chosenCombination).map { it.second }
         val behavior = ApplicableBehavior(i, ageOfMainAgent, behaviour, usedNeighbours)
-        // adds applicable to current agent
-        all.getOrPut(i) { mutableListOf() }.add(behavior)
-        // adds applicable to neighbours
-        usedNeighbours.forEach { all.getOrPut(it.index) { mutableListOf() }.add(behavior) }
+        // adds applicable to current agent, then to the neighbours it uses
+        collector.add(i, behavior)
+        usedNeighbours.forEach { collector.add(it.index, behavior) }
     }
 
     /** Processes one cell: death, ageing, behaviour deliberation and field update. */
     private fun processCell(
         i: Int,
         context: ThreadContext,
-        all: MutableMap<Int, MutableList<ApplicableBehavior>>,
+        collector: BehaviourCollector,
         currentCount: IntArray,
         currentFieldAmounts: FloatArray,
         dead: MutableList<Int>,
@@ -533,7 +558,7 @@ class Simulator(
                     // selects behaviour if any is applicable, then one at random
                     if (applicable.isNotEmpty()) {
                         val behaviour = allBehaviours[applicable[random.nextInt(i, applicable.size)]]
-                        applyBehaviour(i, cell, behaviour, all, random, readAges[i])
+                        applyBehaviour(i, cell, behaviour, collector, random, readAges[i])
                     }
                 }
             }
@@ -549,7 +574,7 @@ class Simulator(
             }
             if (applicable.isNotEmpty()) {
                 val behaviour = allBehaviours[applicable[random.nextInt(i, applicable.size)]]
-                applyBehaviour(i, cell, behaviour, all, random, 0)
+                applyBehaviour(i, cell, behaviour, collector, random, 0)
             }
         }
 
@@ -859,4 +884,67 @@ class Simulator(
 
     var maxFieldAmount: MutableMap<Int, Float> = fields.map { it.key to 0f }.toMap().toMutableMap()
 
+}
+
+/** Receives the applicable behaviours, indexed by the cells they occupy. */
+private interface BehaviourCollector {
+    fun add(cellIndex: Int, behaviour: ApplicableBehavior)
+}
+
+/** Collector used by the parallel path: one list per cell, merged afterwards. */
+private class MapCollector(val map: MutableMap<Int, MutableList<ApplicableBehavior>>) : BehaviourCollector {
+    override fun add(cellIndex: Int, behaviour: ApplicableBehavior) {
+        map.getOrPut(cellIndex) { mutableListOf() }.add(behaviour)
+    }
+}
+
+/**
+ * Allocation-free collector: one head index per cell, chained through [next], all reused
+ * across steps. Cells are registered in index order, so the conflict resolution is
+ * deterministic (the former implementation iterated a HashMap).
+ */
+private class FastCollector(private val dataSize: Int) : BehaviourCollector {
+    private val pool = ArrayList<ApplicableBehavior>()
+    private val touched = ArrayList<Int>()
+    private var head = IntArray(dataSize) { -1 }
+    private var next = IntArray(256)
+
+    fun reset() {
+        for (cell in touched) head[cell] = -1
+        touched.clear()
+        pool.clear()
+    }
+
+    override fun add(cellIndex: Int, behaviour: ApplicableBehavior) {
+        if (head[cellIndex] < 0) touched.add(cellIndex)
+        if (pool.size == next.size) next = next.copyOf(next.size * 2)
+        next[pool.size] = head[cellIndex]
+        head[cellIndex] = pool.size
+        pool.add(behaviour)
+    }
+
+    /** Keeps one behaviour per cell at random, drops the others, and deduplicates. */
+    fun resolve(random: SimulationRandom): List<ApplicableBehavior> {
+        val excluded = HashSet<ApplicableBehavior>()
+        for (cellIndex in touched) {
+            var pointer = head[cellIndex]
+            var count = 0
+            while (pointer >= 0) {
+                count += 1
+                pointer = next[pointer]
+            }
+            if (count <= 1) continue
+            val kept = random.nextInt(cellIndex, count)
+            pointer = head[cellIndex]
+            var index = 0
+            while (pointer >= 0) {
+                if (index != kept) excluded.add(pool[pointer])
+                index += 1
+                pointer = next[pointer]
+            }
+        }
+        val result = LinkedHashSet<ApplicableBehavior>()
+        for (behaviour in pool) if (behaviour !in excluded) result.add(behaviour)
+        return result.toList()
+    }
 }
