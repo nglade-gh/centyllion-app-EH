@@ -6,6 +6,7 @@ import com.centyllion.client.page.BulmaPage
 import com.centyllion.client.toFixed
 import com.centyllion.model.Behaviour
 import com.centyllion.model.GrainModel
+import com.centyllion.model.diagnose
 import com.centyllion.model.hasNoError
 import kotlin.properties.Delegates.observable
 
@@ -13,14 +14,14 @@ class BehaviourDisplayController(val page: BulmaPage, behaviour: Behaviour, mode
 
     override var data: Behaviour by observable(behaviour) { _, old, new ->
         if (old != new) {
-            errorIcon.hidden = data.hasNoError(context, page.appContext.locale)
+            updateErrorIcon()
             refresh()
         }
     }
 
     override var context: GrainModel by observable(model) { _, old, new ->
         if (old != new) {
-            errorIcon.hidden = data.hasNoError(context, page.appContext.locale)
+            updateErrorIcon()
             refresh()
         }
     }
@@ -39,6 +40,27 @@ class BehaviourDisplayController(val page: BulmaPage, behaviour: Behaviour, mode
 
     val errorIcon = Icon("exclamation-triangle", color = TextColor.Danger).apply {
         hidden = data.hasNoError(context, page.appContext.locale)
+    }
+
+    /** Problems of the behaviour, so the triangle can explain itself on hover. */
+    private fun updateErrorIcon() {
+        val problems = mutableListOf<com.centyllion.model.Problem>()
+        data.diagnose(context, page.appContext.locale, problems)
+        errorIcon.hidden = problems.isEmpty()
+        // native tooltip: one line per message (errors first, then the warnings)
+        val text = problems.sortedBy { it.warning }.joinToString("\n") { it.message }
+        if (text.isEmpty()) {
+            errorIcon.root.removeAttribute("title")
+            errorIcon.root.style.cursor = ""
+        } else {
+            errorIcon.root.setAttribute("title", text)
+            errorIcon.root.style.cursor = "help"
+        }
+    }
+
+    init {
+        // the icon must explain itself from the start, not only after an edition
+        updateErrorIcon()
     }
 
     val titleLabel = Label(behaviour.name)
