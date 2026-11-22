@@ -418,7 +418,15 @@ class ModelController(
             this.data = this.data.copy(model = data.model.dropModifier(modifier))
             if (selected === modifier) selected = null
         }
-        return Level(left = listOf(toggle, label), right = listOf(delete), mobile = true)
+        // same probability badge as the behaviours
+        val probability = textButton(
+            modifier.probability.toString(), rounded = true,
+            color = ElementColor.Success, size = Size.Small
+        )
+        // a white box per modifier, in the same style as the grains, fields and behaviours
+        return Box(
+            Level(left = listOf(toggle, label), right = listOf(probability, delete), mobile = true)
+        )
     }
 
     val grainsHeader = sectionHeader(grainIcon, "Grains", grainsController, addGrainButton)
