@@ -105,6 +105,7 @@ class ModelController(
     /** Applies the expert mode to the current editor (graphical predicates already handled). */
     private fun applyExpertMode(value: Boolean) {
         refreshFieldPanels()
+        showModifiers(value)
         when (val c = editorController) {
             is BehaviourEditController -> c.expertMode = value
             is GrainEditController -> c.expertMode = value
@@ -382,11 +383,18 @@ class ModelController(
 
     val modifiersHost = Column()
 
-    val modifiersHeader = Level(
-        left = listOf(Icon("sliders-h"), Title(page.i18n("Simulation modifiers"), TextSize.S4)),
-        right = listOf(addModifierButton),
-        mobile = true
-    )
+    // same section header as the grains, the fields and the behaviours (collapsible chevron)
+    val modifiersHeader = sectionHeader("sliders-h", "Simulation modifiers", modifiersHost, addModifierButton)
+
+    // the modifiers only make sense in expert mode
+    private fun showModifiers(visible: Boolean) {
+        modifiersHeader.hidden = !visible
+        modifiersHost.hidden = !visible
+    }
+
+    init {
+        showModifiers(expertMode)
+    }
 
     /** Boxes of the modifier rows, to toggle the selection border. */
     private val modifierRowBoxes = mutableListOf<Pair<SimulationModifier, Box>>()
