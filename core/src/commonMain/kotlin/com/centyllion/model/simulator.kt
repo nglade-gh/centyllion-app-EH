@@ -1,5 +1,7 @@
 package com.centyllion.model
 
+import com.centyllion.expression.parseExpression
+
 import com.centyllion.expression.Expression
 import com.centyllion.expression.v
 import kotlin.math.abs
@@ -381,6 +383,9 @@ class Simulator(
 
         // count a step
         step += 1
+
+        // the simulation modifiers act once per step, on the state of the new step
+        applyModifiers()
 
         return toExecute to dead
     }
@@ -781,6 +786,145 @@ class Simulator(
         }
     }
 
+    /** Parsed conditions and actions of the simulation modifiers. */
+    private val parsedModifierConditions = mutableMapOf<SimulationModifier, com.centyllion.expression.Expression>()
+    private val parsedModifierActions = mutableMapOf<SimulationModifier, List<Action>>()
+
+    /**
+     * Applies the simulation modifiers: each one is evaluated **once per step**, outside any
+     * cell, and executes its meta-actions when its condition holds.
+     */
+    private fun applyModifiers() {
+        if (model.modifiers.isEmpty()) return
+        val evaluator = mainContext.evaluator
+        evaluator.absoluteCoordinates = true
+        evaluator.step = step.v
+        try {
+            for (modifier in model.modifiers) {
+                if (!modifier.enabled) continue
+                // probability drawn once per step, like the behaviour probabilities
+                if (modifier.probability < 1.0 && random.nextDouble(0) >= modifier.probability) continue
+                val condition = modifier.formula
+                val holds = if (condition.isBlank()) true else runCatching {
+                    val expression = parsedModifierConditions.getOrPut(modifier) { condition.parseExpression() }
+                    evaluator.evaluate(expression).boolean
+                }.getOrDefault(false)
+                if (!holds) continue
+                val actions = parsedModifierActions.getOrPut(modifier) {
+                    runCatching { modifier.actions.parseModifierActions() }.getOrDefault(emptyList())
+                }
+                executeMetaActions(actions, evaluator)
+            }
+        } finally {
+            evaluator.absoluteCoordinates = false
+        }
+    }
+
+    /** Executes the meta-actions of a modifier, directly on the current state (no cell). */
+    private fun executeMetaActions(actions: List<Action>, evaluator: NetbioDynEvaluator) {
+        for (action in actions) {
+            try {
+                when (action) {
+                    Action.Pause -> pauseRequested = true
+
+                    is Action.AddMany -> {
+                        val id = action.grain.evalInt(evaluator)
+                        if (grainForId(id) == null) continue
+                        var remaining = action.count.evalInt(evaluator)
+                        var guard = 0
+                        while (remaining > 0 && guard < agents.size * 4) {
+                            val slot = random.nextInt(0, agents.size)
+                            if (agents[slot] < 0) {
+                                agents[slot] = id
+                                ages[slot] = 0
+                                remaining -= 1
+                            }
+                            guard += 1
+                        }
+                    }
+
+                    is Action.AddRect -> {
+                        val id = action.grain.evalInt(evaluator)
+                        if (grainForId(id) == null) continue
+                        val candidates = ArrayList<Int>()
+                        forEachCellInRect(
+                            action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                        ) { slot -> if (agents[slot] < 0) candidates.add(slot) }
+                        repeat(minOf(action.count.evalInt(evaluator), candidates.size)) {
+                            val slot = candidates.removeAt(random.nextInt(0, candidates.size))
+                            agents[slot] = id
+                            ages[slot] = 0
+                        }
+                    }
+
+                    is Action.AddDisc -> {
+                        val id = action.grain.evalInt(evaluator)
+                        if (grainForId(id) == null) continue
+                        val candidates = ArrayList<Int>()
+                        forEachCellInDisc(
+                            action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                        ) { slot -> if (agents[slot] < 0) candidates.add(slot) }
+                        repeat(minOf(action.count.evalInt(evaluator), candidates.size)) {
+                            val slot = candidates.removeAt(random.nextInt(0, candidates.size))
+                            agents[slot] = id
+                            ages[slot] = 0
+                        }
+                    }
+
+                    is Action.EraseRectAll -> forEachCellInRect(
+                        action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                        action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                    ) { slot -> agents[slot] = -1; ages[slot] = -1 }
+
+                    is Action.EraseDiscAll -> forEachCellInDisc(
+                        action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                    ) { slot -> agents[slot] = -1; ages[slot] = -1 }
+
+                    is Action.EraseRect -> {
+                        val id = action.grain.evalInt(evaluator)
+                        forEachCellInRect(
+                            action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                        ) { slot -> if (agents[slot] == id) { agents[slot] = -1; ages[slot] = -1 } }
+                    }
+
+                    is Action.EraseDisc -> {
+                        val id = action.grain.evalInt(evaluator)
+                        forEachCellInDisc(
+                            action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                        ) { slot -> if (agents[slot] == id) { agents[slot] = -1; ages[slot] = -1 } }
+                    }
+
+                    is Action.EraseAll -> {
+                        val id = action.grain.evalInt(evaluator)
+                        for (slot in agents.indices) if (agents[slot] == id) { agents[slot] = -1; ages[slot] = -1 }
+                    }
+
+                    is Action.Activate -> {
+                        val index = behaviourIndexForId(action.behaviourId.evalInt(evaluator))
+                        if (index >= 0 && !runtimeEnabled[index]) {
+                            runtimeEnabled[index] = true
+                            activationChanged = true
+                        }
+                    }
+
+                    is Action.Inactivate -> {
+                        val index = behaviourIndexForId(action.behaviourId.evalInt(evaluator))
+                        if (index >= 0 && runtimeEnabled[index]) {
+                            runtimeEnabled[index] = false
+                            activationChanged = true
+                        }
+                    }
+
+                    else -> { /* cell actions are not allowed in a modifier */ }
+                }
+            } catch (_: Exception) {
+                // invalid argument at run time: ignore the action
+            }
+        }
+    }
+
     /** Parsed actions formulas, cached per behaviour (a Simulator is recreated on model change). */
     private val parsedActions = mutableMapOf<Behaviour, List<Action>>()
 
@@ -936,20 +1080,15 @@ class Simulator(
                         val id = action.grain.evalInt(evaluator)
                         if (grainForId(id) == null) continue
                         // N positions drawn among the empty cells of the zone (selection sampling)
-                        var remaining = action.count.evalInt(evaluator)
-                        var seen = 0
+                        val candidates = ArrayList<Int>()
                         forEachCellInRect(
                             action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
                             action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
-                        ) { slot ->
-                            if (targetAgents[slot] < 0) {
-                                seen += 1
-                                if (remaining > 0 && random.nextDouble(index) * seen < remaining) {
-                                    targetAgents[slot] = id
-                                    targetAges[slot] = 0
-                                    remaining -= 1
-                                }
-                            }
+                        ) { slot -> if (targetAgents[slot] < 0) candidates.add(slot) }
+                        repeat(minOf(action.count.evalInt(evaluator), candidates.size)) {
+                            val slot = candidates.removeAt(random.nextInt(index, candidates.size))
+                            targetAgents[slot] = id
+                            targetAges[slot] = 0
                         }
                     }
 
@@ -957,19 +1096,14 @@ class Simulator(
                         val id = action.grain.evalInt(evaluator)
                         if (grainForId(id) == null) continue
                         // N positions drawn among the empty cells of the disc (selection sampling)
-                        var remaining = action.count.evalInt(evaluator)
-                        var seen = 0
+                        val candidates = ArrayList<Int>()
                         forEachCellInDisc(
                             action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
-                        ) { slot ->
-                            if (targetAgents[slot] < 0) {
-                                seen += 1
-                                if (remaining > 0 && random.nextDouble(index) * seen < remaining) {
-                                    targetAgents[slot] = id
-                                    targetAges[slot] = 0
-                                    remaining -= 1
-                                }
-                            }
+                        ) { slot -> if (targetAgents[slot] < 0) candidates.add(slot) }
+                        repeat(minOf(action.count.evalInt(evaluator), candidates.size)) {
+                            val slot = candidates.removeAt(random.nextInt(index, candidates.size))
+                            targetAgents[slot] = id
+                            targetAges[slot] = 0
                         }
                     }
 

@@ -31,17 +31,18 @@ class ActionTest {
         assertTrue(validateActionFormula("Move(0, 0, 0, 1)")!!.contains("expects 5 arguments"))
         // non-numeric argument
         assertTrue(validateActionFormula("Add(true, 1, 0)")!!.contains("must be a number"))
-        // meta-actions
-        assertNull(validateActionFormula("pause()"))
-        assertNull(validateActionFormula("Add(0, 10)"))
-        assertNull(validateActionFormula("AddRect(0, 10, 1, 2, 5, 6)"))
-        assertNull(validateActionFormula("AddDisc(0, 5, 10, 10, 3)"))
-        assertNull(validateActionFormula("EraseRect(1, 2, 5, 6)"))
-        assertNull(validateActionFormula("EraseRect(0, 1, 2, 5, 6)"))
-        assertNull(validateActionFormula("EraseDisc(10, 10, 3)"))
-        assertNull(validateActionFormula("EraseDisc(0, 10, 10, 3)"))
-        assertNull(validateActionFormula("Erase(0)"))
-        assertNull(validateActionFormula("Activate(1), Inactivate(2)"))
+        // meta-actions are accepted by the parser but refused in a behaviour
+        assertNull(validateModifierActions("pause()"))
+        assertNull(validateModifierActions("Add(0, 10)"))
+        assertNull(validateModifierActions("AddRect(0, 10, 1, 2, 5, 6)"))
+        assertNull(validateModifierActions("AddDisc(0, 5, 10, 10, 3)"))
+        assertNull(validateModifierActions("EraseRect(1, 2, 5, 6)"))
+        assertNull(validateModifierActions("EraseRect(0, 1, 2, 5, 6)"))
+        assertNull(validateModifierActions("EraseDisc(10, 10, 3)"))
+        assertNull(validateModifierActions("EraseDisc(0, 10, 10, 3)"))
+        assertNull(validateModifierActions("Erase(0)"))
+        assertNull(validateModifierActions("Activate(1), Inactivate(2)"))
+        assertTrue(validateActionFormula("pause()")!!.contains("meta-action"))
         assertTrue(validateActionFormula("AddRect(0, 10, 1, 2)")!!.contains("expects 6 arguments"))
         // not an action call
         assertTrue(validateActionFormula("toto")!!.contains("Expected a list of actions"))
@@ -444,5 +445,83 @@ class MetaActionOncePerStepTest {
         simulator.oneStep()
         val inZone = (2..6).sumOf { y -> (2..6).count { x -> simulator.agents[y * 10 + x] == 0 } }
         assertTrue(inZone in 1..10, "the zone must receive at most ten agents (got $inZone), not one per cell")
+    }
+}
+
+/**
+ * Simulation modifiers: evaluated once per step, without any current cell, and the only place
+ * where the meta-actions are allowed.
+ */
+class SimulationModifierTest {
+
+    private fun model(
+        formula: String = "",
+        actions: String = "AddRect(0, 5, 2, 2, 4, 4)",
+        probability: Double = 1.0,
+        enabled: Boolean = true
+    ) = GrainModel(
+        name = "modifiers",
+        grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+        modifiers = listOf(
+            SimulationModifier(name = "seed", id = 0, formula = formula, actions = actions,
+                probability = probability, enabled = enabled)
+        ),
+    )
+
+    private fun simulation() = createSimulation("modifiers", size = 10) { -1 }
+
+    @Test
+    fun testTheModifierRunsOncePerStep() {
+        val simulator = Simulator(model(), simulation())
+        simulator.oneStep()
+        assertEquals(5, simulator.agents.count { it >= 0 }, "five agents, once only")
+        simulator.oneStep()
+        // the zone holds nine cells: five then four more, then nothing
+        assertEquals(9, simulator.agents.count { it >= 0 }, "the zone fills up, once per step")
+    }
+
+    @Test
+    fun testAnInactiveModifierDoesNothing() {
+        val simulator = Simulator(model(enabled = false), simulation())
+        simulator.oneStep()
+        assertEquals(0, simulator.agents.count { it >= 0 })
+    }
+
+    @Test
+    fun testAZeroProbabilityDoesNothing() {
+        val simulator = Simulator(model(probability = 0.0), simulation())
+        simulator.oneStep()
+        assertEquals(0, simulator.agents.count { it >= 0 })
+    }
+
+    @Test
+    fun testTheConditionIsEvaluatedWithoutACell() {
+        val simulator = Simulator(model(formula = "step >= 2"), simulation())
+        simulator.oneStep()
+        assertEquals(0, simulator.agents.count { it >= 0 }, "step is still 1 after the first step")
+        simulator.oneStep()
+        assertEquals(5, simulator.agents.count { it >= 0 }, "step is 2 now")
+    }
+
+    @Test
+    fun testCountAndFieldTakeCoordinates() {
+        assertNull(validateFormula("count(0, 5, 5) >= 3 && step > 2"))
+        assertNull(validateFormula("agent(0, 0) >= 0"))
+        assertNull(validateFormula("age(3, 4) > 2"))
+    }
+
+    @Test
+    fun testMetaActionsAreRefusedInABehaviour() {
+        assertTrue(validateActionFormula("AddRect(0, 5, 2, 2, 4, 4)")!!.contains("meta-action"))
+        assertTrue(validateActionFormula("Add(0, 5)")!!.contains("meta-action"))
+        assertTrue(validateActionFormula("pause()")!!.contains("meta-action"))
+        assertTrue(validateActionFormula("Activate(1)")!!.contains("meta-action"))
+        assertNull(validateActionFormula("Add(0, 1, 0)"), "cell actions stay allowed")
+    }
+
+    @Test
+    fun testOnlyMetaActionsAreAllowedInAModifier() {
+        assertNull(validateModifierActions("AddRect(0, 5, 2, 2, 4, 4), pause()"))
+        assertTrue(validateModifierActions("Add(0, 1, 0)")!!.contains("meta-actions"))
     }
 }
