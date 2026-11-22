@@ -21,6 +21,9 @@ class NetbioDynEvaluator(
     /** Agent counts for the current position (grainId -> count) */
     var agentCounts: Map<Int, Int> = emptyMap()
 
+    /** Number of empty neighbour cells, for `countEmpty()`. */
+    var emptyCount: Int = 0
+
     /** Ages for the `age(n)` function, 0-based: index 0 is the main agent
      *  (age 0 for generation behaviours), index k (k >= 1) is the neighbour
      *  of reaction k. Formulas use the 1-based "reactive" numbering of the
@@ -28,7 +31,7 @@ class NetbioDynEvaluator(
     var ages: List<Int> = emptyList()
 
     /** Names of functions provided by this evaluator (in addition to [functions]) */
-    private val dynamicFunctions = setOf("agent", "field", "count", "age")
+    private val dynamicFunctions = setOf("agent", "field", "count", "countEmpty", "age")
 
     /** Names of variables provided by this evaluator (in addition to [variables]) */
     private val dynamicVariables = setOf("step", "x", "y", "z", "current")
@@ -76,6 +79,7 @@ class NetbioDynEvaluator(
             val grainId = args[0].int
             (agentCounts[grainId] ?: 0).v
         }
+        "countEmpty" -> emptyCount.v
         "age" -> {
             // 1-based: age(1) = main agent, age(2..N+1) = neighbours of the reactions
             (ages.getOrNull(args[0].int - 1) ?: 0).v
@@ -154,7 +158,7 @@ class FormulaFieldEvaluator(
     private val expression = formula.parseExpression()
 
     /** True when the formula uses the count() function (needs neighbour agent counts). */
-    val usesCount: Boolean = expression.containsFunctionCall("count")
+    val usesCount: Boolean = expression.containsFunctionCall("count") || expression.containsFunctionCall("countEmpty")
 
     override fun evaluateField(/*step: Int, position: Position, */current: Float): Float {
         evaluator.current = current.v

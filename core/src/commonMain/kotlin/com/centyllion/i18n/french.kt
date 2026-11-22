@@ -442,6 +442,13 @@ object French: Locale {
         "Behaviour has no effect (None -> None)" -> "Le comportement n'a aucun effet (None -> None)"
         "Behaviour produces no agent (None -> None): its actions alone act on the simulation, for example SetField(0, 0, 0, 1), possibly under a predicate on the simulation step." -> "Le comportement ne produit aucun agent (None -> None) : seules ses actions agissent sur la simulation, par exemple SetField(0, 0, 0, 1), éventuellement sous condition d'un prédicat sur l'étape de simulation."
         "Display warnings" -> "Afficher les avertissements"
+        "Are you sure you want to switch to expert mode? What should be done with the predicates you entered?" -> "Êtes-vous certain de vouloir passer en mode expert ? Que faire des prédicats que vous avez saisis ?"
+        "Conversion is not possible: a neighbour count over all agents has no formula equivalent." -> "Conversion impossible : un comptage de voisins « tous les agents » n'a pas d'équivalent en formule."
+        "Clear" -> "Vider"
+        "Convert" -> "Convertir"
+        "Cancel" -> "Annuler"
+        "Expert mode" -> "Mode expert"
+        "None" -> "Aucun"
         else -> null
     }
 }

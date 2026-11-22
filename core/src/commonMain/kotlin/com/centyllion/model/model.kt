@@ -458,8 +458,12 @@ data class Behaviour(
         }
         // checks agent count predicates
         for (p in agentCountPredicates) {
-            val actualCount = if (p.grainId < 0) neighbours.count { it.second.reactiveId >= 0 }
-            else neighbours.count { it.second.reactiveId == p.grainId }
+            val actualCount = when {
+                // counting empty cells, then every agent, then one grain type
+                p.grainId == COUNT_EMPTY_CELLS -> neighbours.count { it.second.reactiveId < 0 }
+                p.grainId < 0 -> neighbours.count { it.second.reactiveId >= 0 }
+                else -> neighbours.count { it.second.reactiveId == p.grainId }
+            }
             if (!p.check(actualCount)) return false
         }
         // checks condition formula if present
@@ -468,6 +472,7 @@ data class Behaviour(
                 val counts = neighbours.groupingBy { it.second.reactiveId }.eachCount()
                 val evaluator = NetbioDynEvaluator(simulator)
                 evaluator.agentCounts = counts
+                evaluator.emptyCount = neighbours.count { it.second.reactiveId < 0 }
                 evaluator.step = simulator.step.v
                 // ages for age(n), 1-based "reactive" numbering (same as the
                 // age-inheritance column): [0] main agent (0 for generation
@@ -519,6 +524,52 @@ data class Behaviour(
 
 }
 
+/**
+ * A block of execution: an ordered group of [Behaviour]s evaluated together during a
+ * simulation step.
+ *
+ * A model owns a list of blocks; during a step they are considered in list order (the
+ * first block of the tree first). A block is only executed when it is [enabled], its
+ * [probability] won the draw of the step, and its predicate holds for the step (same
+ * answer for every cell of the grid). Inside a block, behaviours have no priority among
+ * themselves, as in NetBioDyn Forever.
+ *
+ * Transitional note: [behaviours] is the reference list of the model for now; each block
+ * mirrors the behaviours it owns. Execution is unchanged until blocks are actually
+ * executed one after the other.
+ */
+@Serializable
+data class ExecutionBlock(
+    val name: String = "",
+    val description: String = "",
+    /** Unchecked: the block is never executed (same as a probability of 0). */
+    val enabled: Boolean = true,
+    /** Probability (0..1) that the block is executed on a given step: 0 never, 1 always. */
+    val probability: Double = 1.0,
+    /** Expert-mode predicate: raw formula, empty when unused. */
+    val formula: String = "",
+    /** Normal-mode predicate: age predicates, ANDed together. */
+    val agePredicates: List<Predicate<Int>> = emptyList(),
+    val agentCountPredicates: List<AgentCountPredicate> = emptyList(),
+    val fieldPredicates: List<Pair<Int, Predicate<Float>>> = emptyList(),
+    /** 0..n behaviours, executed without any priority among themselves. */
+    val behaviours: List<Behaviour> = emptyList(),
+) {
+    /** True when the block may be executed at all (enabled and probability above 0). */
+    val executable: Boolean get() = enabled && probability > 0.0
+
+    /**
+     * True when this block carries no information of its own: unnamed, enabled, probability
+     * 1 and no predicate. Such a block, when it holds every behaviour of the model, is the
+     * implicit block of a file written before execution blocks existed, so it does not need
+     * to appear in the saved file (see [GrainModel.forSerialization]).
+     */
+    val isTrivial: Boolean
+        get() = name.isBlank() && description.isBlank() && enabled && probability == 1.0 &&
+                formula.isBlank() && agePredicates.isEmpty() && agentCountPredicates.isEmpty() &&
+                fieldPredicates.isEmpty()
+}
+
 @Serializable
 data class Position(
     val x: Int, val y: Int, val z: Int = 0
@@ -544,12 +595,51 @@ data class GrainModel(
     val updatePlan: String = "Parallel",
     val grains: List<Grain> = emptyList(),
     val behaviours: List<Behaviour> = emptyList(),
+    /** Execution blocks, in execution order. Absent in files written before blocks existed. */
+    val executionBlocks: List<ExecutionBlock> = emptyList(),
     val fields: List<Field> = emptyList(),
     @Transient override val uuid: Uuid = uuid4(),
 ) : ModelElement {
 
     /** True when the update plan is "Sequential". */
     val isSequentialUpdate: Boolean get() = updatePlan == SEQUENTIAL_UPDATE_PLAN
+
+    /**
+     * Returns a copy whose [executionBlocks] are populated, without changing anything else.
+     *
+     * Files written before execution blocks existed carry no `executionBlocks` key: every
+     * behaviour then becomes the content of a single block (enabled, probability 1), which
+     * reproduces exactly the previous behaviour because the simulator still reads
+     * [behaviours]. A model without any behaviour still gets one empty block, which is the
+     * state of a freshly created model. Idempotent: calling it twice changes nothing.
+     */
+    fun migrated(): GrainModel {
+        if (executionBlocks.any { it.behaviours.isNotEmpty() }) return this
+        return when {
+            behaviours.isNotEmpty() -> copy(executionBlocks = listOf(ExecutionBlock(behaviours = behaviours)))
+            executionBlocks.isEmpty() -> copy(executionBlocks = listOf(ExecutionBlock()))
+            else -> this
+        }
+    }
+
+    /**
+     * True when [executionBlocks] is exactly the implicit block: one single block, without
+     * parameter of its own, holding every behaviour of the model in the reference order.
+     * Such a model is indistinguishable from a file written before blocks existed.
+     */
+    val hasImplicitBlock: Boolean
+        get() = executionBlocks.size == 1 &&
+                executionBlocks[0].isTrivial &&
+                executionBlocks[0].behaviours.map { it.uuid } == behaviours.map { it.uuid }
+
+    /**
+     * Copy to encode: an implicit block is left out of the file, so that a project with a
+     * single always-executed block keeps the exact structure of the files written before
+     * execution blocks, and stays readable by the previous readers. Loading it back
+     * re-creates the same block through [migrated], so the round trip is stable.
+     */
+    fun forSerialization(): GrainModel =
+        if (hasImplicitBlock) copy(executionBlocks = emptyList()) else this
 
     val label: String
         get() = when {
@@ -712,6 +802,12 @@ data class GrainModel(
 }
 
 private fun emptyList(size: Int): List<Int> = ArrayList<Int>(size).apply { repeat(size) { add(-1) } }
+
+/** [AgentCountPredicate.grainId] counting every occupied neighbour cell. */
+const val COUNT_ALL_AGENTS: Int = -1
+
+/** [AgentCountPredicate.grainId] counting the empty neighbour cells. */
+const val COUNT_EMPTY_CELLS: Int = -2
 
 /** Seed used by every new simulation, and by the files that do not carry one. */
 const val DEFAULT_SIMULATION_SEED: Long = 42
@@ -899,6 +995,13 @@ data class ModelAndSimulation(
         return if (simulation.parallelUpdate == parallel) this
         else copy(simulation = simulation.copy(parallelUpdate = parallel))
     }
+
+    /** Returns a copy whose model carries its execution blocks. Call after loading a file. */
+    fun migrated(): ModelAndSimulation = copy(model = model.migrated())
+
+    /** Copy to encode: the implicit block of a single-block model is not written. */
+    fun forSerialization(): ModelAndSimulation = copy(model = model.forSerialization())
+
 
     /**
      * Model needs expert mode if a behaviour uses a raw predicate formula or a raw

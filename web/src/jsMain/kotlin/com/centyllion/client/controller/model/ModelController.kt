@@ -76,15 +76,63 @@ class ModelController(
         problemsTable.body = problems.map { it.toBulma() }
     }
 
+    /** Set while reverting the speed switch, to avoid re-entering this observable body. */
+    private var revertingExpertMode = false
+
     var expertMode: Boolean by observable(false) { _, old, new ->
-        if (old != new) {
-            refreshFieldPanels()
-            when (val c = editorController) {
-                is BehaviourEditController -> c.expertMode = new
-                is GrainEditController -> c.expertMode = new
-                else -> {}
-            }
+        if (revertingExpertMode) {
+            revertingExpertMode = false
+            return@observable
         }
+        if (old == new) return@observable
+
+        // the graphical predicates stay active in expert mode: ask what to do with them
+        val behaviourEditor = editorController as? BehaviourEditController
+        if (new && behaviourEditor != null && behaviourEditor.hasGraphicalPredicates()) {
+            askAboutPredicates(behaviourEditor)
+            return@observable
+        }
+        applyExpertMode(new)
+    }
+
+    /** Applies the expert mode to the current editor (graphical predicates already handled). */
+    private fun applyExpertMode(value: Boolean) {
+        refreshFieldPanels()
+        when (val c = editorController) {
+            is BehaviourEditController -> c.expertMode = value
+            is GrainEditController -> c.expertMode = value
+            else -> {}
+        }
+    }
+
+    /**
+     * Normal -> expert with configured graphical predicates: they would keep acting silently,
+     * so the user clears them, converts them into the formula, or cancels the switch.
+     */
+    private fun askAboutPredicates(editor: BehaviourEditController) {
+        val convertible = editor.canConvertPredicates()
+
+        val clear = Button(page.i18n("Clear"), color = ElementColor.Warning) {
+            editor.clearGraphicalPredicates()
+            applyExpertMode(true)
+        }
+        val convert = Button(page.i18n("Convert"), color = ElementColor.Primary) {
+            editor.convertPredicatesToFormula()
+            applyExpertMode(true)
+        }.apply { disabled = !convertible }
+        val cancel = Button(page.i18n("Cancel")) {
+            revertingExpertMode = true
+            expertMode = false
+        }.apply { root.style.marginLeft = "1.5rem" }
+
+        val body = mutableListOf<BulmaElement>(
+            p(page.i18n("Are you sure you want to switch to expert mode? What should be done with the predicates you entered?"))
+        )
+        if (!convertible) {
+            body += p(page.i18n("Conversion is not possible: a neighbour count over all agents has no formula equivalent."))
+        }
+
+        page.modalDialog(page.i18n("Expert mode"), body, clear, convert, cancel)
     }
 
     /**
