@@ -8,8 +8,15 @@ import com.centyllion.client.page.BulmaPage
 import com.centyllion.model.DEFAULT_SIMULATION_SEED
 import com.centyllion.model.PARALLEL_UPDATE_PLAN
 import com.centyllion.model.SEQUENTIAL_UPDATE_PLAN
+import com.centyllion.model.MAX_SIMULATION_SIZE
+import com.centyllion.model.MIN_SIMULATION_SIZE
+import com.centyllion.model.SIMULATION_SIZE_STEP
 import com.centyllion.model.SimulationSettings
 import com.centyllion.model.availableSimulationSizes
+import com.centyllion.model.clampSimulationSize
+import kotlinx.browser.document
+import org.w3c.dom.HTMLInputElement
+import org.w3c.dom.HTMLLabelElement
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.events.Event
 import kotlin.properties.Delegates.observable
@@ -33,6 +40,10 @@ class SimulationSettingsController (
     override var data: SimulationSettings by observable(initialData) { _, old, new ->
         if (old != new) {
             sizeController.selectedIndex = availableSimulationSizes.indexOf(new.size)
+            setRadioChecked(new.isCustomSize)
+            customSize = new.isCustomSize
+            widthStepper.show(new.effectiveWidth)
+            heightStepper.show(new.effectiveHeight)
             colorController.data = new.backgroundColor ?: "Grey"
             showGridSwitch.checked = data.showGrid
             gridTextureUrlController.data = data.gridTextureUrl ?: ""
@@ -43,7 +54,9 @@ class SimulationSettingsController (
 
     override var readOnly: Boolean by observable(false) { _, old, new ->
         if (old != new) {
-            sizeController.disabled = new
+            sizeController.disabled = new || customSize
+            widthStepper.enabled(!new && customSize)
+            heightStepper.enabled(!new && customSize)
             colorController.readOnly = new
             showGridSwitch.disabled = new
             gridTextureUrlController.readOnly = new
@@ -122,13 +135,114 @@ class SimulationSettingsController (
         }
     }
 
+    /** True when the custom width and height drive the grid instead of the square preset. */
+    private var customSize: Boolean = initialData.isCustomSize
+
     val sizeController = Select(
         options = availableSimulationSizes.map { Option("$it") }, rounded = true,
         selectedIndex = availableSimulationSizes.indexOf(initialData.size)
     ) { _: Event, value: List<Option> ->
         value.firstOrNull()?.value?.let {
-            data = data.copy(size = it.toInt())
+            // a preset always wins over the custom size
+            data = data.withPreset(it.toInt())
         }
+    }
+
+    /** Incrementable grid dimension: minus, value, plus, by step of ten cells. */
+    private inner class SizeStepper(initial: Int) {
+        var value: Int = clampSimulationSize(initial)
+            private set
+        private var silent = false
+        private val field = EditableStringController("$value", "") { _, new, controller ->
+            if (silent) return@EditableStringController
+            val parsed = clampSimulationSize(new.trim().toIntOrNull() ?: value)
+            if ("$parsed" != new.trim()) controller.data = "$parsed"
+            set(parsed)
+        }
+        private val minus = Button("-") { set(value - SIMULATION_SIZE_STEP) }
+        private val plus = Button("+") { set(value + SIMULATION_SIZE_STEP) }
+        val container = Div(minus, field.container, plus).apply { root.classList.add("field", "has-addons") }
+
+        fun set(newValue: Int) {
+            value = clampSimulationSize(newValue)
+            show(value)
+            applyCustomSize()
+        }
+
+        /** Displays a value without notifying the model (used when the data changes). */
+        fun show(newValue: Int) {
+            value = clampSimulationSize(newValue)
+            silent = true
+            field.data = "$value"
+            silent = false
+        }
+
+        fun enabled(enabled: Boolean) {
+            minus.disabled = !enabled
+            plus.disabled = !enabled
+            field.readOnly = !enabled
+        }
+    }
+
+    private val widthStepper = SizeStepper(
+        if (initialData.isCustomSize) initialData.customWidth else initialData.effectiveWidth
+    )
+    private val heightStepper = SizeStepper(
+        if (initialData.isCustomSize) initialData.customHeight else initialData.effectiveHeight
+    )
+
+    private fun applyCustomSize() {
+        if (!customSize) return
+        data = data.withCustomSize(widthStepper.value, heightStepper.value)
+    }
+
+    /**
+     * Radios of the grid size mode, built by hand: Bulma's Radio API is not usable here.
+     * A radio cannot be unchecked by clicking it, so the preset mode has its own button.
+     */
+    private fun radioInput(mode: String, checked: Boolean): HTMLInputElement =
+        (document.createElement("input") as HTMLInputElement).apply {
+            type = "radio"
+            name = "centy-grid-size"
+            value = mode
+            this.checked = checked
+        }
+
+    private val customRadioInput = radioInput("custom", initialData.isCustomSize)
+    private val presetRadioInput = radioInput("preset", !initialData.isCustomSize)
+
+    private fun radioLabel(input: HTMLInputElement, text: String) = HtmlWrapper(
+        (document.createElement("label") as HTMLLabelElement).apply {
+            classList.add("radio")
+            appendChild(input)
+            appendChild(document.createTextNode(" " + text))
+        }
+    )
+
+    val customRadio = radioLabel(customRadioInput, page.i18n("Custom"))
+    val presetRadio = radioLabel(presetRadioInput, page.i18n("Preset"))
+
+    private fun setRadioChecked(checked: Boolean) {
+        customRadioInput.checked = checked
+        presetRadioInput.checked = !checked
+    }
+
+    init {
+        val apply = {
+            val checked = customRadioInput.checked
+            customSize = checked
+            widthStepper.enabled(checked)
+            heightStepper.enabled(checked)
+            sizeController.disabled = checked || readOnly
+            data = if (checked) data.withCustomSize(widthStepper.value, heightStepper.value)
+            else data.withPreset(data.size)
+        }
+        customRadioInput.addEventListener("change", { apply() })
+        presetRadioInput.addEventListener("change", { apply() })
+        // initial state: the steppers only matter in custom mode
+        widthStepper.enabled(customSize)
+        heightStepper.enabled(customSize)
+        sizeController.disabled = customSize
     }
 
 
@@ -165,6 +279,9 @@ class SimulationSettingsController (
                 Label(page.i18n("Size")),
                 Control(sizeController)
             ),
+            Div(presetRadio, customRadio).apply { root.classList.add("field") },
+            Div(Label(page.i18n("Width")), widthStepper.container).apply { root.classList.add("field") },
+            Div(Label(page.i18n("Height")), heightStepper.container).apply { root.classList.add("field") },
             Field(
                 Label(page.i18n("Background Color")),
                 Control(colorController.container)

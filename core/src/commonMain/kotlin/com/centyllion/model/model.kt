@@ -824,17 +824,53 @@ fun createSimulation(
     agents = List(size * size, agentsInit)
 )
 
-val availableSimulationSizes = listOf(10, 25, 50, 100, 200)
+val availableSimulationSizes = listOf(10, 25, 50, 100, 200, 300, 400, 500)
+
+/** Bounds and step of the custom grid size, in cells. */
+const val MIN_SIMULATION_SIZE: Int = 10
+const val MAX_SIMULATION_SIZE: Int = 1000
+const val SIMULATION_SIZE_STEP: Int = 10
+
+/** Default width and height of the custom grid. */
+const val DEFAULT_CUSTOM_SIZE: Int = 100
 
 @Serializable
 data class SimulationSettings(
+    /** Square preset, used when [customWidth] or [customHeight] is zero. */
     val size: Int = 100,
     val showGrid: Boolean = true,
     val gridTextureUrl: String? = null,
     val backgroundColor: String? = null,
+    /** Custom width, in cells (0 when the square preset is used). */
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val customWidth: Int = 0,
+    /** Custom height, in cells (0 when the square preset is used). */
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val customHeight: Int = 0,
 ) {
+    /** True when the grid uses the custom width and height instead of the square preset. */
+    val isCustomSize: Boolean get() = customWidth > 0 && customHeight > 0
+
+    val effectiveWidth: Int get() = if (isCustomSize) customWidth else size
+
+    val effectiveHeight: Int get() = if (isCustomSize) customHeight else size
+
     @Transient
-    val agentsSize = size * size
+    val agentsSize = effectiveWidth * effectiveHeight
+
+    /** Copy with the custom size, both values clamped to the allowed bounds and to the step. */
+    fun withCustomSize(width: Int, height: Int): SimulationSettings = copy(
+        customWidth = clampSimulationSize(width),
+        customHeight = clampSimulationSize(height),
+    )
+
+    /** Copy that goes back to a square preset. */
+    fun withPreset(size: Int): SimulationSettings = copy(size = size, customWidth = 0, customHeight = 0)
+}
+
+/** Clamps a grid dimension to the allowed bounds and aligns it on the step. */
+fun clampSimulationSize(value: Int): Int {
+    val clamped = value.coerceIn(MIN_SIMULATION_SIZE, MAX_SIMULATION_SIZE)
+    val stepped = MIN_SIMULATION_SIZE + ((clamped - MIN_SIMULATION_SIZE) / SIMULATION_SIZE_STEP) * SIMULATION_SIZE_STEP
+    return stepped.coerceIn(MIN_SIMULATION_SIZE, MAX_SIMULATION_SIZE)
 }
 
 @Serializable
@@ -975,6 +1011,8 @@ data class Simulation(
             settings = newSettings,
             assets = assets,
             agents = newAgents,
+            width = newSettings.effectiveWidth,
+            height = newSettings.effectiveHeight,
             parallelUpdate = parallelUpdate
         )
     }

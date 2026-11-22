@@ -368,6 +368,10 @@ object English: Locale {
         "Cancel" -> "Cancel"
         "Expert mode" -> "Expert mode"
         "None" -> "None"
+        "Custom" -> "Custom"
+        "Width" -> "Width"
+        "Height" -> "Height"
+        "Preset" -> "Preset"
         else -> key
     }
 }
