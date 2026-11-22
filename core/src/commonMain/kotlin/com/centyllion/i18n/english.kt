@@ -372,6 +372,7 @@ object English: Locale {
         "Width" -> "Width"
         "Height" -> "Height"
         "Preset" -> "Preset"
+        "Opacity" -> "Opacity"
         else -> key
     }
 }

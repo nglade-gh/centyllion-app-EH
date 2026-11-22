@@ -252,32 +252,68 @@ class SimulatorViewController(
             pixels[p + 3] = 0xff.toByte()
         }
 
-        // field overlay, in model order (same stacking as the former 3D alpha planes)
-        data.model.fields.forEach { field ->
-            if (field.invisible || page.appContext.hiddenFieldIds.contains(field.id)) return@forEach
-            val values = data.field(field.id)
-            if (values.isEmpty()) return@forEach
-            val (fr, fg, fb) = rgbOf(field.color) ?: return@forEach
-            val limit = min(count, values.size)
-            for (i in 0 until limit) {
-                val alpha = fieldAlpha(values[i])
+        ctx.putImageData(img, 0.0, 0.0)
+    }
+
+    /** One canvas per field, at half resolution: fields are smooth, so the upscale is free. */
+    private val fieldLayers = HashMap<Int, HTMLCanvasElement>()
+
+    /**
+     * Builds the layer of one field: its colour, with the alpha of each value (opacity
+     * included). Written at half resolution, then upscaled by [render] with smoothing, so the
+     * per-pixel CPU work is divided by four and the blend is done by the compositor.
+     */
+    private fun fieldLayer(field: com.centyllion.model.Field): HTMLCanvasElement? {
+        val values = data.field(field.id)
+        if (values.isEmpty()) return null
+        val (fr, fg, fb) = rgbOf(field.color) ?: return null
+        val simulation = data.simulation
+        val layerWidth = (simulation.width + 1) / 2
+        val layerHeight = (simulation.height + 1) / 2
+        var canvas = fieldLayers[field.id]
+        if (canvas == null || canvas.width != layerWidth || canvas.height != layerHeight) {
+            canvas = (document.createElement("canvas") as HTMLCanvasElement).apply {
+                width = layerWidth
+                height = layerHeight
+            }
+            fieldLayers[field.id] = canvas
+        }
+        val layerCtx = canvas.getContext("2d") as CanvasRenderingContext2D
+        val img = layerCtx.createImageData(layerWidth.toDouble(), layerHeight.toDouble())
+        val pixels = newPixelView(img) as Uint8Array
+        val lut = opacityLut(field)
+        for (y in 0 until layerHeight) {
+            val sourceY = min(y * 2, simulation.height - 1)
+            val row = sourceY * simulation.width
+            for (x in 0 until layerWidth) {
+                val sourceX = min(x * 2, simulation.width - 1)
+                val alpha = lut[fieldAlpha(values[row + sourceX])]
                 if (alpha <= 0) continue
-                val p = i * 4
-                if (alpha >= 255) {
-                    pixels[p] = fr.toByte()
-                    pixels[p + 1] = fg.toByte()
-                    pixels[p + 2] = fb.toByte()
-                    continue
-                }
-                // integer blend: (src * a + dst * (255 - a)) / 255, no floating point
-                val inverse = 255 - alpha
-                pixels[p] = (((fr * alpha + (pixels[p].toInt() and 0xff) * inverse) / 255)).toByte()
-                pixels[p + 1] = (((fg * alpha + (pixels[p + 1].toInt() and 0xff) * inverse) / 255)).toByte()
-                pixels[p + 2] = (((fb * alpha + (pixels[p + 2].toInt() and 0xff) * inverse) / 255)).toByte()
+                val p = (y * layerWidth + x) * 4
+                pixels[p] = fr.toByte()
+                pixels[p + 1] = fg.toByte()
+                pixels[p + 2] = fb.toByte()
+                pixels[p + 3] = alpha.toByte()
             }
         }
+        layerCtx.putImageData(img, 0.0, 0.0)
+        return canvas
+    }
 
-        ctx.putImageData(img, 0.0, 0.0)
+    /** Base alpha of a field value, before the field opacity. */
+    private val opacityLuts = HashMap<Int, Pair<Int, IntArray>>()
+
+    /**
+     * Alpha table of a field: the 256 base alphas scaled by its opacity, so the per-pixel
+     * cost stays a single table read. Rebuilt only when the opacity changes.
+     */
+    private fun opacityLut(field: com.centyllion.model.Field): IntArray {
+        val cached = opacityLuts[field.id]
+        if (cached != null && cached.first == field.opacity) return cached.second
+        val opacity = field.opacity.coerceIn(0, 100)
+        val lut = IntArray(256) { (it * opacity) / 100 }
+        opacityLuts[field.id] = opacity to lut
+        return lut
     }
 
     /** Opacity of a field value (same mapping as the former 3D alpha texture). */
@@ -299,6 +335,19 @@ class SimulatorViewController(
         ctx.imageSmoothingEnabled = false
         val simulation = data.simulation
         ctx.drawImage(buffer, offsetX, offsetY, simulation.width * cellScale, simulation.height * cellScale)
+
+        // fields: one layer each, blended by the compositor (no per-pixel CPU blend)
+        ctx.imageSmoothingEnabled = true
+        data.model.fields.forEach { field ->
+            if (field.invisible || page.appContext.hiddenFieldIds.contains(field.id)) return@forEach
+            if (field.opacity <= 0) return@forEach
+            val layer = fieldLayer(field) ?: return@forEach
+            ctx.drawImage(
+                layer, offsetX, offsetY,
+                simulation.width * cellScale, simulation.height * cellScale
+            )
+        }
+        ctx.imageSmoothingEnabled = false
 
         drawGrid(ctx)
         drawPointer(ctx)
