@@ -11705,9 +11705,9 @@ div.field-label {
   border-radius: 6px;
 }
 
-/* the simulation modifiers are boxes, not columns: same selection mark */
+/* the simulation modifiers are boxes, not columns: purple frame around the selection */
 .box.is-selected {
-  background-color: #6533a7;
+  border: 2px solid #6533a7;
   border-radius: 6px;
 }
 

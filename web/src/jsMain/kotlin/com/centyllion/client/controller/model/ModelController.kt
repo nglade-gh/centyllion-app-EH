@@ -396,6 +396,9 @@ class ModelController(
 
     init {
         showModifiers(expertMode)
+        // the rows (and their boxes, used for the selection mark) must exist from the start:
+        // refreshModifiers() was only called when the model changed
+        refreshModifiers()
     }
 
     /** Boxes of the modifier rows, to toggle the selection border. */
