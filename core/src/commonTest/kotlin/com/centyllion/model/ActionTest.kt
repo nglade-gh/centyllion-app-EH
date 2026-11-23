@@ -647,3 +647,35 @@ class ActivationTestFunctionsTest {
         assertEquals(4, simulator.agents.count { it >= 0 }, "the second modifier drew its line")
     }
 }
+
+/**
+ * The modifier probabilities are independent: two modifiers at probability 1 both run in the
+ * same step, they are never normalised between each other.
+ */
+class ModifierProbabilityTest {
+
+    private fun model(first: Double, second: Double) = GrainModel(
+        name = "probas",
+        grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+        modifiers = listOf(
+            SimulationModifier(name = "top", id = 0, probability = first, actions = "DrawLine(0, 0, 0, 3, 0)"),
+            SimulationModifier(name = "bottom", id = 1, probability = second, actions = "DrawLine(0, 0, 7, 3, 7)"),
+        ),
+    )
+
+    private fun simulation() = createSimulation("probas", size = 8) { -1 }
+
+    @Test
+    fun testTwoModifiersAtFullProbabilityBothRun() {
+        val simulator = Simulator(model(1.0, 1.0), simulation())
+        simulator.oneStep()
+        assertEquals(8, simulator.agents.count { it >= 0 }, "both modifiers ran, none was scaled down")
+    }
+
+    @Test
+    fun testAZeroProbabilityModifierNeverRuns() {
+        val simulator = Simulator(model(1.0, 0.0), simulation())
+        simulator.oneStep()
+        assertEquals(4, simulator.agents.count { it >= 0 }, "only the first modifier ran")
+    }
+}
