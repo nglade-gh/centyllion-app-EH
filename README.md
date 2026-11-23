@@ -117,15 +117,7 @@ de fichiers.
 # → http://localhost:8080
 ```
 
-### 3.4 Application desktop en mode développement
-
-```bash
-xvfb-run -a ./gradlew :compose:shared:run
-```
-
----
-
-### 3.5 Archive de déploiement
+### 3.4 Archive de déploiement
 
 `tools/version_deployment.py` construit l'archive d'une version et sait faire la
 différence entre les deux dépôts voisins (`Endless_Bloom` et
@@ -495,6 +487,20 @@ contenu de `Gallery/` au moment du build. Côté client :
 Ce que l'instance doit fournir : le bundle `web.js`, `css/`, `font/`, `index.html`,
 `help.html`, `favicon.ico` et `Gallery/`. Aucun service particulier, aucune base de
 données, aucun compte utilisateur.
+
+**Trois points à vérifier avant la mise en service** (ils ne se voient qu'en
+production) :
+
+- **racine du domaine obligatoire** : `index.html` référence ses ressources par des
+  chemins absolus (`/css/centyllion.css`, `/js/centyllion/centyllion.js`). Servir
+  l'application dans un sous-répertoire (`/netbiodyn/`) ne fonctionne pas : il faut
+  un sous-domaine dédié, ou adapter les chemins.
+- **polices d'icônes externes** : FontAwesome est chargé depuis
+  `use.fontawesome.com`. Sur un réseau filtré, les icônes manquent sans qu'aucune
+  erreur ne s'affiche ; autoriser ce domaine, ou héberger FontAwesome localement.
+- **cache du bundle** : `centyllion.js` porte un nom fixe, sans empreinte de
+  version. Sans en-tête `Cache-Control: no-cache` sur les `.js` et `index.html`,
+  les visiteurs continuent d'exécuter l'ancienne version après une mise à jour.
 
 **Limites à annoncer aux utilisateurs d'une instance partagée.** La galerie
 personnelle est liée au navigateur et au poste ; elle ne suit pas d'une machine à
