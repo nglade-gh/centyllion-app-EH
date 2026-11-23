@@ -6,6 +6,7 @@ import com.centyllion.client.*
 import com.centyllion.client.controller.model.ModelController
 import com.centyllion.client.controller.utils.EditableStringController
 import com.centyllion.client.controller.utils.UndoRedoSupport
+import com.centyllion.client.gallery.GalleryController
 import com.centyllion.client.tutorial.ActionsTutorial
 import com.centyllion.client.tutorial.BacteriasTutorial
 import com.centyllion.client.tutorial.DisplayTutorial
@@ -68,6 +69,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
             undoRedo.update(old, new)
             modelController.data = new
             modelName.data = new.model.name
+            modelDescription.data = new.model.description
 
             expertMode = expertMode || model.expert
 
@@ -105,6 +107,14 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         model = model.updateModel(model.model.copy(name = new ) )
     }
 
+    /** Description of the model: saved in the file, empty by default. */
+    val modelDescription = EditableStringController(
+        initialData = model.model.description,
+        placeHolder = i18n("Model Description"),
+    ) { old: String, new: String, controller: EditableStringController ->
+        model = model.updateModel(model.model.copy(description = new))
+    }
+
     val newControl = Control(Button(
         i18n("New Model"), Icon("plus"), color = ElementColor.Primary
     ) { new() })
@@ -117,6 +127,13 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     val saveAsControl = Control(Button(
         i18n("Save As"), Icon("download"), color = ElementColor.Primary
     ) { saveAs() })
+
+    /** The gallery window is created on first use and kept for the next openings. */
+    private var galleryController: GalleryController? = null
+
+    val galleryControl = Control(Button(
+        i18n("Gallery"), Icon("images"), color = ElementColor.Primary
+    ) { showGallery() })
 
     val tutorialControl = Control(Button(
         i18n("Tutorial"), Icon("question-circle"), color = ElementColor.Primary
@@ -139,9 +156,11 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     val tools = BField(
         modelName.container,
+        modelDescription.container,
         newControl,
         Control(fileInput),
         saveAsControl,
+        galleryControl,
         tutorialControl,
         helpControl,
         aboutControl,
@@ -168,6 +187,12 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     )
 
     override val root: HTMLElement = container.root
+
+    /** Opens the model gallery window. */
+    fun showGallery() {
+        val controller = galleryController ?: GalleryController(this).also { galleryController = it }
+        controller.open()
+    }
 
     /** Shows the About dialog: distribution name, build date and time, authors and repository. */
     fun showAbout() {

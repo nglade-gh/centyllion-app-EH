@@ -470,6 +470,54 @@ object French: Locale {
         "Condition" -> "Condition"
         "Active" -> "Actif"
         "Probability" -> "Probabilité"
+
+        // model gallery
+        "Gallery" -> "Galerie"
+        "Model gallery" -> "Galerie de modèles"
+        "Add Model" -> "Ajouter un modèle"
+        "Add a Model" -> "Ajouter un modèle"
+        "Edit the Model" -> "Modifier le modèle"
+        "Save gallery" -> "Enregistrer la galerie"
+        "Gallery saved. Replace webroot/Gallery/gallery.json with the downloaded file." ->
+            "Galerie enregistrée. Remplacez webroot/Gallery/gallery.json par le fichier téléchargé."
+        "Loading gallery..." -> "Chargement de la galerie…"
+        "The gallery index could not be loaded." -> "L'index de la galerie n'a pas pu être chargé."
+        "No model in the gallery yet." -> "Aucun modèle dans la galerie pour le moment."
+        "Open this model in NetBioDyn?" -> "Ouvrir ce modèle dans NetBioDyn ?"
+        "OK" -> "OK"
+        "The current project will be replaced. Unsaved modifications will be lost." ->
+            "Le projet courant sera remplacé. Les modifications non enregistrées seront perdues."
+        "This model cannot be opened: it has neither a file nor a model text." ->
+            "Ce modèle ne peut pas être ouvert : il n'a ni fichier ni texte de modèle."
+        "The model file could not be loaded." -> "Le fichier du modèle n'a pas pu être chargé."
+        "The model could not be decoded." -> "Le modèle n'a pas pu être décodé."
+        "Model loaded from the gallery." -> "Modèle chargé depuis la galerie."
+        "Delete this model from the gallery?" -> "Supprimer ce modèle de la galerie ?"
+        "The entry is only hidden: gallery.json is never modified." ->
+            "L'entrée est seulement masquée : gallery.json n'est jamais modifié."
+        "The model is removed from the local gallery of this browser." ->
+            "Le modèle est retiré de la galerie locale de ce navigateur."
+        "Model removed from the gallery." -> "Modèle retiré de la galerie."
+        "Model added to the gallery." -> "Modèle ajouté à la galerie."
+        "Model updated in the gallery." -> "Modèle mis à jour dans la galerie."
+        "Edit" -> "Modifier"
+        "Delete" -> "Supprimer"
+        "Save" -> "Enregistrer"
+        "Title" -> "Titre"
+        "Model file (.nbd2 or .netbiodyn)" -> "Fichier de modèle (.nbd2 ou .netbiodyn)"
+        "Choose a model file" -> "Choisir un fichier de modèle"
+        "Choose a model file." -> "Choisissez un fichier de modèle."
+        "Description (optional)" -> "Description (facultatif)"
+        "Image (optional)" -> "Image (facultatif)"
+        "Choose an image" -> "Choisir une image"
+        "A title is required." -> "Un titre est requis."
+        "The model file is too large (over 2 MB)." -> "Le fichier de modèle est trop volumineux (plus de 2 Mo)."
+        "The selected file could not be read." -> "Le fichier sélectionné n'a pas pu être lu."
+        "Thumbnail generated from the initial state." -> "Vignette générée à partir de l'état initial."
+        "The gallery is too large for the browser storage. Delete a model or remove its image." ->
+            "La galerie est trop volumineuse pour le stockage du navigateur. Supprimez un modèle ou retirez son image."
+        "Imported model: the model text is not included in this export." ->
+            "Modèle importé : le texte du modèle n'est pas inclus dans cet export."
         else -> null
     }
 }
