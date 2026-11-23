@@ -64,9 +64,8 @@ class GalleryController(private val page: ShowPage) {
 
         var card: ModalCard? = null
         val addButton = Button(page.i18n("Add Model"), Icon("plus"), color = ElementColor.Primary) { showForm(null) }
-        val saveButton = Button(page.i18n("Save gallery"), Icon("download"), color = ElementColor.Info) { exportGallery() }
         val closeButton = Button(page.i18n("Close"), color = ElementColor.Primary) { card?.active = false }
-        val toolbar = Field(Control(addButton), Control(saveButton), grouped = true, groupedMultiline = true)
+        val toolbar = Field(Control(addButton), grouped = true, groupedMultiline = true)
 
         card = showModal(
             page.i18n("Model gallery"),
@@ -317,6 +316,10 @@ class GalleryController(private val page: ShowPage) {
                             modelText = text
                             // the model name is the natural title of the card
                             if (project.model.name.isNotBlank()) titleInput.value = project.model.name
+                            // the model description is imported too, and stays editable
+                            if (descriptionInput.value.isBlank() && project.model.description.isNotBlank()) {
+                                descriptionInput.value = project.model.description
+                            }
                             if (imageText.isNullOrBlank()) {
                                 val thumbnail = GalleryThumbnails.fromInitialState(project)
                                 if (thumbnail != null) {

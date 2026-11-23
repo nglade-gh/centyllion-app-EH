@@ -181,7 +181,30 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
                 ),
                 size = ColumnSize.Full
             ),
-            Column(modelController, size = ColumnSize.Full),
+            Column(
+                /** The name and the description of the model, edited in a dialog. */
+                BField(Control(Button(i18n("Model information"), Icon("info-circle"), color = ElementColor.Primary) {
+                    val nameInput = Input(model.model.name, placeholder = i18n("Model Name"), rounded = true)
+                    val descriptionInput = TextArea(
+                        model.model.description, placeholder = i18n("Model Description"), rows = "6"
+                    )
+                    descriptionInput.root.style.width = "320px"
+                    descriptionInput.root.style.minHeight = "200px"
+                    modalDialog(
+                        i18n("Model information"),
+                        listOf(BField(Control(nameInput)), BField(Control(descriptionInput))),
+                        Button(i18n("OK"), color = ElementColor.Primary) {
+                            model = model.updateModel(model.model.copy(
+                                name = nameInput.value,
+                                description = descriptionInput.value
+                            ))
+                        },
+                        Button(i18n("Cancel"), color = ElementColor.Light) { }
+                    )
+                })),
+                Column(modelController, size = ColumnSize.Full),
+                size = ColumnSize.Full
+            ),
             multiline = true, centered = true
         )
     )
