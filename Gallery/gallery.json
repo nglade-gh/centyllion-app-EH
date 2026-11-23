@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "models": [
+    {
+      "id": "autopulse-2",
+      "title": "Autopulse 2",
+      "description": "6 types d'agents, 1 champ diffus, 8 comportements.",
+      "image": "Gallery/Autopulse2.jpg",
+      "file": "Gallery/Autopulse2.nbd2"
+    },
+    {
+      "id": "gol-modifiers",
+      "title": "Game of Life using Modifiers",
+      "description": "1 type d'agent, 2 comportements, 4 modificateurs.",
+      "image": "Gallery/GoL_Modifiers.jpg",
+      "file": "Gallery/GoL_Modifiers.nbd2"
+    }
+  ]
+}
