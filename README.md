@@ -327,13 +327,19 @@ plateau). En **mode expert** :
   empêche les agents de ce grain de la traverser. L'asymétrie est autorisée
   (ex. Gauche décoché + Droite coché : un agent du bord gauche ne sort pas en
   allant à gauche, un agent du bord droit sort en allant à droite).
+- **Comportement** (éditeur de comportement, section *Conditions*, sous les
+  prédicats) : les mêmes 4 interrupteurs *Conditions aux limites*, avec les
+  mêmes libellés. Ils ne gouvernent pas un déplacement mais le **voisinage
+  visible** : une paroi décochée rend invisibles les voisins situés au-delà
+  (ni réactif, ni case cible, ni compté, ni champ lu). Les quatre parois
+  cochées (défaut) = torique, cas de tous les fichiers existants.
 - **Champ** (éditeur de champ) : interrupteur *Toric* ; décoché = bordure
   **imperméable** (la diffusion ne traverse pas les bords de la grille,
   « best effort » sans solveur dédié).
 
-Les conditions sont stockées dans le modèle (`boundaryConditions` par grain,
-`toric` par champ), visibles en mode expert seulement, et sauvegardées
-(cf. §4.9).
+Les conditions sont stockées dans le modèle (`boundaryConditions` par grain et
+par comportement, `toric` par champ), sauvegardées (cf. §4.9) ; celles du
+comportement sont visibles dans les deux modes, comme celles du grain.
 
 ### 4.9 Format de sauvegarde (`.netbiodyn`)
 
@@ -341,7 +347,7 @@ Les fichiers sauvegardés sont compacts : une valeur égale à sa valeur par
 défaut est omise (`encodeDefaults = false`), sauf quatre champs qui obéissent
 à un contrat explicite d'**écriture complète** pour rester autodescriptifs :
 
-- `boundaryConditions` (grain) : omis si torique partout ; sinon les **4
+- `boundaryConditions` (grain, comportement) : omis si torique partout ; sinon les **4
   parois sont toujours écrites** (`{"left":false,"right":true,"top":true,"bottom":true}`) ;
 - `toric` (champ) : écrit seulement si `false` ;
 - `agentCountPredicates` (comportement) : liste omise si vide ; chaque

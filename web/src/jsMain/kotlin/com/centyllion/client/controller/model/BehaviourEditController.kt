@@ -35,6 +35,7 @@ class BehaviourEditController(
             reactionsController.context = new to context
             fieldPredicatesController.data = new.fieldPredicates
             countPredicatesController.data = new.agentCountPredicates
+            boundaryConditionsController.data = new.boundaryConditions
             fieldInfluencesController.data = context.fields.map { it.id to (new.fieldInfluences[it.id] ?: 0f) }
             onUpdate(old, new, this@BehaviourEditController)
             refresh()
@@ -115,6 +116,7 @@ class BehaviourEditController(
             fieldPredicatesController.readOnly = new
             countPredicatesController.readOnly = new
             fieldInfluencesController.readOnly = new
+            boundaryConditionsController.readOnly = new
         }
     }
 
@@ -529,18 +531,27 @@ class BehaviourEditController(
         size = ColumnSize.Full
     ).apply { hidden = context.fields.isEmpty() }
 
+    /** Walls of the neighbourhood this behaviour can see (same control as in the grain editor). */
+    val boundaryConditionsController = BoundaryConditionsController(
+        data.boundaryConditions, page
+    ) { _, new -> this.data = this.data.copy(boundaryConditions = new) }
+
+    val boundaryConditionsGroup = boundaryConditionsController.container
+
     override val container = editorBox(page.i18n("Behaviour"), behaviourIcon,
         // top block: information
         blockTitle(page.i18n("Misc")),
         HorizontalField(Label(page.i18n("Name")), nameController.container),
         HorizontalField(Label(page.i18n("Description")), descriptionController.container),
-        // middle block: predicates (graphical in normal mode, formula in expert mode)
+        // middle block: conditions (graphical predicates in normal mode, formula in expert
+        // mode) and the walls of the visible neighbourhood
         HtmlWrapper(createHr().also { it.classList.add("centy-block-separator") }),
         blockTitle(page.i18n("Predicates")),
         agePredicatesGroup,
         fieldThresholdsGroup,
         countPredicatesGroup,
         formulaLine,
+        boundaryConditionsGroup,
         // bottom block: speed, field influences, reactions and actions (expert mode)
         HtmlWrapper(createHr().also { it.classList.add("centy-block-separator") }),
         blockTitle("Reactions"),

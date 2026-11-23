@@ -192,6 +192,7 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `formula` : chaîne (libellée **Predicate** dans l'interface) → condition logique d'application (voir 6.4)
 - `actions` : chaîne → liste d'actions exécutées après les réactions (voir 6.5)
 - `agentCountPredicates` : `List<AgentCountPredicate(grainId, op, count)>` → conditions sur le nombre de voisins ; `grainId < 0` = tout agent voisin occupé (8 directions, valeur 0-8) (voir 6bis)
+- `boundaryConditions` : `BoundaryConditions(left, right, top, bottom)` → parois du **voisinage visible** du comportement (même classe et même forme JSON que pour un grain) ; une paroi `false` rend invisibles les voisins situés au-delà (aucun repliement, aucune lecture), les 4 parois `true` (défaut) étant le cas torique (voir 4.5)
 
 Une **réaction** s'exécute lorsque un grain voisin (dans `allowedDirection`) possède le `reactiveId` spécifié.
 
@@ -217,6 +218,7 @@ Là où le simulateur est pertinent, les notions s'expriment ainsi :
 - **Diffusion d'un champ** : pour un champ `f` avec vitesse `s` et perméabilités `p_i` selon les directions opposées `d`:  
   `next[i] = current[i] * (1 - s * Σ p_i / n) + production(i) + Σ current[opposé] * s * p / n`, coupé à `[minField, 1]` puis passé éventuellement par `evaluateField`.
 - **Conditions aux limites** : un déplacement (ou une production sur case voisine vide) traverse la bordure dans la direction `d` si et seulement si la paroi correspondante est autorisée : `crossesBorder(position, d, w, h)` (test géométrique) ∧ `boundaryConditions.crossed(...)` (drapeau du grain). Par défaut (torique), le retour est `position + w` / `position - w` (ou `± h`) modulo la taille. Pour un champ avec `toric = false`, les échanges de diffusion à travers les bords sont simplement omis (aucun terme de voisin opposé au-delà de la grille).
+- **Voisinage visible d'un comportement** : `Behaviour.boundaryConditions` filtre la vue des 8 voisins. Si `crossed(position, d, w, h)` est vrai pour une paroi fermée, la direction `d` est masquée : ce voisin n'existe ni comme réactif, ni comme case vide cible d'un produit, il n'est pas compté (`count(...)`, `agentCountPredicates`, y compris `Nb voisins`/tous agents/cases vides) et ses champs ne sont pas lus (`fieldInfluences`). Toutes les parois toriques (défaut) ⇒ `hasClosedBoundary == false` ⇒ table de voisins précalculée utilisée telle quelle, sans filtrage ni coût ajouté.
 - **Étape de simulation** : la méthode `Simulator.oneStep()` applique les règles de mort, de déplacement, de comportement (avec sélection probabiliste + influence des champs via `log10` des valeurs voisines), puis actualise les champs. `Agent` dispose d'un `age` qui augmente à chaque pas.
 
 ---
@@ -518,7 +520,7 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 
 ### 8.3bis Éditeur de comportement : modes normal et expert
 
-`BehaviourEditController` présente trois blocs (Information / Prédicats / Réactions) séparés par des lignes bleues, avec titres centrés en rouge foncé.
+`BehaviourEditController` présente trois blocs (Information / Conditions / Réactions) séparés par des lignes bleues, avec titres centrés en rouge foncé. Le bloc du milieu est intitulé **Conditions** (clé i18n `Predicates`, renommée sans changer la clé) et contient les prédicats graphiques ou la formule, puis les quatre interrupteurs de **Conditions aux limites** du voisinage.
 
 | Élément | Mode normal | Mode expert |
 |---|---|---|
@@ -527,6 +529,7 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 | Prédicat graphique « Seuils des champs » (si au moins un champ existe) | oui | — |
 | Prédicat graphique « Nb voisins » (grain + relation + valeur 0..8) | oui | — |
 | Formule de prédicat (+ aide) | — | oui |
+| Conditions aux limites du comportement (4 interrupteurs, mêmes libellés que dans l'éditeur de grain) | oui | oui |
 | Vitesse | oui | oui |
 | Influences des champs (si au moins un champ existe) | oui | oui |
 | Réactions + colonne « Avec l'âge de » (héritage d'âge) | oui | oui |
@@ -648,6 +651,7 @@ que les fichiers sauvegardés soient **autodescriptifs** :
 | Champ | Contrainte d'écriture | Contrainte de lecture |
 |---|---|---|
 | `grains[].boundaryConditions` | omis si le grain est torique partout ; sinon **les 4 parois `left/right/top/bottom` sont toujours écrites** (`@EncodeDefault(ALWAYS)`) | parois absentes = `true` (les fichiers anciens partiels, ex. `{"left":false}`, restent lisibles) |
+| `behaviours[].boundaryConditions` | même contrat que pour les grains (même classe) : omis si les 4 parois sont toriques, sinon les 4 parois explicites | clé absente = torique partout (un comportement d'un fichier ancien se relit tout torique) |
 | `fields[].toric` | omis si `true` ; `false` est écrit | absent = `true` (torique) |
 | `behaviours[].agentCountPredicates` | omis si liste vide ; chaque prédicat présent **écrit toujours** `grainId`, `op` et `count` (`@EncodeDefault(ALWAYS)`), même aux valeurs par défaut | liste absente = vide |
 | `behaviours[].reaction[].sourceReactive` | écrite si ≥ 0, omise si < 0 (convention antérieure) | absente = -1 |

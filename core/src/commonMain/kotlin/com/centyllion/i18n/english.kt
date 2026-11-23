@@ -175,7 +175,7 @@ object English: Locale {
         "Close" -> "Close"
         "Age" -> "Age"
         "Reactions" -> "Reactions"
-        "Predicates" -> "Predicates"
+        "Predicates" -> "Conditions"
         "Nb Neighbours" -> "Nb Neighbours"
         "Nb" -> "Nb"
         "All agents" -> "All agents"

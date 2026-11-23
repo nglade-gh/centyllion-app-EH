@@ -176,7 +176,7 @@ object French: Locale {
         "Close" -> "Fermer"
         "Age" -> "Âge"
         "Reactions" -> "Réactions"
-        "Predicates" -> "Prédicats"
+        "Predicates" -> "Conditions"
         "Nb Neighbours" -> "Nb voisins"
         "Nb" -> "Nb"
         "All agents" -> "Tous les agents"
