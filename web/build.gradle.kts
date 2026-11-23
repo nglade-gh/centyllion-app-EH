@@ -138,6 +138,12 @@ tasks {
 
             //jsFile.copyTo(centyllionWebroot.resolve("$base.$sum.js"))
             //mapFile.copyTo(centyllionWebroot.resolve("$base.$sum.js.map"))
+            // the model gallery is distributed with the software: <project>/Gallery -> webroot/Gallery
+            val gallerySource = project.projectDir.parentFile.resolve("Gallery")
+            if (gallerySource.isDirectory) {
+                gallerySource.copyRecursively(project.projectDir.resolve("webroot/Gallery"), overwrite = true)
+            }
+
             jsFile.get().asFile.copyTo(centyllionWebroot.resolve("$base.js"))
             mapFile.get().asFile.copyTo(centyllionWebroot.resolve("$base.js.map"))
         }
