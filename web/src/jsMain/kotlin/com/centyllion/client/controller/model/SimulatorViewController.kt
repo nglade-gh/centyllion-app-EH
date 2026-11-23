@@ -56,6 +56,13 @@ class SimulatorViewController(
             if (old.model.grains != new.model.grains || old.model.fields != new.model.fields) {
                 invalidateColors()
             }
+            // the drawing area depends on the grid: a new simulation (other project, other
+            // tutorial, other grid size) must recompute it, otherwise the canvas keeps the
+            // size of the previous one and the cells are drawn inside a wrong area
+            if (old.simulation.width != new.simulation.width || old.simulation.height != new.simulation.height) {
+                zoom = 1.0
+                layout()
+            }
             render()
         }
     }
