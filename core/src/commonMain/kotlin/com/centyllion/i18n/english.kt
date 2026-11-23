@@ -432,6 +432,9 @@ object English: Locale {
         "Deselect" -> "Deselect"
         "Overwrite" -> "Overwrite"
         "Keep" -> "Keep"
+        "Rotate 90° (clockwise)" -> "Rotate 90° (clockwise)"
+        "Flip horizontal" -> "Flip horizontal"
+        "Flip vertical" -> "Flip vertical"
         else -> key
     }
 }
