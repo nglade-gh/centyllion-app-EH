@@ -23,7 +23,7 @@ import kotlin.js.Date
 import kotlin.math.max
 import kotlin.math.min
 
-/** Largest image data URL kept as is: bigger ones are resized (localStorage is about 5 MB). */
+/** Largest image data URL kept as is: bigger ones are resized (a card does not need more). */
 private const val MAX_INLINE_IMAGE_CHARS = 700_000
 
 /** Longest side of a resized image, in pixels. */
@@ -40,7 +40,7 @@ class GalleryController(private val page: ShowPage) {
     private var indexEntries: List<GalleryEntry> = emptyList()
 
     /** Local overlay: entries added by the user, and edits or masks of static entries. */
-    private var overlay: List<GalleryEntry> = GalleryStore.readOverlay()
+    private var overlay: List<GalleryEntry> = emptyList()
 
     /** Root of the gallery window, null when it is closed. */
     private var modal: ModalCard? = null
@@ -55,8 +55,6 @@ class GalleryController(private val page: ShowPage) {
     /** Opens (or reopens) the gallery window. */
     fun open() {
         ensureStyles()
-        // the overlay may have been changed in another tab
-        overlay = GalleryStore.readOverlay()
         indexEntries = emptyList()
         grid.body = emptyList()
         indexFailed = false
@@ -65,17 +63,30 @@ class GalleryController(private val page: ShowPage) {
 
         var card: ModalCard? = null
         val addButton = Button(page.i18n("Add Model"), Icon("plus"), color = ElementColor.Primary) { showForm(null) }
+        // export and import only concern the personal gallery: gallery.json is read only
+        val exportButton = Button(
+            page.i18n("Export my gallery"), Icon("download"), color = ElementColor.Primary
+        ) { exportPersonal() }
+        val importButton = importControl()
         val closeButton = Button(page.i18n("Close"), color = ElementColor.Primary) { card?.active = false }
-        val toolbar = Field(Control(addButton), grouped = true, groupedMultiline = true)
+        val toolbar = Field(
+            Control(addButton), Control(exportButton), Control(importButton),
+            grouped = true, groupedMultiline = true
+        )
+        val notice = p(
+            page.i18n("Your additions stay in this browser; export them to keep them or to transfer them."),
+            classes = "centy-gallery-notice"
+        )
 
         card = showModal(
             page.i18n("Model gallery"),
-            listOf(toolbar, status, grid),
+            listOf(notice, toolbar, status, grid),
             listOf(closeButton)
         )
         card.root.classList.add("centy-gallery-modal")
         modal = card
 
+        loadOverlay()
         loadIndex()
     }
 
@@ -107,6 +118,19 @@ class GalleryController(private val page: ShowPage) {
             indexEntries = emptyList()
             indexFailed = true
             // the models added locally stay available
+            render()
+        }
+    }
+
+    // ------------------------------------------------------------------- local
+
+    /**
+     * Reads the personal gallery from the browser database; the cards are
+     * drawn again once it is known (the distributed index may arrive first).
+     */
+    private fun loadOverlay() {
+        GalleryStore.load { entries ->
+            overlay = entries
             render()
         }
     }
@@ -229,31 +253,85 @@ class GalleryController(private val page: ShowPage) {
             ),
             Button(page.i18n("Delete"), color = ElementColor.Danger) {
                 val entries = if (isStatic) GalleryStore.hide(overlay, entry) else GalleryStore.remove(overlay, entry.id)
-                if (store(entries)) page.message("Model removed from the gallery.")
+                store(entries) { saved -> if (saved) page.message("Model removed from the gallery.") }
             },
             Button(page.i18n("Cancel")) {}
         )
     }
 
-    /** Writes the overlay and refreshes the cards; false when the storage refused it. */
-    private fun store(entries: List<GalleryEntry>): Boolean {
-        if (!GalleryStore.writeOverlay(entries)) {
-            page.error("The gallery is too large for the browser storage. Delete a model or remove its image.")
-            return false
+    /**
+     * Writes the personal gallery and refreshes the cards; [onStored] receives
+     * false when the browser refused the write.
+     */
+    private fun store(entries: List<GalleryEntry>, onStored: (Boolean) -> Unit = {}) {
+        GalleryStore.save(entries) { saved ->
+            if (saved) {
+                overlay = entries
+                render()
+                onStored(true)
+            } else {
+                page.error("The gallery could not be saved in the browser storage.")
+                onStored(false)
+            }
         }
-        overlay = entries
-        render()
-        return true
     }
 
     // ------------------------------------------------------------------- export
 
-    private fun exportGallery() {
-        val note = page.i18n("Imported model: the model text is not included in this export.")
-        val text = GalleryStore.export(indexEntries, overlay, note)
+    /** Downloads the personal gallery as a standalone JSON file, model texts included. */
+    private fun exportPersonal() {
+        val text = GalleryStore.exportPersonal(overlay)
+        val size = text.encodeToByteArray().size
+        if (size > GALLERY_EXPORT_WARNING_BYTES) {
+            page.warning(
+                "The export is large (%0 MB): the download may take a while.",
+                size / (1024 * 1024)
+            )
+        }
         val blob = Blob(arrayOf<dynamic>(text), BlobPropertyBag(type = "application/json"))
-        download(GALLERY_EXPORT_FILE_NAME, blobHref(blob))
-        page.message("Gallery saved. Replace webroot/Gallery/gallery.json with the downloaded file.")
+        download(GALLERY_PERSONAL_FILE_NAME, blobHref(blob))
+    }
+
+    // ------------------------------------------------------------------- import
+
+    /** The "import my gallery" control: a plain file input, restricted to JSON files. */
+    private fun importControl(): FileInput {
+        val input = FileInput(
+            label = page.i18n("Import my gallery"), icon = "upload", color = ElementColor.Primary
+        )
+        val element = input.root.querySelector("input[type=file]") as? HTMLInputElement
+        // the accept attribute is only a hint: the content is validated anyway
+        element?.accept = ".json,application/json"
+        input.onChange = { _, files: FileList? ->
+            val file = files?.get(0)
+            if (file != null) importPersonal(file)
+            // lets the visitor choose the same file again
+            element?.value = ""
+        }
+        return input
+    }
+
+    /**
+     * Merges an exported personal gallery: an entry whose id is already known
+     * is replaced, the other ones are added.
+     */
+    private fun importPersonal(file: File) {
+        readText(file) { text ->
+            val imported = GalleryStore.decodeExport(text)
+            if (imported == null) {
+                page.error("This file is not a gallery export: nothing was imported.")
+                return@readText
+            }
+            // an id appearing twice in the file is imported once
+            val incoming = imported.associateBy { it.id }.values.toList()
+            var entries = overlay
+            incoming.forEach { entry -> entries = GalleryStore.upsert(entries, entry) }
+            val added = incoming.count { entry -> overlay.none { it.id == entry.id } }
+            val replaced = incoming.size - added
+            store(entries) { saved ->
+                if (saved) page.message("Import done: %0 added, %1 replaced.", added, replaced)
+            }
+        }
     }
 
     // --------------------------------------------------------------------- form
@@ -364,15 +442,16 @@ class GalleryController(private val page: ShowPage) {
                         file = existing?.file,
                         model = modelText,
                     )
-                    if (store(GalleryStore.upsert(overlay, entry))) {
-                        dialog?.active = false
-                        page.message(
-                            if (existing == null) "Model added to the gallery."
-                            else "Model updated in the gallery."
-                        )
-                    } else {
-                        errorLine.text =
-                            page.i18n("The gallery is too large for the browser storage. Delete a model or remove its image.")
+                    store(GalleryStore.upsert(overlay, entry)) { saved ->
+                        if (saved) {
+                            dialog?.active = false
+                            page.message(
+                                if (existing == null) "Model added to the gallery."
+                                else "Model updated in the gallery."
+                            )
+                        } else {
+                            errorLine.text = page.i18n("The gallery could not be saved in the browser storage.")
+                        }
                     }
                 }
             }
@@ -430,7 +509,7 @@ class GalleryController(private val page: ShowPage) {
 
     /**
      * Keeps small images as they are and resizes the big ones: a card does not
-     * need a full resolution photo, and the overlay is stored in localStorage.
+     * need a full resolution photo.
      */
     private fun shrinkImage(dataUrl: String, onData: (String) -> Unit) {
         if (dataUrl.length <= MAX_INLINE_IMAGE_CHARS) {
@@ -546,6 +625,11 @@ class GalleryController(private val page: ShowPage) {
             }
             .centy-gallery-status {
                 margin-bottom: 1rem;
+            }
+            .centy-gallery-notice {
+                margin-bottom: 0.9rem;
+                font-size: 0.8rem;
+                color: #7a7a7a;
             }
             .centy-gallery-preview {
                 margin-bottom: 1rem;

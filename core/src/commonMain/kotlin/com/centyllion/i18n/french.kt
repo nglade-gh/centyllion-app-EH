@@ -465,11 +465,63 @@ object French: Locale {
         "Simulation modifier" -> "Modificateur de simulation"
         "Modifiers" -> "Modificateurs"
         "Modifier" -> "Modificateur"
+        "Condition of a modifier" -> "Condition d'un modificateur"
         "Meta-actions" -> "Méta-actions"
         "Condition" -> "Condition"
         "Active" -> "Actif"
         "Probability" -> "Probabilité"
-        "Condition of a modifier" -> "Condition d'un modificateur"
+
+        // model gallery
+        "Gallery" -> "Galerie"
+        "Model gallery" -> "Galerie de modèles"
+        "Add Model" -> "Ajouter un modèle"
+        "Add a Model" -> "Ajouter un modèle"
+        "Edit the Model" -> "Modifier le modèle"
+        "Export my gallery" -> "Exporter ma galerie"
+        "Import my gallery" -> "Importer ma galerie"
+        "Your additions stay in this browser; export them to keep them or to transfer them." ->
+            "Vos ajouts restent dans ce navigateur ; exportez-les pour les conserver ou les transférer."
+        "The export is large (%0 MB): the download may take a while." ->
+            "L'export est volumineux (%0 Mo) : le téléchargement peut prendre un moment."
+        "This file is not a gallery export: nothing was imported." ->
+            "Ce fichier n'est pas un export de galerie : rien n'a été importé."
+        "Import done: %0 added, %1 replaced." -> "Import terminé : %0 ajoutée(s), %1 remplacée(s)."
+        "Loading gallery..." -> "Chargement de la galerie…"
+        "The gallery index could not be loaded." -> "L'index de la galerie n'a pas pu être chargé."
+        "No model in the gallery yet." -> "Aucun modèle dans la galerie pour le moment."
+        "Open this model in NetBioDyn?" -> "Ouvrir ce modèle dans NetBioDyn ?"
+        "OK" -> "OK"
+        "The current project will be replaced. Unsaved modifications will be lost." ->
+            "Le projet courant sera remplacé. Les modifications non enregistrées seront perdues."
+        "This model cannot be opened: it has neither a file nor a model text." ->
+            "Ce modèle ne peut pas être ouvert : il n'a ni fichier ni texte de modèle."
+        "The model file could not be loaded." -> "Le fichier du modèle n'a pas pu être chargé."
+        "The model could not be decoded." -> "Le modèle n'a pas pu être décodé."
+        "Model loaded from the gallery." -> "Modèle chargé depuis la galerie."
+        "Delete this model from the gallery?" -> "Supprimer ce modèle de la galerie ?"
+        "The entry is only hidden: gallery.json is never modified." ->
+            "L'entrée est seulement masquée : gallery.json n'est jamais modifié."
+        "The model is removed from the local gallery of this browser." ->
+            "Le modèle est retiré de la galerie locale de ce navigateur."
+        "Model removed from the gallery." -> "Modèle retiré de la galerie."
+        "Model added to the gallery." -> "Modèle ajouté à la galerie."
+        "Model updated in the gallery." -> "Modèle mis à jour dans la galerie."
+        "Edit" -> "Modifier"
+        "Delete" -> "Supprimer"
+        "Save" -> "Enregistrer"
+        "Title" -> "Titre"
+        "Model file (.nbd2 or .netbiodyn)" -> "Fichier de modèle (.nbd2 ou .netbiodyn)"
+        "Choose a model file" -> "Choisir un fichier de modèle"
+        "Choose a model file." -> "Choisissez un fichier de modèle."
+        "Description (optional)" -> "Description (facultatif)"
+        "Image (optional)" -> "Image (facultatif)"
+        "Choose an image" -> "Choisir une image"
+        "A title is required." -> "Un titre est requis."
+        "The model file is too large (over 2 MB)." -> "Le fichier de modèle est trop volumineux (plus de 2 Mo)."
+        "The selected file could not be read." -> "Le fichier sélectionné n'a pas pu être lu."
+        "Thumbnail generated from the initial state." -> "Vignette générée à partir de l'état initial."
+        "The gallery could not be saved in the browser storage." ->
+            "La galerie n'a pas pu être enregistrée dans le stockage du navigateur."
         else -> null
     }
 }

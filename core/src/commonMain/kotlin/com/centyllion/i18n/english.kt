@@ -373,11 +373,58 @@ object English: Locale {
         "Height" -> "Height"
         "Preset" -> "Preset"
         "Opacity" -> "Opacity"
-        "Simulation modifiers" -> "Simulation modifiers"
-        "Simulation modifier" -> "Simulation modifier"
-        "Meta-actions" -> "Meta-actions"
-        "Active" -> "Active"
-        "Condition" -> "Condition"
+
+        // model gallery
+        "Gallery" -> "Gallery"
+        "Model gallery" -> "Model gallery"
+        "Add Model" -> "Add Model"
+        "Add a Model" -> "Add a Model"
+        "Edit the Model" -> "Edit the Model"
+        "Export my gallery" -> "Export my gallery"
+        "Import my gallery" -> "Import my gallery"
+        "Your additions stay in this browser; export them to keep them or to transfer them." ->
+            "Your additions stay in this browser; export them to keep them or to transfer them."
+        "The export is large (%0 MB): the download may take a while." ->
+            "The export is large (%0 MB): the download may take a while."
+        "This file is not a gallery export: nothing was imported." ->
+            "This file is not a gallery export: nothing was imported."
+        "Import done: %0 added, %1 replaced." -> "Import done: %0 added, %1 replaced."
+        "Loading gallery..." -> "Loading gallery..."
+        "The gallery index could not be loaded." -> "The gallery index could not be loaded."
+        "No model in the gallery yet." -> "No model in the gallery yet."
+        "Open this model in NetBioDyn?" -> "Open this model in NetBioDyn?"
+        "OK" -> "OK"
+        "The current project will be replaced. Unsaved modifications will be lost." ->
+            "The current project will be replaced. Unsaved modifications will be lost."
+        "This model cannot be opened: it has neither a file nor a model text." ->
+            "This model cannot be opened: it has neither a file nor a model text."
+        "The model file could not be loaded." -> "The model file could not be loaded."
+        "The model could not be decoded." -> "The model could not be decoded."
+        "Model loaded from the gallery." -> "Model loaded from the gallery."
+        "Delete this model from the gallery?" -> "Delete this model from the gallery?"
+        "The entry is only hidden: gallery.json is never modified." ->
+            "The entry is only hidden: gallery.json is never modified."
+        "The model is removed from the local gallery of this browser." ->
+            "The model is removed from the local gallery of this browser."
+        "Model removed from the gallery." -> "Model removed from the gallery."
+        "Model added to the gallery." -> "Model added to the gallery."
+        "Model updated in the gallery." -> "Model updated in the gallery."
+        "Edit" -> "Edit"
+        "Delete" -> "Delete"
+        "Save" -> "Save"
+        "Title" -> "Title"
+        "Model file (.nbd2 or .netbiodyn)" -> "Model file (.nbd2 or .netbiodyn)"
+        "Choose a model file" -> "Choose a model file"
+        "Choose a model file." -> "Choose a model file."
+        "Description (optional)" -> "Description (optional)"
+        "Image (optional)" -> "Image (optional)"
+        "Choose an image" -> "Choose an image"
+        "A title is required." -> "A title is required."
+        "The model file is too large (over 2 MB)." -> "The model file is too large (over 2 MB)."
+        "The selected file could not be read." -> "The selected file could not be read."
+        "Thumbnail generated from the initial state." -> "Thumbnail generated from the initial state."
+        "The gallery could not be saved in the browser storage." ->
+            "The gallery could not be saved in the browser storage."
         else -> key
     }
 }
