@@ -31,7 +31,11 @@ class NetbioDynEvaluator(
     var ages: List<Int> = emptyList()
 
     /** Names of functions provided by this evaluator (in addition to [functions]) */
-    private val dynamicFunctions = setOf("agent", "field", "count", "countEmpty", "age")
+    private val dynamicFunctions = setOf(
+        "agent", "field", "count", "countEmpty", "age",
+        // activation tests, available in every predicate and every action
+        "IsActive", "IsInactive", "IsInUse", "IsNotInUse"
+    )
 
     /** True when x, y, z are not the cell of a behaviour (simulation modifier). */
     var absoluteCoordinates: Boolean = false
@@ -95,6 +99,23 @@ class NetbioDynEvaluator(
             }
         }
         "countEmpty" -> emptyCount.v
+        // activation tests: 1 when the condition holds, 0 otherwise
+        "IsActive" -> {
+            val sim = simulator
+            (sim != null && sim.isRuntimeEnabled(args[0].int)).v
+        }
+        "IsInactive" -> {
+            val sim = simulator
+            (sim != null && !sim.isRuntimeEnabled(args[0].int)).v
+        }
+        "IsInUse" -> {
+            val sim = simulator
+            (sim != null && sim.isModifierUsed(args[0].int)).v
+        }
+        "IsNotInUse" -> {
+            val sim = simulator
+            (sim != null && !sim.isModifierUsed(args[0].int)).v
+        }
         "age" -> {
             val sim = simulator?.simulation
             if (args.size >= 2 && sim != null && simulator != null) {

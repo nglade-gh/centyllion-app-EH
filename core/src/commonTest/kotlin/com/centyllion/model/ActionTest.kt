@@ -618,3 +618,32 @@ class DrawLineTest {
         assertNull(validateModifierActions("DrawLine(0, 1, 1, 5, 5)"))
     }
 }
+
+/** Activation tests usable in every predicate and every action. */
+class ActivationTestFunctionsTest {
+
+    @Test
+    fun testTheyAreValidFormulas() {
+        assertNull(validateFormula("IsActive(0) && IsNotInUse(1)"))
+        assertNull(validateFormula("IsInactive(2)"))
+        assertNull(validateFormula("IsInUse(0)"))
+    }
+
+    @Test
+    fun testAModifierSeesItsOwnState() {
+        // the modifier switches itself off at the first step: IsInUse(0) is true, then false
+        val model = GrainModel(
+            name = "tests",
+            grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+            modifiers = listOf(
+                SimulationModifier(name = "self", id = 0, formula = "IsInUse(0)", actions = "Unuse(0)"),
+                SimulationModifier(name = "seed", id = 1, formula = "IsNotInUse(0)", actions = "DrawLine(0, 0, 0, 3, 0)"),
+            ),
+        )
+        val simulator = Simulator(model, createSimulation("tests", size = 8) { -1 })
+        simulator.oneStep()
+        // the modifiers run in order inside the step: the second one sees the first one off
+        assertFalse(simulator.isModifierUsed(0), "the first modifier switched itself off")
+        assertEquals(4, simulator.agents.count { it >= 0 }, "the second modifier drew its line")
+    }
+}

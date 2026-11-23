@@ -23,6 +23,9 @@ enum class ExprType {
  * Used to check that a behaviour condition formula is a logical predicate
  * (returns true/false) and that a field formula returns a number.
  */
+/** Functions of the model language that return a truth value instead of a number. */
+private val booleanFunctions = setOf("IsActive", "IsInactive", "IsInUse", "IsNotInUse")
+
 fun Expression.inferType(): ExprType = when (this) {
     is BooleanLiteral -> ExprType.Boolean
     is NumberLiteral -> ExprType.Number
@@ -40,7 +43,8 @@ fun Expression.inferType(): ExprType = when (this) {
         BinaryOperator.Div, BinaryOperator.Rem -> ExprType.Number
     }
     is ExponentExpression -> ExprType.Number
-    is FunctionCall -> ExprType.Number
+    // the activation tests return a truth value: they can be used directly as predicates
+    is FunctionCall -> if (name.content in booleanFunctions) ExprType.Boolean else ExprType.Number
     is VariableCall -> ExprType.Number
     is TernaryExpression -> {
         val thenType = ifThen.inferType()

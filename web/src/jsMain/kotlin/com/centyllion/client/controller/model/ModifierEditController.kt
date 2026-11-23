@@ -98,6 +98,8 @@ class ModifierEditController(
                 helpLine("age(x, y)", "Age of the agent at the cell (x, y), 0 when the cell is empty"),
                 helpLine("count(id, x, y)", "Number of neighbours of type id around the cell (x, y)"),
                 helpLine("field(id, x, y)", "Value of the field id at the cell (x, y)"),
+                helpLine("IsActive(id) / IsInactive(id)", "1 when the behaviour id is active (resp. inactive), 0 otherwise"),
+                helpLine("IsInUse(id) / IsNotInUse(id)", "1 when the simulation modifier id is active (resp. inactive), 0 otherwise"),
             ),
             fullWidth = true, striped = true
         ),
