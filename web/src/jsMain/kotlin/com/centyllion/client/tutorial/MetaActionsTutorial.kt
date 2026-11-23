@@ -23,15 +23,20 @@ class MetaActionsTutorial(
         p(i18n("They are no longer written in a behaviour: the behaviour editor refuses them. They belong to a simulation modifier, in the section « Simulation modifiers », which only appears in expert mode. This tutorial puts you in expert mode and builds a small model to work on."))
     )
 
-    /** A single grain with one behaviour, so there is something to modify. */
+    /** The example project: two grains, two behaviours, ready for a modifier. */
     override fun prepare() {
-        val grain = Grain(id = 0, name = "cell", color = "Lime", icon = "square-full", movementProbability = 0.0)
+        val cell = Grain(id = 0, name = "cell", color = "Lime", icon = "square-full", movementProbability = 0.0)
+        val virus = Grain(id = 1, name = "Virus", color = "Crimson", icon = "square-full", movementProbability = 1.0)
         val model = GrainModel(
             name = "Modifiers",
             description = "A grain and a behaviour, ready for a modifier",
-            grains = listOf(grain),
+            grains = listOf(cell, virus),
             behaviours = listOf(
-                Behaviour(name = "stay", mainReactiveId = 0, mainProductId = 0, id = 0)
+                Behaviour(name = "stay", mainReactiveId = 0, mainProductId = 0, id = 0),
+                Behaviour(
+                    name = "Kill", mainReactiveId = 0, mainProductId = 1, id = 1,
+                    reaction = listOf(Reaction(reactiveId = 1, productId = 1, sourceReactive = 1))
+                )
             )
         )
         page.model = ModelAndSimulation(model, createSimulation("Modifiers", size = 100) { if (it % 97 == 0) 0 else -1 })
@@ -53,6 +58,7 @@ class MetaActionsTutorial(
             title = i18n("1. Create a modifier"),
             content = listOf(
                 p(i18n("In the explorer, find the section « Simulation modifiers » under the behaviours, then click its + button.")),
+                p(i18n("The model holds two grains — cell (0) and Virus (1) — and two behaviours: stay (0), which does nothing, and Kill (1), which turns a cell into a virus when it is next to a virus.")),
                 p(i18n("A row appears, like the ones of the grains, the fields and the behaviours: On/Off radio, name, identifier, probability. This one gets the identifier 0."))
             ),
             selector = modifiers,
@@ -74,10 +80,10 @@ class MetaActionsTutorial(
             title = i18n("3. Its actions: fill a zone, then switch itself off"),
             content = listOf(
                 p(i18n("In the Actions field of the same modifier, write the two meta-actions, separated by a comma:")),
-                code2("AddRect(0, 5, 10, 10, 50, 50), Unuse(0)"),
-                p(i18n("AddRect(0, 5, 10, 10, 50, 50) adds up to five agents of type 0 inside the rectangle (10, 10)-(50, 50). The positions are drawn among the empty cells of the zone.")),
+                code2("AddRect(1, 50, 10, 10, 20, 20), Unuse(0)"),
+                p(i18n("AddRect(1, 50, 10, 10, 20, 20) adds up to fifty viruses — grain 1 — inside the rectangle (10, 10)-(20, 20). The positions are drawn among the empty cells of the zone.")),
                 p(i18n("Unuse(0) switches off the modifier 0 — this one — for the rest of the run. Unuse targets a modifier, where Inactivate targets a behaviour: Use(id) and Unuse(id) are the On/Off radio of a modifier, written in a formula.")),
-                p(i18n("Chained after the condition step == 10, the whole thing therefore fires exactly once: at step 10 the zone fills up, and the modifier switches itself off so that it can never fire again, whatever the condition becomes."))
+                p(i18n("Chained after the condition step == 10, the whole thing therefore fires exactly once: at step 10 fifty viruses appear in the rectangle, and the modifier switches itself off so that it can never fire again, whatever the condition becomes."))
             ),
             selector = modifiers,
             validated = { modifierReady() != null }
@@ -85,6 +91,7 @@ class MetaActionsTutorial(
     )
 
     override val conclusion: List<BulmaElement> = listOf(
+        p(i18n("Run it: at step 10 the rectangle fills with viruses, then they spread cell by cell through the behaviour Kill. The modifier itself is off from that moment on.")),
         p(i18n("A modifier is evaluated once per step, after the behaviours. Its condition is evaluated outside any cell: use step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and IsActive/IsInactive/IsInUse/IsNotInUse to test the activation state."))
     )
 
