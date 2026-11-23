@@ -181,8 +181,6 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     ) { _, value -> expertMode = value }
 
     val tools = BField(
-        modelName.container,
-        modelDescription.container,
         galleryControl,
         newControl,
         Control(fileInput),

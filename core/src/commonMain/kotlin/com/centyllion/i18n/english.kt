@@ -53,6 +53,7 @@ object English: Locale {
         "Model Name" -> "Model Name"
         "Simulation Name" -> "Simulation Name"
         "Description" -> "Description"
+        "Model information" -> "Model information"
         "Model Description" -> "Model Description"
         "Simulation Description" -> "Simulation Description"
         "Clone Model" -> "Clone Model"
