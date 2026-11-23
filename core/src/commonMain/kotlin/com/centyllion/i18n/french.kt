@@ -529,6 +529,9 @@ object French: Locale {
         "Deselect" -> "Désélectionner"
         "Overwrite" -> "Écraser"
         "Keep" -> "Conserver"
+        "Rotate 90° (clockwise)" -> "Rotation 90° (horaire)"
+        "Flip horizontal" -> "Miroir horizontal"
+        "Flip vertical" -> "Miroir vertical"
         else -> null
     }
 }
