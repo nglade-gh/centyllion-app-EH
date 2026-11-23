@@ -18,6 +18,12 @@ class DisplayTutorial(
 
     override val name = i18n("Identifiers, activation, opacity and grid size")
 
+    override fun prepare() {
+        page.expertMode = true
+    }
+
+    private val settingsPanel = { page.modelController.settingsController.container.root }
+
     override val introduction: List<BulmaElement> = listOf(
         p(i18n("This tour covers the settings that act on what you see and on which behaviours run: behaviour identifiers, the On/Off radio, the opacity of the fields and the size of the grid."))
     )
@@ -29,7 +35,7 @@ class DisplayTutorial(
                 p(i18n("Each behaviour now has an identifier, displayed after its name in the explorer: name (id). It is what Activate(id) and Inactivate(id) target in the actions.")),
                 p(i18n("The radio in front of a behaviour switches it on or off by hand: an inactive behaviour is never applied, as if its probability were zero, but it keeps its settings. Clicking the radio again switches it back on."))
             ),
-            selector = { document.body!! },
+            selector = settingsPanel,
             validated = { true }
         ),
         TutorialStep(
@@ -38,7 +44,7 @@ class DisplayTutorial(
                 p(i18n("Open a field: below the formula, under a blue separator, an Opacity setting goes from 0 to 100 %.")),
                 p(i18n("It only changes the display: the field keeps diffusing with the same values, so the curves and the behaviours that read it are unaffected. At 0 % the field is not drawn at all."))
             ),
-            selector = { document.body!! },
+            selector = settingsPanel,
             validated = { true }
         ),
         TutorialStep(
@@ -47,7 +53,7 @@ class DisplayTutorial(
                 p(i18n("Settings > Environment lists the square presets up to 500, and a Custom mode with two incrementable values, width and height, by step of ten cells between 10 and 1000.")),
                 p(i18n("The two modes are exclusive: choosing a preset disables the custom values, and the Custom radio disables the preset list. Changing the size reinitialises the agents."))
             ),
-            selector = { document.body!! },
+            selector = settingsPanel,
             validated = { true }
         )
     )
