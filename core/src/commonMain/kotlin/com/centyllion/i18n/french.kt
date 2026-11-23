@@ -53,6 +53,7 @@ object French: Locale {
         "Model Name" -> "Nom du Modèle"
         "Simulation Name" -> "Nom de la Simulation"
         "Description" -> "Description"
+        "Model information" -> "Informations sur le modèle"
         "Model Description" -> "Description du Modèle"
         "Simulation Description" -> "Description de la Simulation"
         "Clone Model" -> "Cloner le Modèle"
