@@ -288,7 +288,8 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
                 currentFileName = selectedFile.name
                 // a loaded project must not be quick-saved into the previous file
                 saveHandle = null
-                setModel(netbiodynJson.decodeFromString(text))
+                // an old project is migrated on import, like in Endless Bloom
+                setModel(netbiodynJson.decodeFromString<ModelAndSimulation>(text).migrated())
             }
             reader.readAsText(selectedFile)
         }
