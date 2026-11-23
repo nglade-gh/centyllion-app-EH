@@ -1,0 +1,17 @@
+#!/bin/sh
+# Refuse tout push qui n'est pas la branche attendue de ce dépôt.
+# EB ne pousse que main, Forever ne pousse que NetBioDyn_Forever :
+# les deux projets partageaient un dépôt distant, une erreur de nom de branche
+# aurait envoyé le contenu d'un projet sur la branche de l'autre.
+ALLOWED="main"
+status=0
+while read local_ref local_sha remote_ref remote_sha; do
+    branch=$(echo "$remote_ref" | sed 's|^refs/heads/||')
+    if [ "$branch" = "$ALLOWED" ]; then
+        echo "pre-push : $branch autorisé"
+    else
+        echo "pre-push : REFUS — ce dépôt ne pousse que $ALLOWED, pas $branch" >&2
+        status=1
+    fi
+done
+exit $status
