@@ -39,6 +39,8 @@ class ModelController(
         if (old != new) {
             if (old.model != new.model) {
                 fieldsController.data = data.model.fields.filtered(searchController.data)
+                modifiersController.context = data.model
+                modifiersController.data = data.model.modifiers
                 grainsController.context = data.model
                 grainsController.data = data.model.grains.filtered(searchController.data)
                 behavioursController.context = data.model
@@ -48,7 +50,6 @@ class ModelController(
                 grainChart.data = createGrainPlots()
                 fieldChart.data = createFieldPlots()
                 refreshFieldPanels()
-                refreshModifiers()
 
                 // handles problems display
                 refreshProblems(new.model)
@@ -208,7 +209,7 @@ class ModelController(
             fieldsController.updateSelection(newSelection)
             grainsController.updateSelection(newSelection)
             behavioursController.updateSelection(newSelection)
-            updateModifierSelection(newSelection)
+            modifiersController.updateSelection(newSelection)
 
             // update simulation selected grain
             if (newSelection is Grain) {
@@ -383,94 +384,38 @@ class ModelController(
         editionTabPages.selectedPage = editionItem
     }
 
-    val modifiersHost = Column()
+    val modifiersController:
+        MultipleController<SimulationModifier, GrainModel, Columns, Column, Controller<SimulationModifier, GrainModel, Column>> =
+        columnsController(
+            initialList = data.model.modifiers,
+            initialContext = data.model,
+            onClick = { modifier, _ -> selected = modifier }
+        ) { modifier, previous ->
+            previous ?: ModifierDisplayController(page, modifier, data.model).wrap { controller ->
+                controller.onDelete = {
+                    data = data.copy(model = data.model.dropModifier(controller.data))
+                    selected = null
+                }
+                controller.onEnabledChange = { enabled ->
+                    data = data.copy(
+                        model = data.model.updateModifier(controller.data, controller.data.copy(enabled = enabled))
+                    )
+                }
+                Column(controller.container, size = ColumnSize.Full)
+            }
+        }
 
     // same section header as the grains, the fields and the behaviours (collapsible chevron)
-    val modifiersHeader = sectionHeader("sliders-h", "Simulation modifiers", modifiersHost, addModifierButton)
+    val modifiersHeader = sectionHeader("sliders-h", "Simulation modifiers", modifiersController, addModifierButton)
 
     // the modifiers only make sense in expert mode
     private fun showModifiers(visible: Boolean) {
         modifiersHeader.hidden = !visible
-        modifiersHost.hidden = !visible
+        modifiersController.hidden = !visible
     }
 
     init {
         showModifiers(expertMode)
-    }
-
-    /** Boxes of the modifier rows, to toggle the selection border. */
-    private val modifierRowBoxes = mutableListOf<Pair<SimulationModifier, Box>>()
-
-    /** Rebuilds the modifier rows: On/Off radio, name (id), probability, delete. */
-    private fun refreshModifiers() {
-        modifierRowBoxes.clear()
-        modifiersHost.body = data.model.modifiers.map { modifier ->
-            val box = modifierRow(modifier)
-            modifierRowBoxes.add(modifier to box)
-            box
-        }
-        updateModifierSelection(modifierSelection)
-    }
-
-    /** Last known selection (the `selected` delegate may not be initialised yet). */
-    private var modifierSelection: ModelElement? = null
-
-    /**
-     * Purple border on the selected modifier. The boxes are read from the DOM so this works
-     * even before the rows have been rebuilt once.
-     */
-    private fun updateModifierSelection(selection: ModelElement?) {
-        modifierSelection = selection
-        val selectedUuid = (selection as? SimulationModifier)?.uuid?.toString()
-        val boxes = modifiersHost.root.querySelectorAll(".centy-modifier-row")
-        for (index in 0 until boxes.length) {
-            val box = boxes.item(index) as? HTMLElement ?: continue
-            box.classList.toggle("is-selected", selectedUuid != null && box.getAttribute("data-modifier-uuid") == selectedUuid)
-        }
-    }
-
-    private fun modifierRow(modifier: SimulationModifier): Box {
-        val radio = (document.createElement("input") as HTMLInputElement).apply {
-            type = "radio"
-            name = "modifier-enabled-${modifier.uuid}"
-            checked = modifier.enabled
-            setAttribute("data-modifier-id", "${modifier.id}")
-        }
-        val toggle = HtmlWrapper(
-            (document.createElement("label") as HTMLLabelElement).apply {
-                classList.add("radio")
-                appendChild(radio)
-            }
-        )
-        radio.addEventListener("click", { event: Event ->
-            event.stopPropagation()
-            val current = data.model.modifiers.firstOrNull { it.uuid == modifier.uuid } ?: modifier
-            val target = !current.enabled
-            radio.checked = target
-            this.data = this.data.copy(model = data.model.updateModifier(current, current.copy(enabled = target)))
-        })
-        val label = Label("${modifier.name} (${modifier.id})")
-        val delete = iconButton(Icon("times", Size.Small), ElementColor.Danger, true, size = Size.Small) {
-            this.data = this.data.copy(model = data.model.dropModifier(modifier))
-            if (selected === modifier) selected = null
-        }
-        // the delete click must not bubble to the box (it would re-select a removed modifier)
-        delete.root.addEventListener("click", { event: Event -> event.stopPropagation() })
-        // same probability badge as the behaviours
-        val probability = textButton(
-            modifier.probability.toString(), rounded = true,
-            color = ElementColor.Success, size = Size.Small
-        )
-        // a white box per modifier, in the same style as the grains, fields and behaviours;
-        // a click anywhere in the box selects it
-        val box = Box(
-            Level(left = listOf(toggle, label), right = listOf(probability, delete), mobile = true)
-        )
-        box.root.setAttribute("data-modifier-uuid", "${modifier.uuid}")
-        box.root.classList.add("centy-modifier-row")
-        box.root.style.cursor = "pointer"
-        box.root.addEventListener("click", { selected = modifier })
-        return box
     }
 
     val grainsHeader = sectionHeader(grainIcon, "Grains", grainsController, addGrainButton)
@@ -486,7 +431,7 @@ class ModelController(
         behavioursHeader,
         behavioursController,
         modifiersHeader,
-        modifiersHost,
+        modifiersController,
         problemsMessage,
         size = ColumnSize.S3
     ).apply {
