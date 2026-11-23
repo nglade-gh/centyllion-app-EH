@@ -60,7 +60,12 @@ class SimulatorViewController(
             // grid size) must recompute it, otherwise the canvas keeps the previous size
             if (old.simulation.width != new.simulation.width || old.simulation.height != new.simulation.height) {
                 zoom = 1.0
+                invalidateColors()
                 layout()
+                // the container has not been reflowed yet when the data arrives: measure again
+                // once the browser has applied the new sizes
+                window.setTimeout({ layout() }, 0)
+                window.setTimeout({ layout() }, 120)
             }
             render()
         }
