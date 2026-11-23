@@ -61,7 +61,12 @@ class SimulatorViewController(
             // size of the previous one and the cells are drawn inside a wrong area
             if (old.simulation.width != new.simulation.width || old.simulation.height != new.simulation.height) {
                 zoom = 1.0
+                invalidateColors()
                 layout()
+                // the container has not been reflowed yet when the data arrives: measure again
+                // once the browser has applied the new sizes
+                window.setTimeout({ layout() }, 0)
+                window.setTimeout({ layout() }, 120)
             }
             render()
         }
