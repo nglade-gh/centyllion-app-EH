@@ -35,6 +35,7 @@ class BehaviourEditController(
             reactionsController.context = new to context
             fieldPredicatesController.data = new.fieldPredicates
             countPredicatesController.data = new.agentCountPredicates
+            boundaryConditionsController.data = new.boundaryConditions
             fieldInfluencesController.data = context.fields.map { it.id to (new.fieldInfluences[it.id] ?: 0f) }
             onUpdate(old, new, this@BehaviourEditController)
             refresh()
@@ -115,6 +116,7 @@ class BehaviourEditController(
             fieldPredicatesController.readOnly = new
             countPredicatesController.readOnly = new
             fieldInfluencesController.readOnly = new
+            boundaryConditionsController.readOnly = new
         }
     }
 
@@ -312,17 +314,7 @@ class BehaviourEditController(
                 helpLine("SetField(id, dx, dy, value)", "Sets the value of field id at offset (dx, dy) to value (clamped between 0 and 1)"),
                 helpLine("AddField(id, dx, dy, delta)", "Adds delta to the value of field id at offset (dx, dy) (result clamped between 0 and 1)"),
                 helpLine("ClearField(id, dx, dy)", "Sets the value of field id at offset (dx, dy) to 0"),
-                helpLine("pause()", "Pauses the simulation at the end of the current step"),
-                helpLine("Add(id, N)", "Adds N agents of type id anywhere in the environment (two arguments: the global form)"),
-                helpLine("AddRect(id, N, x1, y1, x2, y2)", "Adds N agents of type id inside the rectangle (x1, y1)-(x2, y2)"),
-                helpLine("AddDisc(id, N, x, y, radius)", "Adds N agents of type id inside the disc centred on (x, y)"),
-                helpLine("EraseRect(x1, y1, x2, y2)", "Erases every agent of the rectangle, whatever its type"),
-                helpLine("EraseDisc(x, y, radius)", "Erases every agent of the disc, whatever its type"),
-                helpLine("EraseRect(id, x1, y1, x2, y2)", "Erases the agents of type id inside the rectangle (five arguments)"),
-                helpLine("EraseDisc(id, x, y, radius)", "Erases the agents of type id inside the disc (four arguments)"),
-                helpLine("Erase(id)", "Erases every agent of type id in the whole environment"),
-                helpLine("Activate(id)", "Activates a behaviour by its identifier (no effect when already active)"),
-                helpLine("Inactivate(id)", "Inactivates a behaviour by its identifier (no effect when already inactive)"),
+                // the meta-actions are not listed here: they belong to the simulation modifiers
             ),
             fullWidth = true, striped = true
         ),
@@ -539,18 +531,27 @@ class BehaviourEditController(
         size = ColumnSize.Full
     ).apply { hidden = context.fields.isEmpty() }
 
+    /** Walls of the neighbourhood this behaviour can see (same control as in the grain editor). */
+    val boundaryConditionsController = BoundaryConditionsController(
+        data.boundaryConditions, page
+    ) { _, new -> this.data = this.data.copy(boundaryConditions = new) }
+
+    val boundaryConditionsGroup = boundaryConditionsController.container
+
     override val container = editorBox(page.i18n("Behaviour"), behaviourIcon,
         // top block: information
         blockTitle(page.i18n("Misc")),
         HorizontalField(Label(page.i18n("Name")), nameController.container),
         HorizontalField(Label(page.i18n("Description")), descriptionController.container),
-        // middle block: predicates (graphical in normal mode, formula in expert mode)
+        // middle block: conditions (graphical predicates in normal mode, formula in expert
+        // mode) and the walls of the visible neighbourhood
         HtmlWrapper(createHr().also { it.classList.add("centy-block-separator") }),
         blockTitle(page.i18n("Predicates")),
         agePredicatesGroup,
         fieldThresholdsGroup,
         countPredicatesGroup,
         formulaLine,
+        boundaryConditionsGroup,
         // bottom block: speed, field influences, reactions and actions (expert mode)
         HtmlWrapper(createHr().also { it.classList.add("centy-block-separator") }),
         blockTitle("Reactions"),

@@ -236,6 +236,9 @@ data class AgentCountPredicate(
  * boundary-conditions object is written with ALL four walls explicit
  * ([EncodeDefault.Mode.ALWAYS]); when the grain is toric everywhere the
  * object is omitted entirely (default value).
+ *
+ * The same class is used by [Behaviour]: a behaviour carries the walls of its
+ * own visible neighbourhood (see [Behaviour.boundaryConditions]).
  */
 @Serializable
 data class BoundaryConditions(
@@ -244,6 +247,12 @@ data class BoundaryConditions(
     @EncodeDefault(EncodeDefault.Mode.ALWAYS) val top: Boolean = true,
     @EncodeDefault(EncodeDefault.Mode.ALWAYS) val bottom: Boolean = true,
 ) {
+    /**
+     * True when the four walls are toric (the default): nothing is hidden from the
+     * neighbour view, so the precomputed neighbour table can be used as is.
+     */
+    val isToric: Boolean get() = left && right && top && bottom
+
     /**
      * True if a one-step move from [position] in [direction] crosses a CLOSED
      * (false) wall. A diagonal move at a corner may cross two walls: if any
@@ -303,8 +312,25 @@ data class Behaviour(
     @EncodeDefault(EncodeDefault.Mode.NEVER) val id: Int = 0,
     /** False when the behaviour is deactivated: it is never applied. */
     @EncodeDefault(EncodeDefault.Mode.NEVER) val enabled: Boolean = true,
+    /**
+     * Walls of the neighbourhood this behaviour can see, with the same meaning and the same
+     * JSON shape as [Grain.boundaryConditions]: all four true (the default, key omitted) is
+     * toric everywhere, and a false wall makes the neighbours lying beyond it invisible.
+     *
+     * This is not the authorisation to move across a wall (that one belongs to the product
+     * grain): it restricts the neighbour view used by the count predicates, the condition
+     * formula, the reactions and the field influences of the behaviour.
+     */
+    val boundaryConditions: BoundaryConditions = BoundaryConditions(),
     @Transient override val uuid: Uuid = uuid4(),
 ) : ModelElement {
+
+    /**
+     * True when at least one wall is closed, i.e. when the neighbour view must be filtered.
+     * The all-toric default keeps the precomputed neighbour table untouched.
+     */
+    @Transient
+    val hasClosedBoundary: Boolean = !boundaryConditions.isToric
 
     /** Parsed condition expression (cached) */
     @Transient
@@ -467,13 +493,17 @@ data class Behaviour(
             val value = c.fieldValue(p.first).flatten(minFieldLevel)
             if (!p.second.check(value)) return false
         }
+        // A behaviour whose boundary has a closed wall does not see the neighbours beyond that
+        // wall: they are neither counted nor read. The all-toric default (hidden == 0) keeps the
+        // counts that were computed once for the cell, so the usual path is unchanged.
+        val hidden = if (hasClosedBoundary) c.hideNeighboursBehind(boundaryConditions) else 0
         // checks agent count predicates (counts are computed once per cell)
         for (p in agentCountPredicates) {
             val actualCount = when {
                 // counting empty cells, then every agent, then one grain type
-                p.grainId == COUNT_EMPTY_CELLS -> c.emptyCount
-                p.grainId == COUNT_ALL_AGENTS -> c.occupiedCount
-                else -> c.counts[p.grainId] ?: 0
+                p.grainId == COUNT_EMPTY_CELLS -> if (hidden > 0) c.visibleEmptyCount else c.emptyCount
+                p.grainId == COUNT_ALL_AGENTS -> if (hidden > 0) c.visibleOccupiedCount else c.occupiedCount
+                else -> (if (hidden > 0) c.visibleCounts else c.counts)[p.grainId] ?: 0
             }
             if (!p.check(actualCount)) return false
         }
@@ -481,8 +511,8 @@ data class Behaviour(
         if (formula.isNotBlank()) {
             try {
                 val evaluator = c.evaluator
-                evaluator.agentCounts = c.counts
-                evaluator.emptyCount = c.emptyCount
+                evaluator.agentCounts = if (hidden > 0) c.visibleCounts else c.counts
+                evaluator.emptyCount = if (hidden > 0) c.visibleEmptyCount else c.emptyCount
                 evaluator.step = c.step.v
                 // ages for age(n), 1-based "reactive" numbering (same as the
                 // age-inheritance column): [0] main agent (0 for generation
@@ -496,6 +526,7 @@ data class Behaviour(
                 for (r in reaction) {
                     var found = 0
                     for (k in c.neighbourIds.indices) {
+                        if (hidden > 0 && c.hiddenDirections[k]) continue
                         if (c.neighbourIds[k] == r.reactiveId &&
                             r.allowedDirection.contains(CellContext.DIRECTIONS[k])
                         ) {
@@ -524,11 +555,14 @@ data class Behaviour(
         // only allowed if the product grain authorises crossing that wall
         // (missing product grain -> no restriction). Reactions with
         // reactiveId >= 0 transform an agent in place: never restricted.
+        // In both cases a neighbour hidden by a closed wall of this behaviour is
+        // invisible: it can be neither a reactive nor the target of a product.
         for (r in reaction) {
             val bc = if (r.reactiveId == -1) c.simulator.model.grainForId(r.productId)?.boundaryConditions else null
             if (r.allowedDirection.none { d ->
                     val k = CellContext.DIRECTIONS.indexOf(d)
                     k >= 0 && c.neighbourIds[k] == r.reactiveId &&
+                            (hidden == 0 || !c.hiddenDirections[k]) &&
                             (bc == null || !bc.crossed(c.position, d, c.simulator.simulation.width, c.simulator.simulation.height))
                 }) return false
         }
@@ -606,13 +640,14 @@ data class Position(
 
 /**
  * Simulation modifier: a condition and a list of meta-actions, evaluated **once per step**,
- * outside any cell. It is the only place where the meta-actions may be used.
+ * outside any cell. It is the only place where the meta-actions (spawning, erasing zones,
+ * pausing, activating behaviours) may be used.
  */
 @Serializable
 data class SimulationModifier(
     override val name: String = "",
     override val description: String = "",
-    /** Condition formula: step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y). */
+    /** Condition formula, without any current cell: step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y). */
     val formula: String = "",
     /** Meta-actions executed once per step when the condition holds. */
     val actions: String = "",
@@ -891,6 +926,57 @@ class CellContext(val simulator: Simulator) {
 
     /** Neighbour cell indexes, indexed like [DIRECTIONS]. */
     val neighbourIndices: IntArray = IntArray(DIRECTIONS.size)
+
+    /**
+     * Directions whose neighbour lies beyond a CLOSED wall of the behaviour being tested,
+     * indexed like [DIRECTIONS]. Only filled by [hideNeighboursBehind], which is only called
+     * for behaviours that close at least one wall.
+     */
+    val hiddenDirections: BooleanArray = BooleanArray(DIRECTIONS.size)
+
+    /** Number of directions hidden by [hiddenDirections] (0 for a toric behaviour). */
+    var hiddenCount: Int = 0
+
+    /** Grain counts over the neighbours that are not hidden (non-toric behaviours only). */
+    val visibleCounts: MutableMap<Int, Int> = HashMap()
+
+    var visibleEmptyCount: Int = 0
+    var visibleOccupiedCount: Int = 0
+
+    /**
+     * Hides the neighbours lying beyond a CLOSED wall of [bc] and recomputes their counts.
+     *
+     * [BoundaryConditions.crossed] answers exactly "does this one-step move across the
+     * corresponding wall", so a toric boundary hides nothing; the grid wrapping itself is
+     * already applied by the precomputed neighbour table, and this filter only refuses to
+     * look at the cells that this table reached through a closed wall.
+     *
+     * Returns [hiddenCount].
+     */
+    fun hideNeighboursBehind(bc: BoundaryConditions): Int {
+        val simulation = simulator.simulation
+        var hidden = 0
+        for (k in DIRECTIONS.indices) {
+            val crosses = bc.crossed(position, DIRECTIONS[k], simulation.width, simulation.height)
+            hiddenDirections[k] = crosses
+            if (crosses) hidden += 1
+        }
+        hiddenCount = hidden
+        if (hidden == 0) return 0
+
+        visibleCounts.clear()
+        var empty = 0
+        for (k in DIRECTIONS.indices) {
+            if (hiddenDirections[k]) continue
+            val id = neighbourIds[k]
+            if (id >= 0) visibleCounts[id] = (visibleCounts[id] ?: 0) + 1 else empty += 1
+        }
+        visibleEmptyCount = empty
+        visibleOccupiedCount = DIRECTIONS.size - hidden - empty
+        visibleCounts[COUNT_ALL_AGENTS] = visibleOccupiedCount
+        visibleCounts[COUNT_EMPTY_CELLS] = visibleEmptyCount
+        return hidden
+    }
 
     /** Reused buffer for the `age(n)` values of a formula. */
     val agesBuffer: MutableList<Int> = ArrayList(4)

@@ -251,6 +251,25 @@ Voisin (C)   : C → C</code></pre>
   <p>
     Un agent <code>A</code> se transforme en <code>B</code> en présence d'un catalyseur <code>C</code>.
   </p>
+  <h3>Conditions aux limites du comportement</h3>
+
+  <p>Chaque comportement porte ses propres parois, gauche, droite, haut et bas.
+  Par défaut, <strong>toutes sont toriques</strong> : le comportement « voit » au-delà
+  du bord comme si la grille s'enroulait, exactement comme avant.</p>
+
+  <p>Si une paroi est fermée, le comportement <strong>ne voit ni agent ni valeur de
+  champ au-delà de cette paroi</strong> : les voisins situés derrière sont ignorés par
+  les comptages de voisins (<code>count()</code>, <code>age(n)</code>, les conditions
+  de comptage), par les réactions et par les influences de champ. Le reste de la
+  simulation n'est pas affecté : les autres comportements gardent leurs propres
+  parois, et la grille elle-même ne change pas.</p>
+
+  <p>Cela permet par exemple de donner à un comportement un bord absorbant — une
+  réaction qui ne se déclenche pas depuis l'autre côté de la grille — sans toucher
+  au comportement des autres. Un comportement enregistré avec ses quatre parois
+  toriques n'écrit rien dans le fichier <code>.nbd2</code> ; dès qu'une paroi est
+  fermée, les quatre sont écrites explicitement.</p>
+
   <h3>Le prédicat</h3>
   <p>
     La ligne <strong>Predicate</strong> (formule) définit la condition d'application du comportement.

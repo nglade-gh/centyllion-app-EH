@@ -548,10 +548,17 @@ class Simulator(
         return result.toList()
     }
 
-    /** Builds the neighbour view of a cell, only when a behaviour was actually selected. */
-    private fun neighboursFor(cell: CellContext): List<Pair<Direction, Agent>> {
+    /**
+     * Builds the neighbour view of a cell, only when a behaviour was actually selected.
+     *
+     * When [visibleOnly] is true (a behaviour with a closed wall), the neighbours that the
+     * precomputed table reached through a closed wall are left out: they are not instantiated
+     * and their fields are not read, so they are simply absent from the view.
+     */
+    private fun neighboursFor(cell: CellContext, visibleOnly: Boolean = false): List<Pair<Direction, Agent>> {
         val result = ArrayList<Pair<Direction, Agent>>(CellContext.DIRECTIONS.size)
         for (k in CellContext.DIRECTIONS.indices) {
+            if (visibleOnly && cell.hiddenDirections[k]) continue
             val direction = CellContext.DIRECTIONS[k]
             val index = cell.neighbourIndices[k]
             val fieldValues = if (model.fields.isEmpty()) emptyFloatArray
@@ -574,7 +581,9 @@ class Simulator(
         ageOfMainAgent: Int
     ) {
         val position = cell.position
-        val neighbours = neighboursFor(cell)
+        // a behaviour with a closed wall only sees the neighbours that are not hidden by it
+        val visibleOnly = behaviour.hasClosedBoundary && cell.hideNeighboursBehind(behaviour.boundaryConditions) > 0
+        val neighbours = neighboursFor(cell, visibleOnly)
         val fieldValues = fieldsAtIndex(i)
 
         // for each reaction, find all possible reactives

@@ -70,20 +70,6 @@ JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE" \
 - Sortie : `compose/shared/build/compose/binaries/main/app/Centyllion/`
 - Aucune dépendance externe sur la machine cible (JRE embarqué)
 
-
-
-```bash
-# Construire la distribution autonome (JRE incluse, ~180 Mo)
-./gradlew :compose:shared:createDistributable
-
-# Lancer (avec rendu logiciel si pas de GPU)
-JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE" \
-  xvfb-run -a ./compose/shared/build/compose/binaries/main/app/Centyllion/bin/Centyllion
-```
-
-- Sortie : `compose/shared/build/compose/binaries/main/app/Centyllion/`
-- Aucune dépendance externe sur la machine cible (JRE embarqué)
-
 ### 3.2 Site web statique
 
 ```bash
@@ -140,72 +126,6 @@ de fichiers.
 > présentent pas). Utilisez Chrome/Chromium, Edge ou Firefox pour un affichage
 > fiable des graphiques.
 
-#### Déploiement (serveur universitaire)
-
-NetBioDyn Forever est servi comme **site statique** : aucun backend, aucune base
-de données (le module `db/` est optionnel et désactivé par défaut). L'archive
-prête à déployer est déposée dans `dist/` :
-
-```bash
-# 1) construire le bundle de production (grpUser/grpToken requis pour bulma-kotlin)
-./gradlew :web:jsBrowserProductionWebpack :web:syncJs
-
-# 2) fabriquer l'archive : contenu de web/webroot à la racine (pas de dossier
-#    webroot/), sans certificats ni fichiers de test. Script fourni, sans
-#    dépendance externe (il vérifie que le bundle existe).
-python3 tools/make_release_zip.py
-#    -> dist/netbiodyn-forever-1.0-web.zip
-```
-
-L'archive n'est pas versionnée (`/dist/` figure dans `.gitignore`) : c'est un
-produit de build, reconstruit à chaque release.
-
-Contenu de l'archive (9 fichiers, ~1 Mo) : `index.html`, `help.html`,
-`favicon.ico`, `version.json`, `css/centyllion.css`,
-`js/centyllion/centyllion.js` (+ `.js.map`), `font/`.
-
-```bash
-# sur le serveur
-sudo mkdir -p /var/www/netbiodyn-forever
-sudo unzip netbiodyn-forever-1.0-web.zip -d /var/www/netbiodyn-forever
-# puis ouvrir http://<serveur>/netbiodyn-forever/
-```
-
-**En-têtes de cache — à ne pas négliger** : les noms de fichiers sont fixes
-(`centyllion.js`, sans empreinte dans le nom). Sans revalidation, un navigateur
-peut continuer à servir l'ancienne application après un déploiement. Avec nginx :
-
-```nginx
-location = /index.html   { add_header Cache-Control "no-cache"; }
-location = /version.json { add_header Cache-Control "no-cache"; }
-location /js/            { add_header Cache-Control "no-cache"; }
-location /css/           { add_header Cache-Control "no-cache"; }
-```
-
-(Apache : `Header set Cache-Control "no-cache"` dans un `.htaccess`, module
-`headers` activé.)
-
-**HTTP ou HTTPS** : le bouton **Save As** n'utilise l'explorateur natif
-(API File System Access) qu'en contexte sécurisé (HTTPS ou `localhost`). En
-HTTP, l'application se rabat sur `save_bridge.py` s'il tourne sur la machine de
-l'utilisateur, sinon sur un simple téléchargement — voir la section
-« Sauvegarde de fichiers » ci-dessus. Les deux modes de service fonctionnent,
-avec ces limitations de sauvegarde.
-
-**À ne pas déployer** : `web/certs/` (clés privées), `web/webroot/test_*.json`
-(modèles de test), les sources, `dist/`.
-
-**Mise à jour** : reconstruire l'archive, la déployer, puis vérifier la
-date/heure affichée par le bouton **About** — le dialogue lit `version.json`,
-régénéré à chaque build. Si le navigateur affiche encore l'ancienne date,
-forcer un rechargement (Ctrl+Shift+R) et vérifier les en-têtes de cache.
-
-**Diffusion publique** : pour un utilisateur qui ne dispose pas des identifiants
-du paquet `bulma-kotlin`, joindre cette même archive `dist/netbiodyn-forever-1.0-web.zip`
-à la *release* GitHub du tag `forever-1.0` (le code source seul ne suffit pas :
-le bundle JS/CSS n'est pas versionné et ne peut pas être reconstruit sans ces
-identifiants).
-
 ### 3.3 Serveur de développement web
 
 ```bash
@@ -220,6 +140,39 @@ xvfb-run -a ./gradlew :compose:shared:run
 ```
 
 ---
+
+### 3.5 Archive de déploiement
+
+`tools/version_deployment.py` construit l'archive d'une version et sait faire la
+différence entre les deux dépôts voisins (`Endless_Bloom` et
+`NetBioDyn_Forever`) :
+
+```bash
+python3 tools/version_deployment.py              # menu : quelle version déployer ?
+python3 tools/version_deployment.py bloom        # Endless Bloom  (branche main)
+python3 tools/version_deployment.py forever      # NetBioDyn Forever (branche NetBioDyn_Forever)
+python3 tools/version_deployment.py all --label 2.0.1
+```
+
+Le bundle est **toujours reconstruit** à partir des sources avant l'archivage :
+seules les sources sont versionnées, une archive ne contient donc jamais un
+bundle périmé.
+
+L'archive (`<version>/dist/<nom>-<version>-web.zip`) contient le contenu de
+`web/webroot` **à la racine**, sans `certs/` ni `test_*.json` : elle se dézippe
+directement dans le répertoire servi par le serveur web. Le script affiche la
+branche et le SHA archivés, la taille, le nombre de fichiers et le `sha256`.
+
+Le script ne contient aucun chemin absolu : tout est déduit de son emplacement.
+`forever` utilise le dépôt voisin `../NetBioDyn_Forever` ; s'il est ailleurs,
+`--forever-path /chemin/vers/NetBioDyn_Forever`.
+
+La construction réclame les identifiants du dépôt Maven privé de bulma-kotlin
+(`grpUser` / `grpToken`, propriétés Gradle) — ou un cache Gradle déjà chaud.
+
+Après mise à jour sur le serveur, vérifier la date affichée dans le menu About :
+le navigateur ressert l'ancienne version si les en-têtes de cache ne sont pas en
+`no-cache`.
 
 ## 4. Nouvelles fonctionnalités
 
@@ -374,13 +327,19 @@ plateau). En **mode expert** :
   empêche les agents de ce grain de la traverser. L'asymétrie est autorisée
   (ex. Gauche décoché + Droite coché : un agent du bord gauche ne sort pas en
   allant à gauche, un agent du bord droit sort en allant à droite).
+- **Comportement** (éditeur de comportement, section *Conditions*, sous les
+  prédicats) : les mêmes 4 interrupteurs *Conditions aux limites*, avec les
+  mêmes libellés. Ils ne gouvernent pas un déplacement mais le **voisinage
+  visible** : une paroi décochée rend invisibles les voisins situés au-delà
+  (ni réactif, ni case cible, ni compté, ni champ lu). Les quatre parois
+  cochées (défaut) = torique, cas de tous les fichiers existants.
 - **Champ** (éditeur de champ) : interrupteur *Toric* ; décoché = bordure
   **imperméable** (la diffusion ne traverse pas les bords de la grille,
   « best effort » sans solveur dédié).
 
-Les conditions sont stockées dans le modèle (`boundaryConditions` par grain,
-`toric` par champ), visibles en mode expert seulement, et sauvegardées
-(cf. §4.9).
+Les conditions sont stockées dans le modèle (`boundaryConditions` par grain et
+par comportement, `toric` par champ), sauvegardées (cf. §4.9) ; celles du
+comportement sont visibles dans les deux modes, comme celles du grain.
 
 ### 4.9 Format de sauvegarde (`.netbiodyn`)
 
@@ -388,7 +347,7 @@ Les fichiers sauvegardés sont compacts : une valeur égale à sa valeur par
 défaut est omise (`encodeDefaults = false`), sauf quatre champs qui obéissent
 à un contrat explicite d'**écriture complète** pour rester autodescriptifs :
 
-- `boundaryConditions` (grain) : omis si torique partout ; sinon les **4
+- `boundaryConditions` (grain, comportement) : omis si torique partout ; sinon les **4
   parois sont toujours écrites** (`{"left":false,"right":true,"top":true,"bottom":true}`) ;
 - `toric` (champ) : écrit seulement si `false` ;
 - `agentCountPredicates` (comportement) : liste omise si vide ; chaque

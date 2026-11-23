@@ -176,7 +176,7 @@ object French: Locale {
         "Close" -> "Fermer"
         "Age" -> "Âge"
         "Reactions" -> "Réactions"
-        "Predicates" -> "Prédicats"
+        "Predicates" -> "Conditions"
         "Nb Neighbours" -> "Nb voisins"
         "Nb" -> "Nb"
         "All agents" -> "Tous les agents"
@@ -532,6 +532,78 @@ object French: Locale {
         "Rotate 90° (clockwise)" -> "Rotation 90° (horaire)"
         "Flip horizontal" -> "Miroir horizontal"
         "Flip vertical" -> "Miroir vertical"
+
+        // edit bar switches and explorer visibility switches
+        "Toric ?" -> "Torique ?"
+        "Overwrite ?" -> "Écraser ?"
+        "Show ?" -> "Show ?"
+
+        // help of the meta-actions of a simulation modifier
+        "The actions are executed once per step, after the behaviours, when the condition is true." ->
+            "Les actions sont exécutées une fois par étape, après les comportements, quand la condition est vraie."
+        "Only meta-actions are allowed here: they act on the simulation as a whole, not on one cell." ->
+            "Seules les méta-actions sont autorisées ici : elles agissent sur la simulation dans son ensemble, pas sur une cellule."
+        "State tests" -> "Tests d'état"
+        "Grid commands" -> "Commandes de grille"
+        "The identifiers are those displayed in the explorer, after the name: name (id). Arguments can be expressions built on the condition functions." ->
+            "Les identifiants sont ceux affichés dans l'explorateur, après le nom : nom (id). Les arguments peuvent être des expressions construites sur les fonctions de la condition."
+        "AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones." ->
+            "AddRect et AddDisc tirent leurs positions parmi les cellules vides de la zone : demander plus d'agents qu'il n'y a de cellules libres n'ajoute que les agents possibles."
+
+        "Pauses the simulation at the end of the current step, for instance %0." ->
+            "Met la simulation en pause à la fin de l'étape courante, par exemple %0."
+        "Adds N agents of type id on empty cells drawn at random in the whole environment, for instance %0." ->
+            "Ajoute N agents de type id sur des cellules vides tirées au hasard dans tout l'environnement, par exemple %0."
+        "Adds N agents of type id on the empty cells of the rectangle (x1, y1)-(x2, y2), for instance %0." ->
+            "Ajoute N agents de type id sur les cellules vides du rectangle (x1, y1)-(x2, y2), par exemple %0."
+        "Adds N agents of type id on the empty cells of the disc centred on (x, y), for instance %0." ->
+            "Ajoute N agents de type id sur les cellules vides du disque centré sur (x, y), par exemple %0."
+        "Draws a line of agents of type id from (x1, y1) to (x2, y2), on the empty cells only, for instance %0." ->
+            "Trace une ligne d'agents de type id de (x1, y1) à (x2, y2), sur les cellules vides uniquement, par exemple %0."
+        "Erases every agent of the rectangle, or only the agents of type id, for instance %0." ->
+            "Efface tous les agents du rectangle, ou seulement ceux de type id, par exemple %0."
+        "Erases every agent of the disc, or only the agents of type id, for instance %0." ->
+            "Efface tous les agents du disque, ou seulement ceux de type id, par exemple %0."
+        "Erases every agent of type id in the whole environment, for instance %0." ->
+            "Efface tous les agents de type id dans tout l'environnement, par exemple %0."
+        "Activates the behaviour id, for instance %0." ->
+            "Active le comportement id, par exemple %0."
+        "Inactivates the behaviour id, for instance %0." ->
+            "Désactive le comportement id, par exemple %0."
+        "Activates the simulation modifier id, for instance %0." ->
+            "Active le modificateur de simulation id, par exemple %0."
+        "Inactivates the simulation modifier id, for instance %0." ->
+            "Désactive le modificateur de simulation id, par exemple %0."
+        "1 when the behaviour id is active, 0 when it is inactive: usable in the condition and in the arguments, for instance %0." ->
+            "Vaut 1 quand le comportement id est actif, 0 quand il est inactif : utilisable dans la condition et dans les arguments, par exemple %0."
+        "1 when the simulation modifier id is active, 0 when it is inactive: usable in the condition and in the arguments, for instance %0." ->
+            "Vaut 1 quand le modificateur de simulation id est actif, 0 quand il est inactif : utilisable dans la condition et dans les arguments, par exemple %0."
+        "Makes the agents of type id visible again in the simulation view, like the Show ? switch of the explorer, for instance %0." ->
+            "Rend à nouveau visibles les agents de type id dans la vue de simulation, comme l'interrupteur Show ? de l'explorateur, par exemple %0."
+        "Hides the agents of type id in the simulation view, without touching the simulation, for instance %0." ->
+            "Masque les agents de type id dans la vue de simulation, sans toucher à la simulation, par exemple %0."
+        "Selects the rectangle between the two corners, in any order, like Shift + drag, for instance %0." ->
+            "Sélectionne le rectangle entre les deux coins, dans n'importe quel ordre, comme Maj + glisser, par exemple %0."
+        "Copies the visible agents of the selection into the clipboard, for instance %0." ->
+            "Copie les agents visibles de la sélection dans le presse-papiers, par exemple %0."
+        "Copies the visible agents of the selection into the clipboard, then erases them from the grid, for instance %0." ->
+            "Copie les agents visibles de la sélection dans le presse-papiers, puis les efface de la grille, par exemple %0."
+        "Pastes the clipboard with (x, y) as its top-left corner; overwrite is true (replace) or false (keep), for instance %0." ->
+            "Colle le presse-papiers avec (x, y) comme coin supérieur gauche ; overwrite vaut true (écraser) ou false (conserver), par exemple %0."
+        "Drops the selection; the clipboard is left untouched, for instance %0." ->
+            "Abandonne la sélection ; le presse-papiers n'est pas modifié, par exemple %0."
+        "Pastes the clipboard with (x, y) as its top-left corner, then drops the selection, for instance %0." ->
+            "Colle le presse-papiers avec (x, y) comme coin supérieur gauche, puis abandonne la sélection, par exemple %0."
+        "Turns the clipboard N quarter turns clockwise (negative: counter-clockwise), for instance %0." ->
+            "Fait tourner le presse-papiers de N quarts de tour dans le sens horaire (négatif : anti-horaire), par exemple %0."
+        "Mirrors the clipboard left/right, for instance %0." ->
+            "Miroir gauche/droite du presse-papiers, par exemple %0."
+        "Mirrors the clipboard top/bottom, for instance %0." ->
+            "Miroir haut/bas du presse-papiers, par exemple %0."
+        "The grid commands work on the current selection and on the clipboard of the simulation view, not on a cell. They are applied at the end of the step, in the order of the formula: a selection or a clipboard built by a modifier can then be used by hand. Copy, Cut, Paste, PasteAndFlush, Rotate, FlipX and FlipY are ignored when the selection or the clipboard they need is empty." ->
+            "Les commandes de grille agissent sur la sélection courante et sur le presse-papiers de la vue de simulation, pas sur une cellule. Elles sont appliquées à la fin de l'étape, dans l'ordre de la formule : une sélection ou un presse-papiers construit par un modificateur peut ensuite être utilisé à la main. Copy, Cut, Paste, PasteAndFlush, Rotate, FlipX et FlipY sont ignorés quand la sélection ou le presse-papiers dont ils ont besoin est vide."
+        "Paste and PasteAndFlush follow the Toric ? switch of the edit bar: on, the cells that overflow the grid are folded on the opposite side (coordinates wrapped modulo the width and the height), so Paste(-10, 10, true) brings back on the right what comes out on the left; off, the cells outside the grid are lost." ->
+            "Paste et PasteAndFlush suivent l'interrupteur Torique ? de la barre d'édition : actif, les cellules qui débordent de la grille se poursuivent du côté opposé (coordonnées ramenées modulo la largeur et la hauteur), si bien que Paste(-10, 10, true) fait réapparaître à droite ce qui sort à gauche ; inactif, les cellules hors grille sont perdues."
         else -> null
     }
 }
