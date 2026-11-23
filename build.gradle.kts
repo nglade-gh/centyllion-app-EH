@@ -1,8 +1,6 @@
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform) apply false
-    alias(libs.plugins.compose.jetbrains) apply false
-    alias(libs.plugins.compose.compiler) apply false
 
     // serialization
     alias(libs.plugins.kotlin.serialization) apply false

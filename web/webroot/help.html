@@ -213,8 +213,8 @@ tr:hover td { background: var(--panel-2); }
     <h4>Identifiant (ID)</h4>
     <p>
       Chaque grain possède un <strong>numéro d'ID</strong> unique, affiché dans la liste des grains
-      et sur les agents de la grille (quand la case est assez grande). C'est cet ID qu'on utilise
-      dans les formules, par exemple <code>count(0)</code> compte les voisins de l'agent d'ID 0.
+      et dans le panneau d'édition (champ « ID »). C'est cet ID qu'on utilise dans les formules,
+      par exemple <code>count(0)</code> compte les voisins de l'agent d'ID 0.
     </p>
   </div>
 </section>
@@ -251,6 +251,25 @@ Voisin (C)   : C → C</code></pre>
   <p>
     Un agent <code>A</code> se transforme en <code>B</code> en présence d'un catalyseur <code>C</code>.
   </p>
+  <h3>Conditions aux limites du comportement</h3>
+
+  <p>Chaque comportement porte ses propres parois, gauche, droite, haut et bas.
+  Par défaut, <strong>toutes sont toriques</strong> : le comportement « voit » au-delà
+  du bord comme si la grille s'enroulait, exactement comme avant.</p>
+
+  <p>Si une paroi est fermée, le comportement <strong>ne voit ni agent ni valeur de
+  champ au-delà de cette paroi</strong> : les voisins situés derrière sont ignorés par
+  les comptages de voisins (<code>count()</code>, <code>age(n)</code>, les conditions
+  de comptage), par les réactions et par les influences de champ. Le reste de la
+  simulation n'est pas affecté : les autres comportements gardent leurs propres
+  parois, et la grille elle-même ne change pas.</p>
+
+  <p>Cela permet par exemple de donner à un comportement un bord absorbant — une
+  réaction qui ne se déclenche pas depuis l'autre côté de la grille — sans toucher
+  au comportement des autres. Un comportement enregistré avec ses quatre parois
+  toriques n'écrit rien dans le fichier <code>.nbd2</code> ; dès qu'une paroi est
+  fermée, les quatre sont écrites explicitement.</p>
+
   <h3>Le prédicat</h3>
   <p>
     La ligne <strong>Predicate</strong> (formule) définit la condition d'application du comportement.
@@ -462,11 +481,11 @@ Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
   </table>
   <h3>Fonctions spécifiques à la simulation</h3>
   <table>
-    <tr><th>Fonction</th><th>Description</th><th>Exemple</th></tr>
-    <tr><td><code>count(grainId)</code></td><td>Nombre de voisins de ce type (dans le voisinage de la case).</td><td><code>count(0) &gt;= 3</code></td></tr>
-    <tr><td><code>agent(x, y)</code></td><td>ID de l'agent à la position (x, y), ou <code>-1</code> si vide.</td><td><code>agent(1,0) == 0</code></td></tr>
-    <tr><td><code>field(id)</code></td><td>Valeur du champ <code>id</code> sur la case courante.</td><td><code>field(0) &gt; 0.1</code></td></tr>
-    <tr><td><code>field(id, dx, dy)</code></td><td>Valeur du champ <code>id</code> à l'offset (dx, dy) depuis la case courante (ex. <code>1, 0</code> = case à l'est).</td><td><code>field(0, 1, 0) &gt; 0.1</code></td></tr>
+    <tr><th>Fonction</th><th>Description</th><th>Disponible dans</th></tr>
+    <tr><td><code>count(grainId)</code></td><td>Nombre de voisins de ce type (les 8 cases adjacentes).</td><td>Champs et comportements</td></tr>
+    <tr><td><code>agent(x, y)</code></td><td>ID de l'agent à la position (x, y), ou <code>-1</code> si vide.</td><td>Champs et comportements</td></tr>
+    <tr><td><code>field(id)</code></td><td>Valeur du champ <code>id</code> sur la case courante.</td><td>Champs et comportements</td></tr>
+    <tr><td><code>field(id, dx, dy)</code></td><td>Valeur du champ <code>id</code> à l'offset (dx, dy) depuis la case courante (ex. <code>1, 0</code> = case à l'est).</td><td>Champs et comportements</td></tr>
   </table>
 </section>
 
@@ -484,8 +503,16 @@ Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
     <tr><th>Variable</th><th>Description</th></tr>
     <tr><td><code>step</code></td><td>Âge de l'agent (pour une condition sur l'âge, utiliser <code>step</code>).</td></tr>
     <tr><td><code>x</code>, <code>y</code>, <code>z</code></td><td>Coordonnées de la case centrale.</td></tr>
-    <tr><td><code>current</code></td><td>Valeur du champ (si la formule est évaluée dans un contexte de champ).</td></tr>
   </table>
+  <div class="card tip">
+    <h4>Prédicat logique</h4>
+    <p>
+      La formule d'un comportement est un <strong>prédicat logique</strong> : elle doit renvoyer
+      <code>true</code> ou <code>false</code>. Une formule qui renvoie un nombre (par ex.
+      <code>sin(step)</code>) est refusée par la validation ; si elle était quand même exécutée,
+      le comportement ne s'appliquerait jamais.
+    </p>
+  </div>
   <div class="card tip">
     <h4>Âge d'un agent</h4>
     <p>
@@ -510,6 +537,9 @@ Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
   <h4>Exemple 4 : diffusion conditionnelle</h4>
   <pre><code>current &gt; 0.1 ? current * 0.8 : 0</code></pre>
   <p>Au-dessus de 0.1, le champ décroît ; en dessous, il s'annule.</p>
+  <h4>Exemple 5 : influence du voisinage</h4>
+  <pre><code>count(0) &gt; 2 ? current * 0.95 : current</code></pre>
+  <p>Le champ décroît seulement quand il y a plus de 2 agents de type 0 autour de la case.</p>
 </section>
 
 <section id="exemples-comportements">
@@ -548,7 +578,7 @@ Comportement "Survie"   : 1 → 1,   formule : count(1) == 2 || count(1) == 3</c
 Comportement "Reproduction" : 0 → 0, voisin (1) : 1 → 1, formule : count(0) &gt; 5</code></pre>
   <h3>Chimiotaxie</h3>
   <p>Grains : <code>0</code> = bactérie ; Champ : <code>0</code> = nutriment.</p>
-  <pre><code>Comportement "Avancer vers le nutriment" : 0 → 0, voisin (vide) : vide → 0, formule : field(0) &gt; 0.1</code></pre>
+  <pre><code>Comportement "Avancer vers le nutriment" : 0 → 0, avec seuil de champ 0 (valeur &gt; 0.1)</code></pre>
   <div class="card tip">
     <h4>Conseil</h4>
     <p>
@@ -559,5 +589,41 @@ Comportement "Reproduction" : 0 → 0, voisin (1) : 1 → 1, formule : count(0) 
 </section>
 
 </main>
+  <h2>6. Galerie de modèles</h2>
+
+  <p>La galerie rassemble des modèles prêts à ouvrir, présentés en miniatures : une
+  image, le titre du modèle affiché dessus, et une courte description en dessous.
+  Un clic sur une miniature propose de charger le modèle dans l'application.</p>
+
+  <h3>6.1 Deux galeries</h3>
+  <p>La <b>galerie distribuée</b> fait partie du logiciel : elle est identique pour
+  tous et ne peut pas être modifiée depuis l'application. La <b>galerie
+  personnelle</b> contient les modèles que vous ajoutez ; elle est stockée dans les
+  données de votre navigateur, sur ce poste uniquement.</p>
+
+  <p>Vos ajouts ne sont donc <b>ni publiés, ni visibles des autres utilisateurs</b>,
+  et ils ne suivent pas d'un ordinateur à l'autre. Ils disparaissent si vous effacez
+  les données du navigateur.</p>
+
+  <h3>6.2 Ajouter un modèle</h3>
+  <p>Le bouton <b>Ajouter un modèle</b> demande un fichier de sauvegarde
+  (<code>.nbd2</code> ou <code>.netbiodyn</code>), puis un titre — prérempli avec le
+  nom du modèle — et une description. Le nom, la description et l'image peuvent être
+  repris du fichier ; ils restent modifiables ensuite. Sans image, une vignette de
+  l'état initial de la simulation est générée.</p>
+
+  <h3>6.3 Conserver et transférer</h3>
+  <p><b>Exporter ma galerie</b> télécharge un fichier <code>ma-galerie.json</code>
+  autonome, qui contient vos modèles. C'est votre sauvegarde, et le seul moyen de
+  retrouver votre galerie sur un autre poste ou après un nettoyage du navigateur :
+  <b>Importer ma galerie</b> la reconstitue. La galerie distribuée n'est pas
+  concernée par ces deux boutons.</p>
+
+  <h3>6.4 Description du modèle et description de galerie</h3>
+  <p>Le bouton <b>Infos modèle</b>, au-dessus des Agents, édite le nom et la
+  description <i>du modèle</i> : cette description est enregistrée dans le fichier
+  <code>.nbd2</code>. La description saisie dans la galerie est une présentation
+  destinée aux miniatures ; elle n'est jamais écrite dans le fichier de sauvegarde.</p>
+
 </body>
 </html>

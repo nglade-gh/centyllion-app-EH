@@ -48,27 +48,11 @@ cd CentyllionExtend
 
 ## 3. Exécution
 
-### 3.1 Application desktop standalone (non maintenue)
+### 3.1 Version bureau — supprimée
 
-> **Statut : non maintenue.** La version de bureau (module `compose/shared`) n'est
-> plus suivie : les fonctionnalités récentes (galerie de modèles, édition de grille,
-> copier/couper/coller, méta-actions de grille) ne sont pas portées dans son
-> interface, et certaines y sont acceptées par le noyau sans effet visible. La
-> version de référence est la version web (§3.2). Le code reste dans le dépôt, mais
-> aucune synchronisation n'est plus garantie.
-
-
-```bash
-# Construire la distribution autonome (JRE incluse, ~180 Mo)
-./gradlew :compose:shared:createDistributable
-
-# Lancer (avec rendu logiciel si pas de GPU)
-JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE" \
-  xvfb-run -a ./compose/shared/build/compose/binaries/main/app/Centyllion/bin/Centyllion
-```
-
-- Sortie : `compose/shared/build/compose/binaries/main/app/Centyllion/`
-- Aucune dépendance externe sur la machine cible (JRE embarqué)
+La version de bureau (module `compose`) a été retirée du dépôt : elle n'est plus
+maintenue et seuls les fichiers de la version web sont conservés. Le bouton Aide de
+la version web sert `web/webroot/help.html`, qui vit désormais dans le dépôt web.
 
 ### 3.2 Site web statique
 
