@@ -65,6 +65,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
             undoRedo.update(old, new)
             modelController.data = new
             modelName.data = new.model.name
+            modelDescription.data = new.model.description
 
             expertMode = expertMode || model.expert
 
@@ -102,6 +103,15 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         model = model.updateModel(model.model.copy(name = new ) )
     }
 
+    /** Description of the model: saved in the file, empty by default. */
+    val modelDescription = EditableStringController(
+        initialData = model.model.description,
+        placeHolder = i18n("Model Description"),
+    ) { old: String, new: String, controller: EditableStringController ->
+        model = model.updateModel(model.model.copy(description = new))
+    }
+
+
     val newControl = Control(Button(
         i18n("New Model"), Icon("plus"), color = ElementColor.Primary
     ) { new() })
@@ -135,6 +145,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     val tools = BField(
         modelName.container,
+        modelDescription.container,
         newControl,
         Control(fileInput),
         saveAsControl,
