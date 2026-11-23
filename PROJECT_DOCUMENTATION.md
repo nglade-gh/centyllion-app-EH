@@ -37,7 +37,7 @@ L'application est accessible en ligne et s'ouvre sous deux formes :
 - **Bureau (Compose Multiplatform)** : application JavaFX/Swing (package `com.centyllion.ui.NetbiodynKt`).
 
 Le code source est partagé entre un module `core` (logique métier, multi-platforme `jvm`, `js`, `wasmJs`) et deux modules d'interface :
-- `compose:shared` → interfaces utilisateur en Compose Multiplatform (cible `jvm` pour le bureau, `wasmJs` pour le navigateur WASM, `js` pour le web classique).
+- `compose:shared` → interfaces utilisateur en Compose Multiplatform (cible `jvm` pour le bureau, `wasmJs` pour le navigateur WASM, `js` pour le web classique).  <!-- module compose supprimé : version bureau retirée -->
 - `web` → module Kotlin/JS spécifique au navigateur web.
 - `db` → serveur Ktor + SQLDelight (cible JVM) qui fournit l'API REST derrière laquelle s'articule le site en ligne.
 
@@ -50,7 +50,7 @@ Le code source est partagé entre un module `core` (logique métier, multi-platf
 │  centyllion-app                                              │
 │  ├─ core/           Kotlin Multiplatform : modèle, simulation │
 │  │                 (logique métier, expression, i18n, tests)  │
-│  ├─ compose:shared/ │ Compose Multiplatform : UI ui (jvm,    │
+│  ├─ compose:shared/ │ Compose Multiplatform : UI ui (jvm,    │  <!-- module compose supprimé : version bureau retirée -->
 │  │                 │ wasmJs, js)                               │
 │  ├─ web/            Kotlin/JS : interface navigateur bulma    │
 │  │                 │ + canvas 2D, data2viz                     │
@@ -63,9 +63,9 @@ Le code source est partagé entre un module `core` (logique métier, multi-platf
 
 | Module | Type | Cibles | Principal |
 |--------|------|--------|-----------|
-| `:core` | kotlin-multiplatform | jvm, js, (wasm via composeShared) | Modèle, simulateur, expression, i18n |
+| `:core` | kotlin-multiplatform | jvm, js, (wasm via composeShared) | Modèle, simulateur, expression, i18n |  <!-- module compose supprimé : version bureau retirée -->
 | `:web` | kotlin-multiplatform | js | Interface web (Bulma, data2viz, canvas 2D) |
-| `:compose:shared` | kotlin-multiplatform | jvm, wasmJs | Interface Compose (bureau + WASM) |
+| `:compose:shared` | kotlin-multiplatform | jvm, wasmJs | Interface Compose (bureau + WASM) |  <!-- module compose supprimé : version bureau retirée -->
 | `:db` | kotlin-multiplatform | jvm | Serveur Ktor REST + DB SQLDelight |
 
 La racine `build.gradle.kts` configure les projets, le group `com.centyllion`, la version `0.0.1`, et la résolution des versions dans `versions.toml`.
@@ -76,7 +76,7 @@ La racine `build.gradle.kts` configure les projets, le group `com.centyllion`, l
 
 ```
 centyllion-app/
-├── settings.gradle.kts      # 4 sous-projets : core, web, compose:shared, db
+├── settings.gradle.kts      # 4 sous-projets : core, web, compose:shared, db  <!-- module compose supprimé : version bureau retirée -->
 ├── build.gradle.kts         # plugins, group, version
 ├── gradle.properties        # options Kotlin/gradle
 ├── versions.toml            # versions et dépendances (versionCatalogs)
@@ -112,7 +112,7 @@ centyllion-app/
 │       └─ controller/
 │           ├─ model/*.kt    # 20 contrôleurs de l'éditeur
 │           └─ utils/*.kt    # SearchController, UndoRedoSupport, stringControllers
-├── compose/
+├── compose/  <!-- module compose supprimé : version bureau retirée -->
 │   └── shared/
 │       ├── build.gradle.kts
 │       └── src/
@@ -445,7 +445,7 @@ Agent_B > 3 AND Agent_C == 5
 
 ## 7. Interface utilisateur (Compose Multiplatform)
 
-### 7.1 Couche commune (`compose:shared` / `ui/`)
+### 7.1 Couche commune (`compose:shared` / `ui/`)  <!-- module compose supprimé : version bureau retirée -->
 
 - `AppState` : état global du document (modèle, simulation, simulateur, sélection, outil, onglets, historique annulation/renoncement, logs, problèmes).
 - `AppContext` : interface des contrats (locale, modèle, simulation, simulateur, tabs, logs, problèmes, ...).
@@ -580,8 +580,8 @@ Les contrôleurs Ktor sont : `Server.kt` (routing), `main.kt` (clikt : `centylli
 ## 10. Configuration et build
 
 - **Gradle wrapper** : Gradle 8.11 (`gradle-8.11-bin.zip`).
-- **Kotlin** : `2.1.0`, multi-platform (jvm, js, wasm via composeShared).
-- **Compose** : `1.7.1` (Compose Multiplatform) + compilateur `compose-compiler` (kotlin 2.1).
+- **Kotlin** : `2.1.0`, multi-platform (jvm, js, wasm via composeShared).  <!-- module compose supprimé : version bureau retirée -->
+- **Compose** : `1.7.1` (Compose Multiplatform) + compilateur `compose-compiler` (kotlin 2.1).  <!-- module compose supprimé : version bureau retirée -->
 - **SQLDelight** : `2.0.1` (dialect postgresql).
 - **Ktor** : `2.3.6` (server core, cio, content-negotiation, serialization, cors, calllog).
 - **Bulma-kotlin** : `0.5` (UI).
@@ -607,8 +607,8 @@ Les contrôleurs Ktor sont : `Server.kt` (routing), `main.kt` (clikt : `centylli
 # Compile les modules
 ./gradlew :core:compileKotlinJvm
 ./gradlew :web:compileKotlinJs
-./gradlew :compose:shared:compileKotlinJvm
-./gradlew :compose:shared:compileKotlinWasmJs
+./gradlew :compose:shared:compileKotlinJvm  <!-- module compose supprimé : version bureau retirée -->
+./gradlew :compose:shared:compileKotlinWasmJs  <!-- module compose supprimé : version bureau retirée -->
 ./gradlew :db:build
 
 # Exécuter le serveur (port 4545 par défaut)
@@ -622,11 +622,11 @@ Les contrôleurs Ktor sont : `Server.kt` (routing), `main.kt` (clikt : `centylli
 
 ```bash
 # ── Application desktop autonome (JRE incluse, ~180 Mo) ──
-./gradlew :compose:shared:createDistributable
-# Sortie : compose/shared/build/compose/binaries/main/app/Centyllion/
+./gradlew :compose:shared:createDistributable  <!-- module compose supprimé : version bureau retirée -->
+# Sortie : compose/shared/build/compose/binaries/main/app/Centyllion/  <!-- module compose supprimé : version bureau retirée -->
 # Lancement (headless, rendu logiciel) :
 JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE" \
-  xvfb-run -a ./compose/shared/build/compose/binaries/main/app/Centyllion/bin/Centyllion
+  xvfb-run -a ./compose/shared/build/compose/binaries/main/app/Centyllion/bin/Centyllion  <!-- module compose supprimé : version bureau retirée -->
 
 # ── Site web statique ──
 ./gradlew :web:jsBrowserProductionWebpack :web:syncJs
@@ -718,7 +718,7 @@ Pour exécuter l'application desktop dans un conteneur sans écran :
 apt-get install -y xvfb libxtst6
 
 # Lancement avec rendu logiciel (Skiko ne peut pas créer de contexte GL sans GPU)
-JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE" xvfb-run -a ./gradlew :compose:shared:run
+JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE" xvfb-run -a ./gradlew :compose:shared:run  <!-- module compose supprimé : version bureau retirée -->
 ```
 
 | Variable / flag | Rôle |
@@ -742,11 +742,11 @@ Le site `www.centyllion.com` sert :
 
 ### 11.2 Bureau (Compose)
 
-`compose:shared` cible `jvm`, avec `mainClass = com.centyllion.ui.NetbiodynKt` ; le build multiplateforme produit des packages `.dmg`, `.msi`, `.deb` (nativeDistributions).
+`compose:shared` cible `jvm`, avec `mainClass = com.centyllion.ui.NetbiodynKt` ; le build multiplateforme produit des packages `.dmg`, `.msi`, `.deb` (nativeDistributions).  <!-- module compose supprimé : version bureau retirée -->
 
 ### 11.3 Web Assembly (WASM)
 
-`compose:shared` cible `wasmJs` avec `src/wasmJsMain` : `index.html`, `styles.css`, `com.centyllion.ui.main` (UI Compose, exécuté dans le navigateur WASM).
+`compose:shared` cible `wasmJs` avec `src/wasmJsMain` : `index.html`, `styles.css`, `com.centyllion.ui.main` (UI Compose, exécuté dans le navigateur WASM).  <!-- module compose supprimé : version bureau retirée -->
 
 ---
 
@@ -830,7 +830,7 @@ Les tests couvrent notamment les nouvelles fonctionnalités de l'extension :
 ## 15. Fiches de lecture rapides
 
 - **Lancer le site en local** : `./gradlew :db:run` + ouvrir `webroot/index.html` (avec le serveur cours ou un proxy).
-- **Lancer l'interface bureau** : `./gradlew :compose:shared:jvmExec` (si configuré) ou build jar.
+- **Lancer l'interface bureau** : `./gradlew :compose:shared:jvmExec` (si configuré) ou build jar.  <!-- module compose supprimé : version bureau retirée -->
 - **Structure du modèle** : `Grain` + `Behaviour` + `Field` → `GrainModel` → `Simulation` → `Simulator`.
 - **Simuler** : `simulator.oneStep()` → `step++` → historiques mis à jour.
 - **Exporter** : `db/Export.kt` → JSON `{"model":..., "simulation":...}`.
@@ -840,9 +840,9 @@ Les tests couvrent notamment les nouvelles fonctionnalités de l'extension :
 
 ## 16. Historique Git (extrait)
 
-Derniers commits (extension CentyllionExtend) : `223850fb Add boundary conditions: per-grain wall authorisation and per-field toric flag`, `51c2d113 Rework behaviour editor: 3 blocks with blue separators, collapsible Predicates/Actions, age + Nb Neighbours graphical predicates in normal mode, formulas in expert mode, any-agent count predicate semantics`, `67242047 Add Opera warning to web docs (chart double-draw artifact)`, `91b1372a Fix doubled chart axes, continuous sliding window, cross-browser save bridge`, `3b809be5 Add quick Save (same file, no dialog) and Save As (picker) with remembered file name and handle; document reactions/actions order in help`, `3b1a1a9c Save through the native file dialog; remember the project file name across saves and reloads`, puis l'historique du dépôt monté : `unwanted tests removed`, `Adds model name edition in showpage...`, `Allows simulation of 200`, `Support wasm browser`, `Prepare compose multiplatform`, `Add formula performance test`, `Center direction`, `Replace kotlinx-uuid by benasher44`, `Correct pointer color change`, `Age predicate and source reactive are for expert mode`, `Adds Compose version`, `Updates to kotlin 2`, `Add Compose version`, `Adds grid for behaviour`, `Adds square for directions`, `Reworked properties title and combo`, `Removes split-panes`, `Important re-layout`, `Adds compose UI`, `Update field tutorial`, `Support zip assets`, `Adds examples tab...`, `Adds support for asset in server and use of thumbnail`, `Adds validation for fields`, `Adds search query`, `Add validation for fields`, `Test docker`, `Adds native image`, `Update translation`, `Add formula performance test`, `Update kotlin`, `Prevent chart resize if result is < 0`, `Correct still drawing even getting outside plane`, `Working on Compose version`, `Allows simulation of 200`, `Use value as key for remember in text field`, `Cleaning`, `Corrects missing value error`, `Support wasm browser`, `Adds model name edition...`, `Allows simulation of 200`.
+Derniers commits (extension CentyllionExtend) : `223850fb Add boundary conditions: per-grain wall authorisation and per-field toric flag`, `51c2d113 Rework behaviour editor: 3 blocks with blue separators, collapsible Predicates/Actions, age + Nb Neighbours graphical predicates in normal mode, formulas in expert mode, any-agent count predicate semantics`, `67242047 Add Opera warning to web docs (chart double-draw artifact)`, `91b1372a Fix doubled chart axes, continuous sliding window, cross-browser save bridge`, `3b809be5 Add quick Save (same file, no dialog) and Save As (picker) with remembered file name and handle; document reactions/actions order in help`, `3b1a1a9c Save through the native file dialog; remember the project file name across saves and reloads`, puis l'historique du dépôt monté : `unwanted tests removed`, `Adds model name edition in showpage...`, `Allows simulation of 200`, `Support wasm browser`, `Prepare compose multiplatform`, `Add formula performance test`, `Center direction`, `Replace kotlinx-uuid by benasher44`, `Correct pointer color change`, `Age predicate and source reactive are for expert mode`, `Adds Compose version`, `Updates to kotlin 2`, `Add Compose version`, `Adds grid for behaviour`, `Adds square for directions`, `Reworked properties title and combo`, `Removes split-panes`, `Important re-layout`, `Adds compose UI`, `Update field tutorial`, `Support zip assets`, `Adds examples tab...`, `Adds support for asset in server and use of thumbnail`, `Adds validation for fields`, `Adds search query`, `Add validation for fields`, `Test docker`, `Adds native image`, `Update translation`, `Add formula performance test`, `Update kotlin`, `Prevent chart resize if result is < 0`, `Correct still drawing even getting outside plane`, `Working on Compose version`, `Allows simulation of 200`, `Use value as key for remember in text field`, `Cleaning`, `Corrects missing value error`, `Support wasm browser`, `Adds model name edition...`, `Allows simulation of 200`.  <!-- module compose supprimé : version bureau retirée -->
 
-Branches distantes : `main`, `compose`, `master`, `purehtml`, `share`. Dépôt upstream : `github.com/jeancharles-roger/centyllion-app`.
+Branches distantes : `main`, `compose`, `master`, `purehtml`, `share`. Dépôt upstream : `github.com/jeancharles-roger/centyllion-app`.  <!-- module compose supprimé : version bureau retirée -->
 
 ---
 

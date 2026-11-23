@@ -3,7 +3,6 @@ rootProject.name = "netbiodyn"
 include("core")
 include("web")
 
-include("compose:shared")
 
 // Le module `db` (serveur REST Ktor) est optionnel.
 // Il nécessite un JDK complet (avec javac), pas seulement un JRE.

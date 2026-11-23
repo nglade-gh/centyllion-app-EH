@@ -503,7 +503,7 @@ La couche UI est réalisée avec **Jetpack Compose** et Kotlin Multiplatform.
 - **Rôle** : composants de vue pour la structure de composants, le graphique, les données tabulaires et les onglets.
 - **Usage** : interface utilisateur pour l'édition et la visualisation.
 
-### 6.2 `ui/` (sous-dossier de `compose/shared/src/commonMain/kotlin/com/centyllion/ui`)
+### 6.2 `ui/` (sous-dossier de `compose/shared/src/commonMain/kotlin/com/centyllion/ui`)  <!-- module compose supprimé : version bureau retirée -->
 
 - Contient les composants de vue spécifiques :
   - `plotter/` : graphique des populations et des champs
@@ -520,7 +520,7 @@ La couche UI est réalisée avec **Jetpack Compose** et Kotlin Multiplatform.
 ```
 centyllion-app/
 ├── build/                      ← artifacts de Build
-├── compose/
+├── compose/  <!-- module compose supprimé : version bureau retirée -->
 │   ├── build.gradle.kts        ← config build
 │   └── src/
 │       ├── commonMain/kotlin/
@@ -616,7 +616,7 @@ centyllion-app/
   - Le modèle et la simulation sont concepts distincts et doivent rester cohérents
 
 ### 9.4 Pour modifier l'interface
-- **Fichier** : `compose/shared/src/commonMain/kotlin/com/centyllion/ui/`
+- **Fichier** : `compose/shared/src/commonMain/kotlin/com/centyllion/ui/`  <!-- module compose supprimé : version bureau retirée -->
 - **Objectif** : modifier l'interface utilisateur
 - **Considérations** :
   - `AppState` gère l'état de l'application
@@ -1182,9 +1182,9 @@ Evalutable <-- Expression
 |---------|---------|------|
 | `core/src/commonMain/kotlin/com/centyllion/model/` | `model.kt`, `simulator.kt`, `colors.kt`, `evaluator.kt`, `icons.kt`, `validation.kt` | Modèle de données et moteur de simulation |
 | `core/src/commonMain/kotlin/com/centyllion/expression/` | `Ast.kt`, `Builder.kt`, `Check.kt`, `Evaluation.kt`, `Expression.kt`, `Input.kt`, `Lexer.kt`, `Parser.kt`, `Stdlib.kt` | Analyseur, évaluateur et build d'expressions |
-| `compose/shared/src/commonMain/kotlin/com/centyllion/ui/` | `AppState.kt`, `AppContext.kt`, `App.kt`, `Toolbar.kt`, `rows.kt`, `plotter/`, `tabs/` | Interface utilisateur et gestion d'état |
+| `compose/shared/src/commonMain/kotlin/com/centyllion/ui/` | `AppState.kt`, `AppContext.kt`, `App.kt`, `Toolbar.kt`, `rows.kt`, `plotter/`, `tabs/` | Interface utilisateur et gestion d'état |  <!-- module compose supprimé : version bureau retirée -->
 | `core/src/commonMain/kotlin/com/centyllion/i18n/` | `Locales.kt` | Internationalisation |
-| `compose/shared/src/commonMain/kotlin/com/centyllion/ui/` | `App.kt`, `ComponentTree.kt`, `Netbiodyn.kt`, `Footer.kt`, `Toolbar.kt`, `rows.kt`, `plotter/`, `tabs/` | Composants d'interface (Jetpack Compose) |
+| `compose/shared/src/commonMain/kotlin/com/centyllion/ui/` | `App.kt`, `ComponentTree.kt`, `Netbiodyn.kt`, `Footer.kt`, `Toolbar.kt`, `rows.kt`, `plotter/`, `tabs/` | Composants d'interface (Jetpack Compose) |  <!-- module compose supprimé : version bureau retirée -->
 
 ---
 
