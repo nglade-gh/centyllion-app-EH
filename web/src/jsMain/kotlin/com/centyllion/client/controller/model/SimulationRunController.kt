@@ -219,6 +219,12 @@ class SimulationRunController(
             val id = input.getAttribute("data-behaviour-id")?.toIntOrNull() ?: continue
             input.checked = simulator.isRuntimeEnabled(id)
         }
+        val modifiers = document.querySelectorAll("input[data-modifier-id]")
+        for (index in 0 until modifiers.length) {
+            val input = modifiers.item(index) as? HTMLInputElement ?: continue
+            val id = input.getAttribute("data-modifier-id")?.toIntOrNull() ?: continue
+            input.checked = simulator.isModifierUsed(id)
+        }
     }
 
     fun reset() {
@@ -245,7 +251,8 @@ class SimulationRunController(
             stop()
         }
         // without fields, nothing can change if no behaviour was applied and nothing died
-        if (applied.isNotEmpty() || dead.isNotEmpty() || simulator.model.fields.isNotEmpty()) {
+        // a modifier can change the state even when no behaviour was applied
+        if (applied.isNotEmpty() || dead.isNotEmpty() || simulator.modifiersChanged || simulator.model.fields.isNotEmpty()) {
             simulationViewController.oneStep(applied, dead)
         }
         stepLabel.text = "${currentSimulator.step}"

@@ -461,6 +461,15 @@ object French: Locale {
         "Behaviours: identifier and activation" -> "Comportements : identifiant et activation"
         "Field opacity" -> "Opacité des champs"
         "Grid size" -> "Taille de la grille"
+        "Simulation modifiers" -> "Modificateurs de simulation"
+        "Simulation modifier" -> "Modificateur de simulation"
+        "Modifiers" -> "Modificateurs"
+        "Modifier" -> "Modificateur"
+        "Meta-actions" -> "Méta-actions"
+        "Condition" -> "Condition"
+        "Active" -> "Actif"
+        "Probability" -> "Probabilité"
+        "Condition of a modifier" -> "Condition d'un modificateur"
         else -> null
     }
 }

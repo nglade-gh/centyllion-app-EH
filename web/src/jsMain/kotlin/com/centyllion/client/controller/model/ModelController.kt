@@ -34,6 +34,8 @@ class ModelController(
         if (old != new) {
             if (old.model != new.model) {
                 fieldsController.data = data.model.fields.filtered(searchController.data)
+                modifiersController.context = data.model
+                modifiersController.data = data.model.modifiers
                 grainsController.context = data.model
                 grainsController.data = data.model.grains.filtered(searchController.data)
                 behavioursController.context = data.model
@@ -100,6 +102,7 @@ class ModelController(
 
     /** Applies the expert mode to the current editor (graphical predicates already handled). */
     private fun applyExpertMode(value: Boolean) {
+        showModifiers(value)
         refreshFieldPanels()
         when (val c = editorController) {
             is BehaviourEditController -> c.expertMode = value
@@ -189,6 +192,10 @@ class ModelController(
                     data = data.updateBehaviour(old, new)
                 }
 
+                is SimulationModifier -> ModifierEditController(newSelection, data.model, page) { old, new, _ ->
+                    data = data.copy(model = data.model.updateModifier(old, new))
+                }
+
                 else -> null
             }
             editorController?.root?.classList?.add("animated", "fadeIn", "faster")
@@ -197,6 +204,7 @@ class ModelController(
             fieldsController.updateSelection(newSelection)
             grainsController.updateSelection(newSelection)
             behavioursController.updateSelection(newSelection)
+            modifiersController.updateSelection(newSelection)
 
             // update simulation selected grain
             if (newSelection is Grain) {
@@ -366,16 +374,57 @@ class ModelController(
 
     val grainsHeader = sectionHeader(grainIcon, "Grains", grainsController, addGrainButton)
     val behavioursHeader = sectionHeader(behaviourIcon, "Behaviours", behavioursController, addBehaviourButton)
+
+    val addModifierButton = iconButton(Icon("plus"), ElementColor.Primary, true, size = Size.Small) {
+        val modifier = data.model.newModifier(page.i18n("Modifier"))
+        this.data = data.copy(model = data.model.copy(modifiers = data.model.modifiers + modifier))
+        selected = modifier
+        editionTabPages.selectedPage = editionItem
+    }
+
+    val modifiersController:
+        MultipleController<SimulationModifier, GrainModel, Columns, Column, Controller<SimulationModifier, GrainModel, Column>> =
+        columnsController(
+            initialList = data.model.modifiers,
+            initialContext = data.model,
+            onClick = { modifier, _ -> selected = modifier }
+        ) { modifier, previous ->
+            previous ?: ModifierDisplayController(page, modifier, data.model).wrap { controller ->
+                controller.onDelete = {
+                    data = data.copy(model = data.model.dropModifier(controller.data))
+                    selected = null
+                }
+                controller.onEnabledChange = { enabled ->
+                    data = data.copy(
+                        model = data.model.updateModifier(controller.data, controller.data.copy(enabled = enabled))
+                    )
+                }
+                Column(controller.container, size = ColumnSize.Full)
+            }
+        }
+
+    val modifiersHeader = sectionHeader("sliders-h", "Simulation modifiers", modifiersController, addModifierButton)
+
+    private fun showModifiers(visible: Boolean) {
+        modifiersHeader.hidden = !visible
+        modifiersController.hidden = !visible
+    }
+
+    init {
+        showModifiers(expertMode)
+    }
     val fieldsHeader = sectionHeader(fieldIcon, "Fields", fieldsController, addFieldButton)
 
     val leftColumn = Column(
         searchController,
         grainsHeader,
         grainsController,
-        behavioursHeader,
-        behavioursController,
         fieldsHeader,
         fieldsController,
+        behavioursHeader,
+        behavioursController,
+        modifiersHeader,
+        modifiersController,
         problemsMessage,
         size = ColumnSize.S3
     ).apply {

@@ -373,6 +373,11 @@ object English: Locale {
         "Height" -> "Height"
         "Preset" -> "Preset"
         "Opacity" -> "Opacity"
+        "Simulation modifiers" -> "Simulation modifiers"
+        "Simulation modifier" -> "Simulation modifier"
+        "Meta-actions" -> "Meta-actions"
+        "Active" -> "Active"
+        "Condition" -> "Condition"
         else -> key
     }
 }

@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 class ActionTest {
 
@@ -31,17 +32,18 @@ class ActionTest {
         assertTrue(validateActionFormula("Move(0, 0, 0, 1)")!!.contains("expects 5 arguments"))
         // non-numeric argument
         assertTrue(validateActionFormula("Add(true, 1, 0)")!!.contains("must be a number"))
-        // meta-actions
-        assertNull(validateActionFormula("pause()"))
-        assertNull(validateActionFormula("Add(0, 10)"))
-        assertNull(validateActionFormula("AddRect(0, 10, 1, 2, 5, 6)"))
-        assertNull(validateActionFormula("AddDisc(0, 5, 10, 10, 3)"))
-        assertNull(validateActionFormula("EraseRect(1, 2, 5, 6)"))
-        assertNull(validateActionFormula("EraseRect(0, 1, 2, 5, 6)"))
-        assertNull(validateActionFormula("EraseDisc(10, 10, 3)"))
-        assertNull(validateActionFormula("EraseDisc(0, 10, 10, 3)"))
-        assertNull(validateActionFormula("Erase(0)"))
-        assertNull(validateActionFormula("Activate(1), Inactivate(2)"))
+        // meta-actions are accepted by the parser but refused in a behaviour
+        assertNull(validateModifierActions("pause()"))
+        assertNull(validateModifierActions("Add(0, 10)"))
+        assertNull(validateModifierActions("AddRect(0, 10, 1, 2, 5, 6)"))
+        assertNull(validateModifierActions("AddDisc(0, 5, 10, 10, 3)"))
+        assertNull(validateModifierActions("EraseRect(1, 2, 5, 6)"))
+        assertNull(validateModifierActions("EraseRect(0, 1, 2, 5, 6)"))
+        assertNull(validateModifierActions("EraseDisc(10, 10, 3)"))
+        assertNull(validateModifierActions("EraseDisc(0, 10, 10, 3)"))
+        assertNull(validateModifierActions("Erase(0)"))
+        assertNull(validateModifierActions("Activate(1), Inactivate(2)"))
+        assertTrue(validateActionFormula("pause()")!!.contains("meta-action"))
         assertTrue(validateActionFormula("AddRect(0, 10, 1, 2)")!!.contains("expects 6 arguments"))
         // not an action call
         assertTrue(validateActionFormula("toto")!!.contains("Expected a list of actions"))
@@ -444,5 +446,236 @@ class MetaActionOncePerStepTest {
         simulator.oneStep()
         val inZone = (2..6).sumOf { y -> (2..6).count { x -> simulator.agents[y * 10 + x] == 0 } }
         assertTrue(inZone in 1..10, "the zone must receive at most ten agents (got $inZone), not one per cell")
+    }
+}
+
+/**
+ * Simulation modifiers: evaluated once per step, without any current cell, and the only place
+ * where the meta-actions are allowed.
+ */
+class SimulationModifierTest {
+
+    private fun model(
+        formula: String = "",
+        actions: String = "AddRect(0, 5, 2, 2, 4, 4)",
+        probability: Double = 1.0,
+        enabled: Boolean = true
+    ) = GrainModel(
+        name = "modifiers",
+        grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+        modifiers = listOf(
+            SimulationModifier(name = "seed", id = 0, formula = formula, actions = actions,
+                probability = probability, enabled = enabled)
+        ),
+    )
+
+    private fun simulation() = createSimulation("modifiers", size = 10) { -1 }
+
+    @Test
+    fun testTheModifierRunsOncePerStep() {
+        val simulator = Simulator(model(), simulation())
+        simulator.oneStep()
+        assertEquals(5, simulator.agents.count { it >= 0 }, "five agents, once only")
+        simulator.oneStep()
+        // the zone holds nine cells: five then four more, then nothing
+        assertEquals(9, simulator.agents.count { it >= 0 }, "the zone fills up, once per step")
+    }
+
+    @Test
+    fun testAnInactiveModifierDoesNothing() {
+        val simulator = Simulator(model(enabled = false), simulation())
+        simulator.oneStep()
+        assertEquals(0, simulator.agents.count { it >= 0 })
+    }
+
+    @Test
+    fun testAZeroProbabilityDoesNothing() {
+        val simulator = Simulator(model(probability = 0.0), simulation())
+        simulator.oneStep()
+        assertEquals(0, simulator.agents.count { it >= 0 })
+    }
+
+    @Test
+    fun testTheConditionIsEvaluatedWithoutACell() {
+        // the modifier sees the number of the step that has just been computed, like the
+        // behaviours: 0 during the first step, 1 during the second
+        val simulator = Simulator(model(formula = "step >= 1"), simulation())
+        simulator.oneStep()
+        assertEquals(0, simulator.agents.count { it >= 0 }, "step is 0 during the first step")
+        simulator.oneStep()
+        assertEquals(5, simulator.agents.count { it >= 0 }, "step is 1 now")
+    }
+
+    @Test
+    fun testCountAndFieldTakeCoordinates() {
+        assertNull(validateFormula("count(0, 5, 5) >= 3 && step > 2"))
+        assertNull(validateFormula("agent(0, 0) >= 0"))
+        assertNull(validateFormula("age(3, 4) > 2"))
+    }
+
+    @Test
+    fun testMetaActionsAreRefusedInABehaviour() {
+        assertTrue(validateActionFormula("AddRect(0, 5, 2, 2, 4, 4)")!!.contains("meta-action"))
+        assertTrue(validateActionFormula("Add(0, 5)")!!.contains("meta-action"))
+        assertTrue(validateActionFormula("pause()")!!.contains("meta-action"))
+        assertTrue(validateActionFormula("Activate(1)")!!.contains("meta-action"))
+        assertNull(validateActionFormula("Add(0, 1, 0)"), "cell actions stay allowed")
+    }
+
+    @Test
+    fun testOnlyMetaActionsAreAllowedInAModifier() {
+        assertNull(validateModifierActions("AddRect(0, 5, 2, 2, 4, 4), pause()"))
+        assertTrue(validateModifierActions("Add(0, 1, 0)")!!.contains("meta-actions"))
+    }
+}
+
+/** Use(id) and Unuse(id) switch the simulation modifiers on and off at run time. */
+class ModifierUseTest {
+
+    private fun model() = GrainModel(
+        name = "use",
+        grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+        modifiers = listOf(
+            SimulationModifier(name = "switcher", id = 0, actions = "Unuse(1)"),
+            SimulationModifier(name = "seeder", id = 1, actions = "AddRect(0, 4, 1, 1, 4, 4)"),
+        ),
+    )
+
+    @Test
+    fun testUnuseStopsAModifier() {
+        val simulator = Simulator(model(), createSimulation("use", size = 10) { -1 })
+        simulator.oneStep()
+        // the first modifier ran and switched the second one off, so nothing was seeded
+        assertEquals(0, simulator.agents.count { it >= 0 })
+        assertFalse(simulator.isModifierUsed(1), "Unuse(1) must switch the modifier off")
+    }
+
+    @Test
+    fun testUseReactivatesIt() {
+        val simulator = Simulator(model(), createSimulation("use", size = 10) { -1 })
+        simulator.oneStep()
+        assertFalse(simulator.isModifierUsed(1))
+        val reseeded = model().let { m ->
+            m.copy(modifiers = m.modifiers.map { if (it.id == 0) it.copy(actions = "Use(1)") else it })
+        }
+        val second = Simulator(reseeded, createSimulation("use", size = 10) { -1 })
+        second.oneStep()
+        assertTrue(second.isModifierUsed(1))
+    }
+
+    @Test
+    fun testRewindRestoresTheModifiers() {
+        val simulator = Simulator(model(), createSimulation("use", size = 10) { -1 })
+        simulator.oneStep()
+        assertFalse(simulator.isModifierUsed(1))
+        simulator.reset()
+        assertTrue(simulator.isModifierUsed(1), "a rewind restores the modifiers of the start")
+    }
+
+    @Test
+    fun testUseAndUnuseAreMetaActions() {
+        assertTrue(validateActionFormula("Use(1)")!!.contains("meta-action"))
+        assertNull(validateModifierActions("Use(1), Unuse(0)"))
+    }
+}
+
+/** DrawLine traces a line of agents between two cells. */
+class DrawLineTest {
+
+    private fun model(actions: String) = GrainModel(
+        name = "line",
+        grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+        modifiers = listOf(SimulationModifier(name = "line", id = 0, actions = actions)),
+    )
+
+    private fun simulation() = createSimulation("line", size = 10) { -1 }
+
+    @Test
+    fun testTheLineJoinsBothEnds() {
+        val simulator = Simulator(model("DrawLine(0, 1, 1, 5, 5)"), simulation())
+        simulator.oneStep()
+        val agents = simulator.agents
+        // both ends and the diagonal between them
+        assertTrue(agents[1 * 10 + 1] == 0, "the start must be drawn")
+        assertTrue(agents[5 * 10 + 5] == 0, "the end must be drawn")
+        assertTrue(agents[3 * 10 + 3] == 0, "the diagonal must be continuous")
+        assertEquals(5, agents.count { it >= 0 }, "a diagonal of five cells")
+    }
+
+    @Test
+    fun testTheLineIsHorizontalOrVerticalToo() {
+        val horizontal = Simulator(model("DrawLine(0, 0, 4, 9, 4)"), simulation())
+        horizontal.oneStep()
+        assertEquals(10, horizontal.agents.count { it >= 0 })
+        val vertical = Simulator(model("DrawLine(0, 7, 0, 7, 9)"), simulation())
+        vertical.oneStep()
+        assertEquals(10, vertical.agents.count { it >= 0 })
+    }
+
+    @Test
+    fun testTheLineIsAMetaAction() {
+        assertTrue(validateActionFormula("DrawLine(0, 1, 1, 5, 5)")!!.contains("meta-action"))
+        assertNull(validateModifierActions("DrawLine(0, 1, 1, 5, 5)"))
+    }
+}
+
+/** Activation tests usable in every predicate and every action. */
+class ActivationTestFunctionsTest {
+
+    @Test
+    fun testTheyAreValidFormulas() {
+        assertNull(validateFormula("IsActive(0) && IsNotInUse(1)"))
+        assertNull(validateFormula("IsInactive(2)"))
+        assertNull(validateFormula("IsInUse(0)"))
+    }
+
+    @Test
+    fun testAModifierSeesItsOwnState() {
+        // the modifier switches itself off at the first step: IsInUse(0) is true, then false
+        val model = GrainModel(
+            name = "tests",
+            grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+            modifiers = listOf(
+                SimulationModifier(name = "self", id = 0, formula = "IsInUse(0)", actions = "Unuse(0)"),
+                SimulationModifier(name = "seed", id = 1, formula = "IsNotInUse(0)", actions = "DrawLine(0, 0, 0, 3, 0)"),
+            ),
+        )
+        val simulator = Simulator(model, createSimulation("tests", size = 8) { -1 })
+        simulator.oneStep()
+        // the modifiers run in order inside the step: the second one sees the first one off
+        assertFalse(simulator.isModifierUsed(0), "the first modifier switched itself off")
+        assertEquals(4, simulator.agents.count { it >= 0 }, "the second modifier drew its line")
+    }
+}
+
+/**
+ * The modifier probabilities are independent: two modifiers at probability 1 both run in the
+ * same step, they are never normalised between each other.
+ */
+class ModifierProbabilityTest {
+
+    private fun model(first: Double, second: Double) = GrainModel(
+        name = "probas",
+        grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+        modifiers = listOf(
+            SimulationModifier(name = "top", id = 0, probability = first, actions = "DrawLine(0, 0, 0, 3, 0)"),
+            SimulationModifier(name = "bottom", id = 1, probability = second, actions = "DrawLine(0, 0, 7, 3, 7)"),
+        ),
+    )
+
+    private fun simulation() = createSimulation("probas", size = 8) { -1 }
+
+    @Test
+    fun testTwoModifiersAtFullProbabilityBothRun() {
+        val simulator = Simulator(model(1.0, 1.0), simulation())
+        simulator.oneStep()
+        assertEquals(8, simulator.agents.count { it >= 0 }, "both modifiers ran, none was scaled down")
+    }
+
+    @Test
+    fun testAZeroProbabilityModifierNeverRuns() {
+        val simulator = Simulator(model(1.0, 0.0), simulation())
+        simulator.oneStep()
+        assertEquals(4, simulator.agents.count { it >= 0 }, "only the first modifier ran")
     }
 }

@@ -604,6 +604,26 @@ data class Position(
     }
 }
 
+/**
+ * Simulation modifier: a condition and a list of meta-actions, evaluated **once per step**,
+ * outside any cell. It is the only place where the meta-actions may be used.
+ */
+@Serializable
+data class SimulationModifier(
+    override val name: String = "",
+    override val description: String = "",
+    /** Condition formula: step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y). */
+    val formula: String = "",
+    /** Meta-actions executed once per step when the condition holds. */
+    val actions: String = "",
+    /** Probability that the modifier runs, drawn once per step (1.0 = always). */
+    val probability: Double = 1.0,
+    /** False when the modifier is deactivated: its radio is off and it never runs. */
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val enabled: Boolean = true,
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val id: Int = 0,
+    @Transient override val uuid: Uuid = uuid4(),
+) : ModelElement
+
 @Serializable
 data class GrainModel(
     override val name: String = "",
@@ -616,6 +636,8 @@ data class GrainModel(
     /** Execution blocks, in execution order. Absent in files written before blocks existed. */
     val executionBlocks: List<ExecutionBlock> = emptyList(),
     val fields: List<Field> = emptyList(),
+    /** Simulation modifiers, applied once per step outside any cell. */
+    val modifiers: List<SimulationModifier> = emptyList(),
     @Transient override val uuid: Uuid = uuid4(),
 ) : ModelElement {
 
@@ -772,6 +794,18 @@ data class GrainModel(
 
     fun availableBehaviourName(prefix: String = "Behaviour"): String =
         availableName(behaviours.map(Behaviour::name), prefix)
+
+    /** Adds a modifier with a free name and the next identifier. */
+    fun newModifier(prefix: String = "Modifier") = SimulationModifier(
+        name = availableName(modifiers.map { it.name }, prefix),
+        id = (modifiers.maxOfOrNull { it.id } ?: -1) + 1
+    )
+
+    fun updateModifier(old: SimulationModifier, new: SimulationModifier): GrainModel =
+        copy(modifiers = modifiers.map { if (it.uuid == old.uuid) new else it })
+
+    fun dropModifier(modifier: SimulationModifier): GrainModel =
+        copy(modifiers = modifiers.filter { it.uuid != modifier.uuid })
 
     fun newBehaviour(prefix: String = "Behaviour") = (grains.firstOrNull()?.id ?: -1).let {
         Behaviour(name = availableBehaviourName(prefix), mainReactiveId = it, mainProductId = it, sourceReactive = 0, id = (behaviours.maxOfOrNull { b -> b.id } ?: -1) + 1)

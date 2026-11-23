@@ -31,7 +31,14 @@ class NetbioDynEvaluator(
     var ages: List<Int> = emptyList()
 
     /** Names of functions provided by this evaluator (in addition to [functions]) */
-    private val dynamicFunctions = setOf("agent", "field", "count", "countEmpty", "age")
+    private val dynamicFunctions = setOf(
+        "agent", "field", "count", "countEmpty", "age",
+        // activation tests, available in every predicate and every action
+        "IsActive", "IsInactive", "IsInUse", "IsNotInUse"
+    )
+
+    /** True when x, y, z are not the cell of a behaviour (simulation modifier). */
+    var absoluteCoordinates: Boolean = false
 
     /** Names of variables provided by this evaluator (in addition to [variables]) */
     private val dynamicVariables = setOf("step", "x", "y", "z", "current")
@@ -68,8 +75,9 @@ class NetbioDynEvaluator(
                 // field(id, dx, dy): value at the offset (dx, dy) from the current cell
                 // toroidal coordinates (consistent with Simulation.moveIndex / count())
                 val sim = simulator.simulation
-                val px = wrapCoordinate(if (args.size >= 2) x.int + args[1].int else x.int, sim.width)
-                val py = wrapCoordinate(if (args.size >= 3) y.int + args[2].int else y.int, sim.height)
+                // in a modifier there is no current cell: field(id, x, y) are absolute coordinates
+                val px = wrapCoordinate(if (args.size >= 2) if (absoluteCoordinates) args[1].int else x.int + args[1].int else x.int, sim.width)
+                val py = wrapCoordinate(if (args.size >= 3) if (absoluteCoordinates) args[2].int else y.int + args[2].int else y.int, sim.height)
                 val values = simulator.fields[id]
                 val result = values?.get(sim.toIndex(px, py)) ?: 0f
                 result.v
@@ -77,12 +85,47 @@ class NetbioDynEvaluator(
         }
         "count" -> {
             val grainId = args[0].int
-            (agentCounts[grainId] ?: 0).v
+            val sim = simulator?.simulation
+            if (args.size >= 3 && sim != null && simulator != null) {
+                // count(id, x, y): number of neighbours of that grain around the cell (x, y)
+                val origin = sim.toIndex(wrapCoordinate(args[1].int, sim.width), wrapCoordinate(args[2].int, sim.height))
+                var total = 0
+                for (direction in Direction.entries) {
+                    if (simulator.agents[sim.moveIndex(origin, direction)] == grainId) total += 1
+                }
+                total.v
+            } else {
+                (agentCounts[grainId] ?: 0).v
+            }
         }
         "countEmpty" -> emptyCount.v
+        // activation tests: 1 when the condition holds, 0 otherwise
+        "IsActive" -> {
+            val sim = simulator
+            (sim != null && sim.isRuntimeEnabled(args[0].int)).v
+        }
+        "IsInactive" -> {
+            val sim = simulator
+            (sim != null && !sim.isRuntimeEnabled(args[0].int)).v
+        }
+        "IsInUse" -> {
+            val sim = simulator
+            (sim != null && sim.isModifierUsed(args[0].int)).v
+        }
+        "IsNotInUse" -> {
+            val sim = simulator
+            (sim != null && !sim.isModifierUsed(args[0].int)).v
+        }
         "age" -> {
-            // 1-based: age(1) = main agent, age(2..N+1) = neighbours of the reactions
-            (ages.getOrNull(args[0].int - 1) ?: 0).v
+            val sim = simulator?.simulation
+            if (args.size >= 2 && sim != null && simulator != null) {
+                // age(x, y): age of the agent at that cell, 0 when the cell is empty
+                val index = sim.toIndex(wrapCoordinate(args[0].int, sim.width), wrapCoordinate(args[1].int, sim.height))
+                (if (simulator.agents[index] >= 0) simulator.ages[index] else 0).v
+            } else {
+                // 1-based: age(1) = main agent, age(2..N+1) = neighbours of the reactions
+                (ages.getOrNull(args[0].int - 1) ?: 0).v
+            }
         }
         else -> super.function(name, args)
     }
