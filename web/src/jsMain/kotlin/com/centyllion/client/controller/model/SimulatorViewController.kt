@@ -831,6 +831,26 @@ class SimulatorViewController(
         render()
     }
 
+    /**
+     * Freezes the rectangle spanned by two cells, both included and in any order, clamped to
+     * the grid: the programmatic counterpart of the shift + drag selection (meta-action
+     * `Select(x1, y1, x2, y2)`).
+     */
+    fun selectRect(x1: Int, y1: Int, x2: Int, y2: Int): Boolean {
+        val simulation = data.simulation
+        if (simulation.width <= 0 || simulation.height <= 0) return false
+        val ax = x1.coerceIn(0, simulation.width - 1)
+        val ay = y1.coerceIn(0, simulation.height - 1)
+        val bx = x2.coerceIn(0, simulation.width - 1)
+        val by = y2.coerceIn(0, simulation.height - 1)
+        // a drag in progress would override the frozen rectangle at its next move
+        selecting = false
+        selection = rectOf(ax, ay, bx, by)
+        refreshEditButtons()
+        render()
+        return true
+    }
+
     /** Dark veil and frame over the selected cells, or over the rectangle being dragged. */
     private fun drawSelection(ctx: CanvasRenderingContext2D) {
         val rect = if (selecting) {
@@ -1037,29 +1057,38 @@ class SimulatorViewController(
      * tool, so its cell counts as empty.
      */
     fun pasteSelection(): Boolean {
+        val origin = pasteOrigin() ?: return false
+        return pasteAt(origin.first, origin.second, overwriteOnPaste)
+    }
+
+    /**
+     * Pastes the extraction at a given top-left cell (the meta-action `Paste(x, y, overwrite)`
+     * and `PasteAndFlush(x, y, overwrite)`), with an explicit paste mode: same rules as the
+     * manual paste, same model update path (undo), cells outside the grid ignored.
+     */
+    fun pasteAt(x: Int, y: Int, overwrite: Boolean): Boolean {
         if (readOnly) return false
         val cells = clipboard ?: return false
-        val origin = pasteOrigin() ?: return false
         val simulation = data.simulation
         var changed = false
         for (row in 0 until clipboardHeight) {
-            val y = origin.second + row
-            if (y < 0 || y >= simulation.height) continue
+            val targetY = y + row
+            if (targetY < 0 || targetY >= simulation.height) continue
             for (column in 0 until clipboardWidth) {
-                val x = origin.first + column
-                if (x < 0 || x >= simulation.width) continue
-                val index = simulation.toIndex(x, y)
+                val targetX = x + column
+                if (targetX < 0 || targetX >= simulation.width) continue
+                val index = simulation.toIndex(targetX, targetY)
                 val incoming = cells[row * clipboardWidth + column]
                 val inPlace = data.idAtIndex(index)
                 // masked agent in place: nothing to see, nothing to overwrite
                 if (inPlace >= 0 && visibleIdAt(index) < 0) continue
                 if (incoming >= 0) {
                     // a visible agent in place wins unless "Écraser" is active
-                    if (inPlace >= 0 && !overwriteOnPaste) continue
+                    if (inPlace >= 0 && !overwrite) continue
                     if (inPlace == incoming) continue
                     data.setIdAtIndex(index, incoming)
                     changed = true
-                } else if (inPlace >= 0 && overwriteOnPaste) {
+                } else if (inPlace >= 0 && overwrite) {
                     // an empty pasted cell erases the visible agent in place
                     data.resetIdAtIndex(index)
                     changed = true
@@ -1388,7 +1417,51 @@ class SimulatorViewController(
 
     /** Nothing per-agent to update: the arrays are the source of truth, repaint. */
     fun oneStep(applied: Collection<ApplicableBehavior>, dead: Collection<Int>) {
+        applyGridCommands()
         render()
+    }
+
+    /**
+     * Applies the grid commands queued by the meta-actions of the step that has just run, in
+     * the order of the formula, through the very functions the user calls by hand
+     * ([selectRect], [copySelection], [pasteAt], [rotateClipboard]...). The core cannot do it:
+     * it knows neither the selection nor the clipboard.
+     */
+    private fun applyGridCommands() {
+        val commands = data.drainGridCommands()
+        if (commands.isEmpty()) return
+        for (command in commands) {
+            when (command) {
+                is GridCommand.Select -> selectRect(command.x1, command.y1, command.x2, command.y2)
+                GridCommand.Cut -> cutSelection()
+                GridCommand.Copy -> copySelection()
+                is GridCommand.Paste -> pasteAt(command.x, command.y, command.overwrite)
+                GridCommand.FlushSelection -> clearSelection()
+                is GridCommand.PasteAndFlush -> {
+                    pasteAt(command.x, command.y, command.overwrite)
+                    clearSelection()
+                }
+                // a quarter turn is the only transformation offered by the toolbar: N of them
+                is GridCommand.Rotate -> repeat(command.quarterTurns) { rotateClipboard() }
+                GridCommand.FlipX -> flipClipboardHorizontal()
+                GridCommand.FlipY -> flipClipboardVertical()
+                is GridCommand.Show -> setGrainVisible(command.grainId, true)
+                is GridCommand.Hide -> setGrainVisible(command.grainId, false)
+            }
+        }
+        refreshEditButtons()
+        render()
+    }
+
+    /** Shows or hides the agents of type [grainId], like the "display" checkbox of the explorer. */
+    private fun setGrainVisible(grainId: Int, visible: Boolean) {
+        // unknown id: silently ignored (the model may have changed since the formula was written)
+        if (data.model.grains.none { it.id == grainId }) return
+        val hidden = page.appContext.hiddenGrainIds
+        val changed = if (visible) hidden.remove(grainId) else hidden.add(grainId)
+        if (!changed) return
+        // the colour table and the visibility flags are cached: rebuild them before repainting
+        invalidateColors()
     }
 
     /** Re-applies the visibility toggles from the side panel (hidden grain types and fields). */

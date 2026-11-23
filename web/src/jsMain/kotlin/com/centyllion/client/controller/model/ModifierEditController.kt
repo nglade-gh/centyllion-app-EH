@@ -130,7 +130,23 @@ class ModifierEditController(
             fullWidth = true, striped = true
         ),
         p(page.i18n("The identifiers are those displayed in the explorer, after the name: name (id). Arguments can be expressions built on the condition functions.")),
-        p(page.i18n("AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones."))
+        p(page.i18n("AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones.")),
+        SubTitle(page.i18n("Grid commands")),
+        Table(
+            body = listOf(
+                helpLine("Select(x1, y1, x2, y2)", "Selects the rectangle between the two corners, in any order (like Shift + drag)"),
+                helpLine("Copy()", "Copies the visible agents of the selection into the clipboard"),
+                helpLine("Cut()", "Copies them, then removes them from the grid"),
+                helpLine("Paste(x, y, overwrite)", "Pastes the clipboard with (x, y) as its top-left corner; overwrite is true or false"),
+                helpLine("PasteAndFlush(x, y, overwrite)", "Pastes the clipboard, then drops the selection"),
+                helpLine("FlushSelection()", "Drops the selection; the clipboard is left untouched"),
+                helpLine("Rotate(N)", "Turns the clipboard N quarter turns clockwise (negative: counter-clockwise)"),
+                helpLine("FlipX() / FlipY()", "Mirrors the clipboard horizontally / vertically"),
+                helpLine("Show(id) / Hide(id)", "Shows / hides the agents of type id, like the display checkbox of the explorer"),
+            ),
+            fullWidth = true, striped = true
+        ),
+        p(page.i18n("The grid commands are executed by the simulation view at the end of the step, in the order of the formula: a selection or a clipboard built by a modifier can then be used by hand. Copy, Cut, Paste, Rotate and Flip are ignored when the selection or the clipboard is empty."))
     )
 
     /** Problems of the two formulas, refreshed as they are typed. */
