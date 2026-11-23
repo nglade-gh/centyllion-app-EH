@@ -477,9 +477,15 @@ object French: Locale {
         "Add Model" -> "Ajouter un modèle"
         "Add a Model" -> "Ajouter un modèle"
         "Edit the Model" -> "Modifier le modèle"
-        "Save gallery" -> "Enregistrer la galerie"
-        "Gallery saved. Replace webroot/Gallery/gallery.json with the downloaded file." ->
-            "Galerie enregistrée. Remplacez webroot/Gallery/gallery.json par le fichier téléchargé."
+        "Export my gallery" -> "Exporter ma galerie"
+        "Import my gallery" -> "Importer ma galerie"
+        "Your additions stay in this browser; export them to keep them or to transfer them." ->
+            "Vos ajouts restent dans ce navigateur ; exportez-les pour les conserver ou les transférer."
+        "The export is large (%0 MB): the download may take a while." ->
+            "L'export est volumineux (%0 Mo) : le téléchargement peut prendre un moment."
+        "This file is not a gallery export: nothing was imported." ->
+            "Ce fichier n'est pas un export de galerie : rien n'a été importé."
+        "Import done: %0 added, %1 replaced." -> "Import terminé : %0 ajoutée(s), %1 remplacée(s)."
         "Loading gallery..." -> "Chargement de la galerie…"
         "The gallery index could not be loaded." -> "L'index de la galerie n'a pas pu être chargé."
         "No model in the gallery yet." -> "Aucun modèle dans la galerie pour le moment."
@@ -514,10 +520,8 @@ object French: Locale {
         "The model file is too large (over 2 MB)." -> "Le fichier de modèle est trop volumineux (plus de 2 Mo)."
         "The selected file could not be read." -> "Le fichier sélectionné n'a pas pu être lu."
         "Thumbnail generated from the initial state." -> "Vignette générée à partir de l'état initial."
-        "The gallery is too large for the browser storage. Delete a model or remove its image." ->
-            "La galerie est trop volumineuse pour le stockage du navigateur. Supprimez un modèle ou retirez son image."
-        "Imported model: the model text is not included in this export." ->
-            "Modèle importé : le texte du modèle n'est pas inclus dans cet export."
+        "The gallery could not be saved in the browser storage." ->
+            "La galerie n'a pas pu être enregistrée dans le stockage du navigateur."
         else -> null
     }
 }

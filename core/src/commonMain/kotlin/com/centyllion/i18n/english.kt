@@ -380,9 +380,15 @@ object English: Locale {
         "Add Model" -> "Add Model"
         "Add a Model" -> "Add a Model"
         "Edit the Model" -> "Edit the Model"
-        "Save gallery" -> "Save gallery"
-        "Gallery saved. Replace webroot/Gallery/gallery.json with the downloaded file." ->
-            "Gallery saved. Replace webroot/Gallery/gallery.json with the downloaded file."
+        "Export my gallery" -> "Export my gallery"
+        "Import my gallery" -> "Import my gallery"
+        "Your additions stay in this browser; export them to keep them or to transfer them." ->
+            "Your additions stay in this browser; export them to keep them or to transfer them."
+        "The export is large (%0 MB): the download may take a while." ->
+            "The export is large (%0 MB): the download may take a while."
+        "This file is not a gallery export: nothing was imported." ->
+            "This file is not a gallery export: nothing was imported."
+        "Import done: %0 added, %1 replaced." -> "Import done: %0 added, %1 replaced."
         "Loading gallery..." -> "Loading gallery..."
         "The gallery index could not be loaded." -> "The gallery index could not be loaded."
         "No model in the gallery yet." -> "No model in the gallery yet."
@@ -417,10 +423,8 @@ object English: Locale {
         "The model file is too large (over 2 MB)." -> "The model file is too large (over 2 MB)."
         "The selected file could not be read." -> "The selected file could not be read."
         "Thumbnail generated from the initial state." -> "Thumbnail generated from the initial state."
-        "The gallery is too large for the browser storage. Delete a model or remove its image." ->
-            "The gallery is too large for the browser storage. Delete a model or remove its image."
-        "Imported model: the model text is not included in this export." ->
-            "Imported model: the model text is not included in this export."
+        "The gallery could not be saved in the browser storage." ->
+            "The gallery could not be saved in the browser storage."
         else -> key
     }
 }
