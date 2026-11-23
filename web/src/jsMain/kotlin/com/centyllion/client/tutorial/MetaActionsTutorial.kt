@@ -40,38 +40,47 @@ class MetaActionsTutorial(
 
     private val modifiers = { page.modelController.modifiersController.root }
 
-    private fun modifierWithActions(): SimulationModifier? =
-        page.model.model.modifiers.firstOrNull { it.actions.isNotBlank() && validateModifierActions(it.actions) == null }
+    private fun modifierWithPredicate(): SimulationModifier? =
+        page.model.model.modifiers.firstOrNull { it.formula.isNotBlank() }
+
+    private fun modifierReady(): SimulationModifier? =
+        page.model.model.modifiers.firstOrNull {
+            validateModifierActions(it.actions) == null && it.actions.contains("Unuse")
+        }
 
     override val steps: List<TutorialStep> = listOf(
         TutorialStep(
-            title = i18n("Create a modifier"),
+            title = i18n("1. Create a modifier"),
             content = listOf(
                 p(i18n("In the explorer, find the section « Simulation modifiers » under the behaviours, then click its + button.")),
-                p(i18n("A row appears, like the ones of the grains, the fields and the behaviours: On/Off radio, name, identifier, probability."))
+                p(i18n("A row appears, like the ones of the grains, the fields and the behaviours: On/Off radio, name, identifier, probability. This one gets the identifier 0."))
             ),
             selector = modifiers,
             validated = { page.model.model.modifiers.isNotEmpty() }
         ),
         TutorialStep(
-            title = i18n("Write its meta-actions"),
+            title = i18n("2. Its condition: step == 10"),
             content = listOf(
-                p(i18n("Select the modifier (a click anywhere in its white box), then write its Actions, for example:")),
-                code2("AddRect(0, 5, 10, 10, 20, 20)"),
-                p(i18n("This fills up to five cells of type 0 inside the rectangle (10, 10)-(20, 20). The positions are drawn among the empty cells of the zone.")),
-                p(i18n("The help button in front of the Actions field lists all the meta-actions, DrawLine and Use/Unuse included."))
+                p(i18n("Select the modifier (a click anywhere in its white box), then write its Condition:")),
+                code2("step == 10"),
+                p(i18n("A modifier is evaluated once per step, after the behaviours. With this condition it does nothing at steps 0 to 9, acts at step 10, and does nothing afterwards.")),
+                p(i18n("That is the whole point of the condition: without it, the modifier would run at every step, and its actions would be repeated indefinitely.")),
+                p(i18n("The condition is evaluated outside any cell: step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and the test functions IsActive/IsInactive/IsInUse/IsNotInUse are available."))
             ),
             selector = modifiers,
-            validated = { modifierWithActions() != null }
+            validated = { modifierWithPredicate() != null }
         ),
         TutorialStep(
-            title = i18n("Run it and switch it off"),
+            title = i18n("3. Its actions: fill a zone, then switch itself off"),
             content = listOf(
-                p(i18n("Run the simulation: the zone fills up once, at the first step, and nothing more happens afterwards, since the zone is full.")),
-                p(i18n("Click the On/Off radio of the modifier to switch it off. A modifier can also be switched by another one, with Unuse(id), and switched back with Use(id)."))
+                p(i18n("In the Actions field of the same modifier, write the two meta-actions, separated by a comma:")),
+                code2("AddRect(0, 5, 10, 10, 50, 50), Unuse(0)"),
+                p(i18n("AddRect(0, 5, 10, 10, 50, 50) adds up to five agents of type 0 inside the rectangle (10, 10)-(50, 50). The positions are drawn among the empty cells of the zone.")),
+                p(i18n("Unuse(0) switches off the modifier 0 — this one — for the rest of the run. Unuse targets a modifier, where Inactivate targets a behaviour: Use(id) and Unuse(id) are the On/Off radio of a modifier, written in a formula.")),
+                p(i18n("Chained after the condition step == 10, the whole thing therefore fires exactly once: at step 10 the zone fills up, and the modifier switches itself off so that it can never fire again, whatever the condition becomes."))
             ),
             selector = modifiers,
-            validated = { page.model.model.modifiers.any { !it.enabled } }
+            validated = { modifierReady() != null }
         )
     )
 
