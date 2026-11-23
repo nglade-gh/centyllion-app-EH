@@ -578,3 +578,43 @@ class ModifierUseTest {
         assertNull(validateModifierActions("Use(1), Unuse(0)"))
     }
 }
+
+/** DrawLine traces a line of agents between two cells. */
+class DrawLineTest {
+
+    private fun model(actions: String) = GrainModel(
+        name = "line",
+        grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
+        modifiers = listOf(SimulationModifier(name = "line", id = 0, actions = actions)),
+    )
+
+    private fun simulation() = createSimulation("line", size = 10) { -1 }
+
+    @Test
+    fun testTheLineJoinsBothEnds() {
+        val simulator = Simulator(model("DrawLine(0, 1, 1, 5, 5)"), simulation())
+        simulator.oneStep()
+        val agents = simulator.agents
+        // both ends and the diagonal between them
+        assertTrue(agents[1 * 10 + 1] == 0, "the start must be drawn")
+        assertTrue(agents[5 * 10 + 5] == 0, "the end must be drawn")
+        assertTrue(agents[3 * 10 + 3] == 0, "the diagonal must be continuous")
+        assertEquals(5, agents.count { it >= 0 }, "a diagonal of five cells")
+    }
+
+    @Test
+    fun testTheLineIsHorizontalOrVerticalToo() {
+        val horizontal = Simulator(model("DrawLine(0, 0, 4, 9, 4)"), simulation())
+        horizontal.oneStep()
+        assertEquals(10, horizontal.agents.count { it >= 0 })
+        val vertical = Simulator(model("DrawLine(0, 7, 0, 7, 9)"), simulation())
+        vertical.oneStep()
+        assertEquals(10, vertical.agents.count { it >= 0 })
+    }
+
+    @Test
+    fun testTheLineIsAMetaAction() {
+        assertTrue(validateActionFormula("DrawLine(0, 1, 1, 5, 5)")!!.contains("meta-action"))
+        assertNull(validateModifierActions("DrawLine(0, 1, 1, 5, 5)"))
+    }
+}

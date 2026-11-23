@@ -11705,7 +11705,9 @@ div.field-label {
   border-radius: 6px;
 }
 
-/* the simulation modifiers are boxes, not columns: purple frame around the selection */
+/* the simulation modifiers are boxes, not columns: purple frame around the selection.
+   The class is the app's own, so it does not depend on Bulma's internal markup. */
+.centy-modifier-row.is-selected,
 .box.is-selected {
   border: 2px solid #6533a7;
   border-radius: 6px;

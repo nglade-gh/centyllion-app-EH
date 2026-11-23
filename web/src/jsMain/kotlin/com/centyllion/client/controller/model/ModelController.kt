@@ -422,7 +422,7 @@ class ModelController(
     private fun updateModifierSelection(selection: ModelElement?) {
         modifierSelection = selection
         val selectedUuid = (selection as? SimulationModifier)?.uuid?.toString()
-        val boxes = modifiersHost.root.querySelectorAll(".box")
+        val boxes = modifiersHost.root.querySelectorAll(".centy-modifier-row")
         for (index in 0 until boxes.length) {
             val box = boxes.item(index) as? HTMLElement ?: continue
             box.classList.toggle("is-selected", selectedUuid != null && box.getAttribute("data-modifier-uuid") == selectedUuid)
@@ -467,6 +467,7 @@ class ModelController(
             Level(left = listOf(toggle, label), right = listOf(probability, delete), mobile = true)
         )
         box.root.setAttribute("data-modifier-uuid", "${modifier.uuid}")
+        box.root.classList.add("centy-modifier-row")
         box.root.style.cursor = "pointer"
         box.root.addEventListener("click", { selected = modifier })
         return box

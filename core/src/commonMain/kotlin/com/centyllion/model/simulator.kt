@@ -185,6 +185,39 @@ class Simulator(
         else -> false
     }
 
+    /** Draws a line of agents from (x1, y1) to (x2, y2), on the empty cells only. */
+    private fun drawLine(grainId: Int, x1: Int, y1: Int, x2: Int, y2: Int) {
+        val startX = x1.coerceIn(0, simulation.width - 1)
+        val startY = y1.coerceIn(0, simulation.height - 1)
+        val endX = x2.coerceIn(0, simulation.width - 1)
+        val endY = y2.coerceIn(0, simulation.height - 1)
+        val deltaX = if (endX > startX) endX - startX else startX - endX
+        val deltaY = if (endY > startY) endY - startY else startY - endY
+        val negativeDeltaY = -deltaY
+        val stepX = if (startX < endX) 1 else -1
+        val stepY = if (startY < endY) 1 else -1
+        var x = startX
+        var y = startY
+        var error = deltaX + negativeDeltaY
+        while (true) {
+            val slot = y * simulation.width + x
+            if (agents[slot] < 0) {
+                agents[slot] = grainId
+                ages[slot] = 0
+            }
+            if (x == endX && y == endY) break
+            val doubled = 2 * error
+            if (doubled >= negativeDeltaY) {
+                error += negativeDeltaY
+                x += stepX
+            }
+            if (doubled <= deltaX) {
+                error += deltaX
+                y += stepY
+            }
+        }
+    }
+
     /** Calls [block] with the index of every cell of the rectangle, clamped to the grid. */
     private fun forEachCellInRect(x1: Int, y1: Int, x2: Int, y2: Int, block: (Int) -> Unit) {
         val left = minOf(x1, x2).coerceIn(0, simulation.width - 1)
@@ -852,7 +885,8 @@ class Simulator(
         if (actions.any {
                 it is Action.AddMany || it is Action.AddRect || it is Action.AddDisc ||
                     it is Action.EraseRectAll || it is Action.EraseDiscAll ||
-                    it is Action.EraseRect || it is Action.EraseDisc || it is Action.EraseAll
+                    it is Action.EraseRect || it is Action.EraseDisc || it is Action.EraseAll ||
+                    it is Action.DrawLine
             }
         ) modifiersChanged = true
         for (action in actions) {
@@ -927,6 +961,16 @@ class Simulator(
                         forEachCellInDisc(
                             action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
                         ) { slot -> if (agents[slot] == id) { agents[slot] = -1; ages[slot] = -1 } }
+                    }
+
+                    is Action.DrawLine -> {
+                        modifiersChanged = true
+                        val id = action.grain.evalInt(evaluator)
+                        if (grainForId(id) == null) continue
+                        drawLine(
+                            id, action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                        )
                     }
 
                     is Action.EraseAll -> {
@@ -1226,7 +1270,9 @@ class Simulator(
                         }
                     }
 
-                    is Action.Use, is Action.Unuse -> { /* modifier activation: modifiers only */ }
+                    is Action.Use, is Action.Unuse, is Action.DrawLine -> {
+                        /* meta-actions: they belong to the simulation modifiers */
+                    }
 
                     is Action.ClearField -> {
                         val fieldId = action.field.evalInt(evaluator)

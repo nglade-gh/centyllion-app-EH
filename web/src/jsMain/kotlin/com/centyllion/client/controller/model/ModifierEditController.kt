@@ -119,6 +119,7 @@ class ModifierEditController(
                 helpLine("EraseRect(id, x1, y1, x2, y2)", "Erases the agents of type id inside the rectangle"),
                 helpLine("EraseDisc(id, x, y, radius)", "Erases the agents of type id inside the disc"),
                 helpLine("Erase(id)", "Erases every agent of type id in the whole environment"),
+                helpLine("DrawLine(id, x1, y1, x2, y2)", "Draws a line of agents of type id from (x1, y1) to (x2, y2), on the empty cells only"),
                 helpLine("Activate(id)", "Activates the behaviour id (no effect when already active)"),
                 helpLine("Inactivate(id)", "Inactivates the behaviour id (no effect when already inactive)"),
                 helpLine("Use(id)", "Activates the simulation modifier id"),
