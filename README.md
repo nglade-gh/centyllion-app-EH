@@ -440,3 +440,104 @@ Tests couvrant :
 - Projet original : [github.com/jeancharles-roger/centyllion-app](https://github.com/jeancharles-roger/centyllion-app)
 - Simulateur en ligne : [www.centyllion.com](https://www.centyllion.com/)
 - Site de référence : [virtulab.univ-brest.fr/netbiodyn.html](https://virtulab.univ-brest.fr/netbiodyn.html)
+
+## 9. Galerie de modèles, cas d'usage et déploiement
+
+### 9.1 À quoi sert la galerie
+
+La galerie est une collection de modèles « exposés » : le modélisateur décide qu'un
+modèle mérite d'être montré, lui associe une image (capture de la simulation, ou
+vignette générée depuis l'état initial faute d'image), un titre affiché sur
+l'image, et une micro-description. Les miniatures sont présentées en grille ; un
+clic propose d'ouvrir le modèle dans NetBioDyn (OK) ou d'annuler.
+
+Ces métadonnées (titre, description, image) ne sont **jamais** écrites dans le
+fichier de sauvegarde `.nbd2` : le modèle reste un modèle. La description du
+modèle, elle, appartient au modèle et s'édite par le bouton « Infos modèle » ;
+la description de galerie est une présentation, distincte.
+
+### 9.2 Deux galeries distinctes
+
+| | galerie distribuée | galerie personnelle |
+|---|---|---|
+| emplacement | `Gallery/gallery.json` + modèles, livrés avec le logiciel | IndexedDB du navigateur |
+| contenu | les modèles exposés par l'équipe (Autopulse 2, Game of Life using Modifiers) | les modèles que l'utilisateur ajoute |
+| visibilité | tous les visiteurs, identique | ce navigateur uniquement |
+| écriture | jamais modifiée par l'application | immédiate, à chaque ajout ou suppression |
+
+Le dossier `Gallery/` est à la racine du projet et **recopié dans `webroot/Gallery/`
+par `syncJs`** à chaque build : il doit rester hors du webroot, qui est effacé à
+chaque compilation. Il est distribué avec le logiciel.
+
+Un modèle ajouté par un utilisateur n'est donc **ni** publié, **ni** distribué,
+**ni** visible des autres visiteurs. C'est un choix assumé : sans comptes
+utilisateurs, un serveur ne peut pas savoir à qui appartient un modèle. Les ajouts
+vivent dans le navigateur, où IndexedDB leur donne un quota bien supérieur à
+`localStorage` (nécessaire pour des modèles de plusieurs mégaoctets).
+
+Conséquence pratique : vider les données du navigateur efface la galerie
+personnelle. D'où les deux boutons **« Exporter ma galerie »** et **« Importer ma
+galerie »** : le fichier `ma-galerie.json` exporté est autonome (il contient les
+textes des modèles) et constitue la seule sauvegarde et le seul transfert possible
+entre navigateurs ou postes. La galerie distribuée n'est pas concernée : elle fait
+partie du déploiement.
+
+### 9.3 Cas d'usage
+
+**Modélisateur, en local.** Il construit un modèle, l'essaie, puis l'expose dans sa
+galerie personnelle ; il exporte `ma-galerie.json` pour le retrouver sur un autre
+poste. Pour proposer un modèle à la distribution, il dépose le `.nbd2` et une image
+dans `Gallery/`, puis ajoute une entrée dans `Gallery/gallery.json` — opération
+d'équipe, versionnée avec le projet.
+
+**Enseignant, en salle.** Les étudiants se connectent à l'application déployée. Ils
+partent de la galerie distribuée, qui donne des exemples immédiatement ouvrables,
+puis construisent les leurs. Chaque poste garde ses ajouts ; rien n'est centralisé,
+et l'enseignant n'a pas à administrer de comptes.
+
+**Visiteur d'une instance publique.** Il consulte les modèles exposés, en ouvre un,
+l'explore, éventuellement l'édite pour lui-même. Ses ajouts ne quittent pas son
+navigateur ; le message affiché dans la galerie le lui rappelle.
+
+### 9.4 Déploiement
+
+**Développement local** (le seul cas où un dossier local est disponible) :
+
+```bash
+./gradlew :web:jsBrowserProductionWebpack :web:syncJs
+python3 serve.py                      # http://localhost:8081
+```
+
+`serve.py` sert `web/webroot` et ajoute trois routes (`GET /api/gallery`,
+`POST /api/gallery`, `POST /api/model`) qui écrivent dans `Gallery/local-gallery.json`
+et `Gallery/local/`. C'est un outil de développement : l'application fonctionne sans
+lui, et ne doit pas en dépendre.
+
+```bash
+python3 -m http.server 8081 --directory web/webroot   # équivalent, sans persistance côté dossier
+```
+
+**Serveur partagé** (cas d'usage général, par exemple l'instance de Brest) : le
+dossier `web/webroot` est publié par n'importe quel serveur web statique (nginx,
+Apache, un hébergement de fichiers). Il faut y inclure `webroot/Gallery/`, donc le
+contenu de `Gallery/` au moment du build. Côté client :
+
+- aucun dossier local, aucune écriture côté serveur ;
+- galerie distribuée en lecture seule, identique pour tous ;
+- galerie personnelle dans le navigateur de chaque visiteur, sauvegardable par
+  export.
+
+Ce que l'instance doit fournir : le bundle `web.js`, `css/`, `font/`, `index.html`,
+`help.html`, `favicon.ico` et `Gallery/`. Aucun service particulier, aucune base de
+données, aucun compte utilisateur.
+
+**Limites à annoncer aux utilisateurs d'une instance partagée.** La galerie
+personnelle est liée au navigateur et au poste ; elle ne suit pas d'une machine à
+l'autre ; elle disparaît si les données du navigateur sont effacées ; elle n'est
+pas vue par les autres visiteurs. L'export est la réponse à ces quatre limites.
+
+### 9.5 Ce que la galerie n'est pas
+
+Ce n'est pas une publication : ajouter un modèle ne le rend pas visible des autres.
+Ce n'est pas un dépôt partagé : il n'y a ni compte, ni modération, ni synchronisation
+entre postes. C'est un écrin personnel, adossé à une sélection distribuée.
