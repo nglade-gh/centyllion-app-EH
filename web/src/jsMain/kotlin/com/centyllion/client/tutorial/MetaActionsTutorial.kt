@@ -2,15 +2,15 @@ package com.centyllion.client.tutorial
 
 import bulma.*
 import com.centyllion.client.page.ShowPage
-import kotlinx.browser.document
+import com.centyllion.model.*
 import kotlinx.html.*
 
 /**
- * Tutorial on the meta-actions: the actions that act on the simulation itself instead of on
- * the cell of the behaviour (spawning, erasing, pausing, activating).
+ * Tutorial on the simulation modifiers, the only place where the meta-actions may be used.
  *
- * The steps are explanatory: they are not anchored on a UI element, so any element of the
- * page validates them.
+ * Each step waits for a real action of the user on the model: it advances when the model
+ * really changed, never by itself (a step whose condition is always true would be skipped and
+ * the tutorial would jump to its conclusion).
  */
 class MetaActionsTutorial(
     override val page: ShowPage
@@ -18,46 +18,68 @@ class MetaActionsTutorial(
 
     override val name = i18n("Simulation modifiers: meta-actions")
 
-    /** The modifiers only exist in expert mode. */
+    override val introduction: List<BulmaElement> = listOf(
+        p(i18n("Actions such as Add, Move or SetField act around the cell where a behaviour applies. Meta-actions act on the simulation itself: they add or erase agents in a zone, draw a line, pause the run, or switch a behaviour or another modifier on and off.")),
+        p(i18n("They are no longer written in a behaviour: the behaviour editor refuses them. They belong to a simulation modifier, in the section « Simulation modifiers », which only appears in expert mode. This tutorial puts you in expert mode and builds a small model to work on."))
+    )
+
+    /** A single grain with one behaviour, so there is something to modify. */
     override fun prepare() {
+        val grain = Grain(id = 0, name = "cell", color = "Lime", icon = "square-full", movementProbability = 0.0)
+        val model = GrainModel(
+            name = "Modifiers",
+            description = "A grain and a behaviour, ready for a modifier",
+            grains = listOf(grain),
+            behaviours = listOf(
+                Behaviour(name = "stay", mainReactiveId = 0, mainProductId = 0, id = 0)
+            )
+        )
+        page.model = ModelAndSimulation(model, createSimulation("Modifiers", size = 100) { if (it % 97 == 0) 0 else -1 })
         page.expertMode = true
     }
 
-    private val modifiersSection = { page.modelController.modifiersController.root }
+    private val modifiers = { page.modelController.modifiersController.root }
 
-    override val introduction: List<BulmaElement> = listOf(
-        p(i18n("The usual actions (Add, Remove, Move, SetField…) work around the cell where the behaviour applies, and are written in the Actions field of a behaviour.")),
-        p(i18n("Meta-actions work on the simulation itself: they add or erase agents in a zone, draw a line, pause the run, or switch a behaviour or another modifier on and off.")),
-        p(i18n("They are NOT written in a behaviour any more: the behaviour editor refuses them. They belong to a simulation modifier, in the section « Simulation modifiers », which is only visible in expert mode."))
-    )
+    private fun modifierWithActions(): SimulationModifier? =
+        page.model.model.modifiers.firstOrNull { it.actions.isNotBlank() && validateModifierActions(it.actions) == null }
 
     override val steps: List<TutorialStep> = listOf(
         TutorialStep(
-            title = i18n("Populate and erase"),
+            title = i18n("Create a modifier"),
             content = listOf(
-                p(i18n("Create a modifier with the + of the section, then write its Actions. Add(id, N) adds N agents of type id anywhere; AddRect(id, N, x1, y1, x2, y2), AddDisc(id, N, x, y, radius) and DrawLine(id, x1, y1, x2, y2) restrict the zone or the shape.")),
-                p(i18n("EraseRect(x1, y1, x2, y2) erases every agent of the rectangle, EraseDisc(x, y, radius) every agent of the disc, the five-argument forms EraseRect(id, …) and EraseDisc(id, …) only erase the agents of type id, and Erase(id) erases the whole type.")),
-                p(i18n("The rectangle accepts its corners in any order, every coordinate is clamped to the grid, and the positions are drawn among the empty cells: asking for more agents than there are free cells adds only the free ones.")),
-                p(i18n("A modifier runs once per step, after the behaviours. Its own probability decides at each step, and Activate/Inactivate (behaviours) and Use/Unuse (modifiers) switch the others on and off."))
+                p(i18n("In the explorer, find the section « Simulation modifiers » under the behaviours, then click its + button.")),
+                p(i18n("A row appears, like the ones of the grains, the fields and the behaviours: On/Off radio, name, identifier, probability."))
             ),
-            selector = modifiersSection,
-            validated = { true }
+            selector = modifiers,
+            validated = { page.model.model.modifiers.isNotEmpty() }
         ),
         TutorialStep(
-            title = i18n("Pause and activation"),
+            title = i18n("Write its meta-actions"),
             content = listOf(
-                p(i18n("pause() stops the simulation at the end of the current step: useful to run a scenario until a condition is reached, then look at it quietly.")),
-                p(i18n("Activate(id) and Inactivate(id) switch a behaviour on or off during the run; Use(id) and Unuse(id) do the same for a modifier. The identifier is the one displayed in the explorer, after the name: name (id).")),
-                p(i18n("The condition of a modifier is evaluated once per step, outside any cell: step, agent(x, y), age(x, y), count(id, x, y) and field(id, x, y) are available, and IsActive/IsInactive/IsInUse/IsNotInUse test the activation state."))
+                p(i18n("Select the modifier (a click anywhere in its white box), then write its Actions, for example:")),
+                code2("AddRect(0, 5, 10, 10, 20, 20)"),
+                p(i18n("This fills up to five cells of type 0 inside the rectangle (10, 10)-(20, 20). The positions are drawn among the empty cells of the zone.")),
+                p(i18n("The help button in front of the Actions field lists all the meta-actions, DrawLine and Use/Unuse included."))
             ),
-            selector = modifiersSection,
-            validated = { true }
+            selector = modifiers,
+            validated = { modifierWithActions() != null }
+        ),
+        TutorialStep(
+            title = i18n("Run it and switch it off"),
+            content = listOf(
+                p(i18n("Run the simulation: the zone fills up once, at the first step, and nothing more happens afterwards, since the zone is full.")),
+                p(i18n("Click the On/Off radio of the modifier to switch it off. A modifier can also be switched by another one, with Unuse(id), and switched back with Use(id)."))
+            ),
+            selector = modifiers,
+            validated = { page.model.model.modifiers.any { !it.enabled } }
         )
     )
 
     override val conclusion: List<BulmaElement> = listOf(
-        p(i18n("Careful: Add(id, N) uses a random draw over the whole grid, so the agents appear anywhere in the environment. For a reproducible scenario, prefer AddRect or AddDisc with explicit coordinates."))
+        p(i18n("A modifier is evaluated once per step, after the behaviours. Its condition is evaluated outside any cell: use step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and IsActive/IsInactive/IsInUse/IsNotInUse to test the activation state."))
     )
 
     override val next: Tutorial<ShowPage>? = null
+
+    private fun code2(text: String): BulmaElement = p(text)
 }
