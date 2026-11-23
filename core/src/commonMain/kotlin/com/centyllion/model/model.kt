@@ -1102,6 +1102,23 @@ data class Simulation(
         return if (newAgents != agents) copy(agents = newAgents) else this
     }
 
+    /**
+     * Reconciles the settings with the grid actually stored in the file: a project saved with
+     * a custom width and height must not be shrunk back to its square preset when the settings
+     * are applied (observed on a 1000 x 100 project displayed as 100 x 100).
+     */
+    fun withSettingsFromGrid(): Simulation {
+        val current = settings
+        if (current.effectiveWidth == width && current.effectiveHeight == height) return this
+        return copy(
+            settings = current.copy(
+                size = if (width == height) width else current.size,
+                customWidth = width,
+                customHeight = height,
+            )
+        )
+    }
+
     fun updateSettings(newSettings: SimulationSettings): Simulation {
         val currentSettings = this.settings
         val newAgents = if (currentSettings.agentsSize == newSettings.agentsSize) agents
@@ -1141,7 +1158,11 @@ data class ModelAndSimulation(
     }
 
     /** Returns a copy whose model carries its execution blocks. Call after loading a file. */
-    fun migrated(): ModelAndSimulation = copy(model = model.migrated())
+    fun migrated(): ModelAndSimulation = copy(
+        model = model.migrated(),
+        // the grid of the file wins over the settings it carries
+        simulation = simulation.withSettingsFromGrid()
+    )
 
     /** Copy to encode: the implicit block of a single-block model is not written. */
     fun forSerialization(): ModelAndSimulation = copy(model = model.forSerialization())
