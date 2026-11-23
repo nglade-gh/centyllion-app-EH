@@ -194,6 +194,10 @@ class ModelController(
 
                 is SimulationModifier -> ModifierEditController(newSelection, data.model, page) { old, new, _ ->
                     data = data.copy(model = data.model.updateModifier(old, new))
+                    // validating a condition or an action must not close the editor: if the
+                    // model change dropped the selection, put the modifier back
+                    val kept = data.model.modifiers.firstOrNull { it.uuid == new.uuid }
+                    if (kept != null && selected?.uuid != kept.uuid) selected = kept
                 }
 
                 else -> null

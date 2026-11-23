@@ -87,6 +87,16 @@ class MetaActionsTutorial(
             ),
             selector = modifiers,
             validated = { modifierReady() != null }
+        ),
+        TutorialStep(
+            title = i18n("4. Run the simulation"),
+            content = listOf(
+                p(i18n("Go to the Simulation tab and start the run. Watch the step counter: nothing appears in the rectangle before step 10.")),
+                p(i18n("At step 10 fifty viruses appear in the rectangle. They then spread from cell to cell through the behaviour Kill, and the radio of the modifier is off: it has switched itself off, exactly once.")),
+                p(i18n("Rewind: the modifier is active again, as it was at the start of the run, and the scenario replays identically."))
+            ),
+            selector = modifiers,
+            validated = { page.model.simulation.agents.any { it == 1 } }
         )
     )
 
