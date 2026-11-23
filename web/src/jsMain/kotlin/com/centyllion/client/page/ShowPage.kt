@@ -15,6 +15,7 @@ import com.centyllion.client.tutorial.FieldTutorial
 import com.centyllion.client.tutorial.GameOfLifeTutorial
 import com.centyllion.client.tutorial.Tutorial
 import com.centyllion.client.tutorial.TutorialLayer
+import com.centyllion.client.gallery.GalleryController
 import com.centyllion.model.ModelAndSimulation
 import kotlinx.browser.window
 import org.w3c.dom.HTMLElement
@@ -103,6 +104,42 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         model = model.updateModel(model.model.copy(name = new ) )
     }
 
+    /** Name and description of the model, edited in a dialog (fuchsia, above the Agents). */
+    private var galleryController: GalleryController? = null
+
+    val galleryControl = Control(Button(
+        i18n("Gallery"), Icon("images"), color = ElementColor.Primary
+    ) { showGallery() })
+
+    fun showGallery() {
+        val controller = galleryController ?: GalleryController(this).also { galleryController = it }
+        controller.open()
+    }
+
+    val modelInfoButton = Button(i18n("Model information"), Icon("info-circle")) {
+        val nameInput = Input(model.model.name, placeholder = i18n("Model Name"), rounded = true)
+        val descriptionInput = TextArea(
+            model.model.description, placeholder = i18n("Model Description"), rows = "6"
+        )
+        descriptionInput.root.style.width = "320px"
+        descriptionInput.root.style.minHeight = "200px"
+        modalDialog(
+            i18n("Model information"),
+            listOf(BField(Control(nameInput)), BField(Control(descriptionInput))),
+            Button(i18n("OK"), color = ElementColor.Primary) {
+                model = model.updateModel(model.model.copy(
+                    name = nameInput.value,
+                    description = descriptionInput.value
+                ))
+            },
+            Button(i18n("Cancel"), color = ElementColor.Light) { }
+        )
+    }.apply {
+        root.style.backgroundColor = "#e0218a"
+        root.style.borderColor = "#e0218a"
+        root.style.color = "white"
+    }
+
     /** Description of the model: saved in the file, empty by default. */
     val modelDescription = EditableStringController(
         initialData = model.model.description,
@@ -146,6 +183,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     val tools = BField(
         modelName.container,
         modelDescription.container,
+        galleryControl,
         newControl,
         Control(fileInput),
         saveAsControl,
@@ -169,7 +207,11 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
                 ),
                 size = ColumnSize.Full
             ),
-            Column(modelController, size = ColumnSize.Full),
+            Column(
+                BField(Control(modelInfoButton)),
+                Column(modelController, size = ColumnSize.Full),
+                size = ColumnSize.Full
+            ),
             multiline = true, centered = true
         )
     )
