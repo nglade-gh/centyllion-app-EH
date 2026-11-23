@@ -57,7 +57,7 @@ object English: Locale {
         "Simulation Description" -> "Simulation Description"
         "Clone Model" -> "Clone Model"
         "Clone Simulation" -> "Clone Simulation"
-        "Import" -> "Load"
+        "Import" -> "Import"
         "Export" -> "Save"
         "Save As" -> "Save As"
         "Expert Mode" -> "Expert Mode"

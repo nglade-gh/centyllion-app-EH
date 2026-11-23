@@ -42,14 +42,28 @@ class LegacyModelsTest {
             try {
                 val project = json.decodeFromString(ModelAndSimulation.serializer(), file.readText()).migrated()
                 val model = project.model
-                // a read / write / read cycle: the file must not lose anything essential
-                val reencoded = json.encodeToString(ModelAndSimulation.serializer(), project.forSerialization())
-                val again = json.decodeFromString(ModelAndSimulation.serializer(), reencoded).migrated()
-                if (again.model.grains.size != model.grains.size ||
-                    again.model.behaviours.size != model.behaviours.size ||
-                    again.model.fields.size != model.fields.size
+                // read / write / read: what we write must be re-readable identically, so no
+                // information is lost at each save (the writer must be a fixed point)
+                val first = json.encodeToString(ModelAndSimulation.serializer(), project.forSerialization())
+                val again = json.decodeFromString(ModelAndSimulation.serializer(), first).migrated()
+                val second = json.encodeToString(ModelAndSimulation.serializer(), again.forSerialization())
+                if (first != second) {
+                    failures.add("${file.name}: the written project is not stable (read/write is not a fixed point)")
+                    continue
+                }
+                if (again.simulation.agents != project.simulation.agents) {
+                    failures.add("${file.name}: the agents were altered (${project.simulation.agents.size} -> ${again.simulation.agents.size})")
+                    continue
+                }
+                if (again.simulation.width != project.simulation.width ||
+                    again.simulation.height != project.simulation.height ||
+                    again.simulation.settings != project.simulation.settings
                 ) {
-                    failures.add("${file.name}: round trip differs")
+                    failures.add("${file.name}: the grid or its settings were altered")
+                    continue
+                }
+                if (again.model.behaviours.map { it.name to it.id } != model.behaviours.map { it.name to it.id }) {
+                    failures.add("${file.name}: the behaviours were altered")
                     continue
                 }
                 report.add("${file.name}: ${model.grains.size} grains, ${model.behaviours.size} behaviours, ${model.fields.size} fields")
