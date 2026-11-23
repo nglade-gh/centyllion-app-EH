@@ -128,6 +128,25 @@ class Simulator(
         pauseRequested = false
     }
 
+    /**
+     * Grid commands (selection, clipboard, agent visibility) queued by the meta-actions during
+     * the last step. The core does not know the view, which owns the selection and the
+     * clipboard: the view drains this list at the end of the step and applies the commands in
+     * order, with the same code as the manual edition.
+     */
+    private val gridCommands = mutableListOf<GridCommand>()
+
+    /** Pending grid commands, in the order the formula asked for them (read-only view). */
+    val pendingGridCommands: List<GridCommand> get() = gridCommands
+
+    /** Returns the pending grid commands and empties the queue: called once per step by the view. */
+    fun drainGridCommands(): List<GridCommand> {
+        if (gridCommands.isEmpty()) return emptyList()
+        val drained = gridCommands.toList()
+        gridCommands.clear()
+        return drained
+    }
+
     /** Activation state at run time, initialised from the model and changed by Activate/Inactivate. */
     private val runtimeEnabled: BooleanArray by lazy { BooleanArray(allBehaviours.size) { allBehaviours[it].enabled } }
 
@@ -438,6 +457,9 @@ class Simulator(
         // the modifiers act once per step, after the behaviours, on the state of the step
         // that has just been computed (same step number as the behaviours saw)
         modifiersChanged = false
+        // a command belongs to one step: a view that did not drain the previous queue (a UI
+        // without grid edition, for instance) must not accumulate it forever
+        gridCommands.clear()
         applyModifiers()
 
         // count a step
@@ -766,6 +788,8 @@ class Simulator(
         modifierSnapshot().copyInto(runtimeModifierEnabled)
         activationChanged = true
         pauseRequested = false
+        // commands queued by a step that is now rewound are meaningless
+        gridCommands.clear()
         initialAgents.copyInto(agents)
         for (i in ages.indices) {
             ages[i] = if (agents[i] != -1) 0 else -1
@@ -886,7 +910,10 @@ class Simulator(
                 it is Action.AddMany || it is Action.AddRect || it is Action.AddDisc ||
                     it is Action.EraseRectAll || it is Action.EraseDiscAll ||
                     it is Action.EraseRect || it is Action.EraseDisc || it is Action.EraseAll ||
-                    it is Action.DrawLine
+                    it is Action.DrawLine ||
+                    // a grid command changes the view (selection, clipboard, visibility): the
+                    // run loop must then call the view, which drains the queue
+                    it is Action.Grid
             }
         ) modifiersChanged = true
         for (action in actions) {
@@ -1009,6 +1036,8 @@ class Simulator(
                             activationChanged = true
                         }
                     }
+
+                    is Action.Grid -> gridCommands.add(action.call.resolve(evaluator))
 
                     else -> { /* cell actions are not allowed in a modifier */ }
                 }
@@ -1270,7 +1299,7 @@ class Simulator(
                         }
                     }
 
-                    is Action.Use, is Action.Unuse, is Action.DrawLine -> {
+                    is Action.Use, is Action.Unuse, is Action.DrawLine, is Action.Grid -> {
                         /* meta-actions: they belong to the simulation modifiers */
                     }
 

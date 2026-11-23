@@ -94,6 +94,13 @@ sealed class Action {
 
     /** Inactivates a simulation modifier by its identifier (no effect when already inactive). */
     data class Unuse(val modifierId: Expression) : Action()
+
+    /**
+     * A grid command (selection, clipboard, visibility): it is queued by the simulation and
+     * executed by the view at the end of the step, which is the only place that knows the
+     * selection and the clipboard.
+     */
+    data class Grid(val call: GridCommandCall) : Action()
 }
 
 /** True for the actions that act on the simulation as a whole rather than on one cell. */
@@ -101,7 +108,7 @@ fun isMetaAction(action: Action): Boolean = when (action) {
     Action.Pause, is Action.AddMany, is Action.AddRect, is Action.AddDisc,
     is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
     is Action.EraseAll, is Action.Activate, is Action.Inactivate, is Action.Use, is Action.Unuse,
-    is Action.DrawLine -> true
+    is Action.DrawLine, is Action.Grid -> true
     else -> false
 }
 
@@ -129,24 +136,9 @@ private val actionArities = mapOf(
 private const val availableActions =
     "Add, Remove, Move, SetField, AddField, ClearField, pause, AddRect, AddDisc, EraseRect, EraseDisc, Erase, Activate, Inactivate, Use, Unuse, DrawLine"
 
-/** Splits [text] on top-level commas (commas inside parentheses are kept). */
-private fun splitTopLevel(text: String): List<String> {
-    val parts = mutableListOf<String>()
-    var depth = 0
-    var start = 0
-    for (i in text.indices) {
-        when (text[i]) {
-            '(' -> depth += 1
-            ')' -> depth -= 1
-            ',' -> if (depth == 0) {
-                parts.add(text.substring(start, i))
-                start = i + 1
-            }
-        }
-    }
-    parts.add(text.substring(start))
-    return parts.map { it.trim() }
-}
+/** Grid commands of the meta-actions: they are parsed by [parseGridCommandCall]. */
+private const val availableGridCommands =
+    "Show, Hide, Select, Cut, Copy, Paste, FlushSelection, PasteAndFlush, Rotate, FlipX, FlipY"
 
 private val actionCallPattern = Regex("""^(\w+)\s*\((.*)\)$""")
 
@@ -154,22 +146,37 @@ private val actionCallPattern = Regex("""^(\w+)\s*\((.*)\)$""")
  * Parses an actions formula: a comma separated list of action calls, e.g.
  * `Add(0, 1, 0), Remove(1, 0, 0), Move(0, 0, 0, 1, 0)`.
  *
+ * The grid commands of the meta-actions (`Select(0, 0, 2, 2), Copy()`) are accepted too and
+ * returned as [Action.Grid], at their position in the list: the order of the formula is the
+ * order the view applies them.
+ *
  * Throws [IllegalArgumentException] with a descriptive message when the formula is invalid.
  */
 fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
     val trimmed = trim()
     if (trimmed.isEmpty()) return emptyList()
 
-    return splitTopLevel(trimmed).map { part ->
+    return splitTopLevelArguments(trimmed).map { part ->
         val match = actionCallPattern.find(part)
             ?: throw IllegalArgumentException(
                 "Expected a list of actions like Add(0, 1, 0), Remove(1, 0, 0) — got '$part'"
             )
         val name = match.groupValues[1]
-        val arities = actionArities[name]
-            ?: throw IllegalArgumentException("Unknown action '$name' (available: $availableActions)")
         val argsText = match.groupValues[2].trim()
-        val args = if (argsText.isEmpty()) emptyList() else splitTopLevel(argsText).map { arg ->
+        val gridCall = parseGridCommandCall(name, argsText)
+        if (gridCall != null) {
+            if (!allowMeta) {
+                throw IllegalArgumentException(
+                    "$name is a meta-action: it belongs to a simulation modifier, not to a behaviour"
+                )
+            }
+            return@map Action.Grid(gridCall)
+        }
+        val arities = actionArities[name]
+            ?: throw IllegalArgumentException(
+                "Unknown action '$name' (available: $availableActions; grid commands: $availableGridCommands)"
+            )
+        val args = if (argsText.isEmpty()) emptyList() else splitTopLevelArguments(argsText).map { arg ->
             val expr = try {
                 arg.parseExpression()
             } catch (e: Exception) {
