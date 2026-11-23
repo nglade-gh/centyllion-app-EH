@@ -426,6 +426,12 @@ object English: Locale {
         "Thumbnail generated from the initial state." -> "Thumbnail generated from the initial state."
         "The gallery could not be saved in the browser storage." ->
             "The gallery could not be saved in the browser storage."
+        "Copy" -> "Copy"
+        "Cut" -> "Cut"
+        "Paste" -> "Paste"
+        "Deselect" -> "Deselect"
+        "Overwrite" -> "Overwrite"
+        "Keep" -> "Keep"
         else -> key
     }
 }
