@@ -123,7 +123,12 @@ class SimulationRunController(
         onUpdate = { ended, new, _ -> updatedSimulatorFromView(ended, new) }
     )
 
-    val simulationView = Column(simulationViewController.container, size = ColumnSize.Full)
+    // the edit bar (copy / cut / paste / deselect) sits right under the drawing tools
+    val simulationView = Column(
+        simulationViewController.container,
+        simulationViewController.editToolbar,
+        size = ColumnSize.Full
+    )
 
     val simulationColumns: Columns = Columns(
         Column(

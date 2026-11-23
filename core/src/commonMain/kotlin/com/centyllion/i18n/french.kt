@@ -523,6 +523,12 @@ object French: Locale {
         "Thumbnail generated from the initial state." -> "Vignette générée à partir de l'état initial."
         "The gallery could not be saved in the browser storage." ->
             "La galerie n'a pas pu être enregistrée dans le stockage du navigateur."
+        "Copy" -> "Copier"
+        "Cut" -> "Couper"
+        "Paste" -> "Coller"
+        "Deselect" -> "Désélectionner"
+        "Overwrite" -> "Écraser"
+        "Keep" -> "Conserver"
         else -> null
     }
 }
