@@ -76,9 +76,17 @@ class ModifierEditController(
         this.data = this.data.copy(actions = new)
     }
 
-    private fun helpLine(name: String, description: String) = TableRow(
-        TableCell(name).apply { root.classList.add("has-text-weight-bold") },
-        TableCell(page.i18n(description)),
+    /**
+     * One command of the help: the syntax in the first column, what it does (with an example
+     * substituted for `%0`) in the second one.
+     */
+    private fun helpLine(name: String, description: String, example: String? = null) = TableRow(
+        TableCell(name).apply {
+            root.classList.add("has-text-weight-bold")
+            // some entries document two forms of the same command on two lines
+            root.style.whiteSpace = "pre-line"
+        },
+        TableCell(if (example == null) page.i18n(description) else page.i18n(description, example)),
     )
 
     private fun helpButton(title: String, sections: List<BulmaElement>) = Button(
@@ -108,24 +116,30 @@ class ModifierEditController(
 
     private val modifierActionsHelp = Section(
         p(page.i18n("The actions are executed once per step, after the behaviours, when the condition is true.")),
-        p(page.i18n("Only meta-actions are allowed here: they act on the simulation, not on one cell.")),
+        p(page.i18n("Only meta-actions are allowed here: they act on the simulation as a whole, not on one cell.")),
         SubTitle(page.i18n("Meta-actions")),
         Table(
             body = listOf(
-                helpLine("pause()", "Pauses the simulation at the end of the current step"),
-                helpLine("Add(id, N)", "Adds N agents of type id anywhere in the environment"),
-                helpLine("AddRect(id, N, x1, y1, x2, y2)", "Adds N agents of type id inside the rectangle (x1, y1)-(x2, y2)"),
-                helpLine("AddDisc(id, N, x, y, radius)", "Adds N agents of type id inside the disc centred on (x, y)"),
-                helpLine("EraseRect(x1, y1, x2, y2)", "Erases every agent of the rectangle, whatever its type"),
-                helpLine("EraseDisc(x, y, radius)", "Erases every agent of the disc, whatever its type"),
-                helpLine("EraseRect(id, x1, y1, x2, y2)", "Erases the agents of type id inside the rectangle"),
-                helpLine("EraseDisc(id, x, y, radius)", "Erases the agents of type id inside the disc"),
-                helpLine("Erase(id)", "Erases every agent of type id in the whole environment"),
-                helpLine("DrawLine(id, x1, y1, x2, y2)", "Draws a line of agents of type id from (x1, y1) to (x2, y2), on the empty cells only"),
-                helpLine("Activate(id)", "Activates the behaviour id (no effect when already active)"),
-                helpLine("Inactivate(id)", "Inactivates the behaviour id (no effect when already inactive)"),
-                helpLine("Use(id)", "Activates the simulation modifier id"),
-                helpLine("Unuse(id)", "Inactivates the simulation modifier id"),
+                helpLine("pause()", "Pauses the simulation at the end of the current step, for instance %0.", "pause()"),
+                helpLine("Add(id, N)", "Adds N agents of type id on empty cells drawn at random in the whole environment, for instance %0.", "Add(1, 20)"),
+                helpLine("AddRect(id, N, x1, y1, x2, y2)", "Adds N agents of type id on the empty cells of the rectangle (x1, y1)-(x2, y2), for instance %0.", "AddRect(1, 10, 0, 0, 9, 9)"),
+                helpLine("AddDisc(id, N, x, y, radius)", "Adds N agents of type id on the empty cells of the disc centred on (x, y), for instance %0.", "AddDisc(1, 10, 50, 50, 5)"),
+                helpLine("DrawLine(id, x1, y1, x2, y2)", "Draws a line of agents of type id from (x1, y1) to (x2, y2), on the empty cells only, for instance %0.", "DrawLine(1, 0, 0, 99, 99)"),
+                helpLine("EraseRect(x1, y1, x2, y2)\nEraseRect(id, x1, y1, x2, y2)", "Erases every agent of the rectangle, or only the agents of type id, for instance %0.", "EraseRect(0, 0, 9, 9) / EraseRect(1, 0, 0, 9, 9)"),
+                helpLine("EraseDisc(x, y, radius)\nEraseDisc(id, x, y, radius)", "Erases every agent of the disc, or only the agents of type id, for instance %0.", "EraseDisc(50, 50, 5) / EraseDisc(1, 50, 50, 5)"),
+                helpLine("Erase(id)", "Erases every agent of type id in the whole environment, for instance %0.", "Erase(1)"),
+                helpLine("Activate(id)", "Activates the behaviour id, for instance %0.", "Activate(2)"),
+                helpLine("Inactivate(id)", "Inactivates the behaviour id, for instance %0.", "Inactivate(2)"),
+                helpLine("Use(id)", "Activates the simulation modifier id, for instance %0.", "Use(0)"),
+                helpLine("Unuse(id)", "Inactivates the simulation modifier id, for instance %0.", "Unuse(0)"),
+            ),
+            fullWidth = true, striped = true
+        ),
+        SubTitle(page.i18n("State tests")),
+        Table(
+            body = listOf(
+                helpLine("IsActive(id)\nIsInactive(id)", "1 when the behaviour id is active, 0 when it is inactive: usable in the condition and in the arguments, for instance %0.", "IsActive(2)"),
+                helpLine("IsInUse(id)\nIsNotInUse(id)", "1 when the simulation modifier id is active, 0 when it is inactive: usable in the condition and in the arguments, for instance %0.", "IsInUse(0)"),
             ),
             fullWidth = true, striped = true
         ),
@@ -134,19 +148,22 @@ class ModifierEditController(
         SubTitle(page.i18n("Grid commands")),
         Table(
             body = listOf(
-                helpLine("Select(x1, y1, x2, y2)", "Selects the rectangle between the two corners, in any order (like Shift + drag)"),
-                helpLine("Copy()", "Copies the visible agents of the selection into the clipboard"),
-                helpLine("Cut()", "Copies them, then removes them from the grid"),
-                helpLine("Paste(x, y, overwrite)", "Pastes the clipboard with (x, y) as its top-left corner; overwrite is true or false"),
-                helpLine("PasteAndFlush(x, y, overwrite)", "Pastes the clipboard, then drops the selection"),
-                helpLine("FlushSelection()", "Drops the selection; the clipboard is left untouched"),
-                helpLine("Rotate(N)", "Turns the clipboard N quarter turns clockwise (negative: counter-clockwise)"),
-                helpLine("FlipX() / FlipY()", "Mirrors the clipboard horizontally / vertically"),
-                helpLine("Show(id) / Hide(id)", "Shows / hides the agents of type id, like the display checkbox of the explorer"),
+                helpLine("Show(id)", "Makes the agents of type id visible again in the simulation view, like the Show ? switch of the explorer, for instance %0.", "Show(1)"),
+                helpLine("Hide(id)", "Hides the agents of type id in the simulation view, without touching the simulation, for instance %0.", "Hide(1)"),
+                helpLine("Select(x1, y1, x2, y2)", "Selects the rectangle between the two corners, in any order, like Shift + drag, for instance %0.", "Select(10, 10, 20, 20)"),
+                helpLine("Copy()", "Copies the visible agents of the selection into the clipboard, for instance %0.", "Copy()"),
+                helpLine("Cut()", "Copies the visible agents of the selection into the clipboard, then erases them from the grid, for instance %0.", "Cut()"),
+                helpLine("Paste(x, y, overwrite)", "Pastes the clipboard with (x, y) as its top-left corner; overwrite is true (replace) or false (keep), for instance %0.", "Paste(10, 10, false)"),
+                helpLine("FlushSelection()", "Drops the selection; the clipboard is left untouched, for instance %0.", "FlushSelection()"),
+                helpLine("PasteAndFlush(x, y, overwrite)", "Pastes the clipboard with (x, y) as its top-left corner, then drops the selection, for instance %0.", "PasteAndFlush(10, 10, true)"),
+                helpLine("Rotate(N)", "Turns the clipboard N quarter turns clockwise (negative: counter-clockwise), for instance %0.", "Rotate(1)"),
+                helpLine("FlipX()", "Mirrors the clipboard left/right, for instance %0.", "FlipX()"),
+                helpLine("FlipY()", "Mirrors the clipboard top/bottom, for instance %0.", "FlipY()"),
             ),
             fullWidth = true, striped = true
         ),
-        p(page.i18n("The grid commands are executed by the simulation view at the end of the step, in the order of the formula: a selection or a clipboard built by a modifier can then be used by hand. Copy, Cut, Paste, Rotate and Flip are ignored when the selection or the clipboard is empty."))
+        p(page.i18n("The grid commands work on the current selection and on the clipboard of the simulation view, not on a cell. They are applied at the end of the step, in the order of the formula: a selection or a clipboard built by a modifier can then be used by hand. Copy, Cut, Paste, PasteAndFlush, Rotate, FlipX and FlipY are ignored when the selection or the clipboard they need is empty.")),
+        p(page.i18n("Paste and PasteAndFlush follow the Toric ? switch of the edit bar: on, the cells that overflow the grid are folded on the opposite side (coordinates wrapped modulo the width and the height), so Paste(-10, 10, true) brings back on the right what comes out on the left; off, the cells outside the grid are lost."))
     )
 
     /** Problems of the two formulas, refreshed as they are typed. */

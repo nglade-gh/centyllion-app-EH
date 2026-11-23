@@ -1,6 +1,7 @@
 package com.centyllion.client.controller.model
 
 import bulma.*
+import bulma.extension.Switch
 import com.centyllion.client.controller.utils.DeleteCallbackProperty
 import com.centyllion.client.page.BulmaPage
 import com.centyllion.model.Grain
@@ -35,9 +36,34 @@ class GrainDisplayController(val page: BulmaPage, grain: Grain, model: GrainMode
     /** Visibility toggle callback (wired by the ModelController to the 3D view). */
     var onVisibilityChange: ((Boolean) -> Unit)? = null
 
-    /** Checkbox left of the grain icon: unchecked hides this grain type in the simulation view. */
-    val visibilityCheckbox = Checkbox("", true) { _, value ->
-        onVisibilityChange?.invoke(value)
+    /** True when the app context does not hide this grain type. */
+    private fun isVisible(): Boolean = data.id !in page.appContext.hiddenGrainIds
+
+    /**
+     * Switch left of the grain icon: off hides this grain type in the simulation view.
+     *
+     * Its state is re-read in [refresh], because the hidden ids also change outside this
+     * widget: a Show(id) / Hide(id) meta-action writes page.appContext.hiddenGrainIds directly.
+     */
+    val visibilitySwitch = Switch(
+        text = "", checked = isVisible(), size = Size.Small
+    ) { _, value -> onVisibilityChange?.invoke(value) }
+
+    /** Caption left of the switch: "Show ?" in both languages. */
+    private val visibilityLabel = Label(page.i18n("Show ?")).apply {
+        root.classList.add("is-size-7")
+        root.style.marginBottom = "0"
+        root.style.marginRight = "0.4rem"
+    }
+
+    /** Caption and switch on one line, so the row stays compact. */
+    val visibilityControl = Div(visibilityLabel, visibilitySwitch).apply {
+        root.classList.add("is-flex", "is-align-items-center")
+        visibilitySwitch.root.style.marginBottom = "0"
+        // clicking the caption toggles the switch, like a native <label for>
+        visibilitySwitch.root.querySelector("input")?.let { input ->
+            visibilityLabel.root.setAttribute("for", input.id)
+        }
     }
 
     val icon = Icon(grain.icon).apply {
@@ -51,7 +77,7 @@ class GrainDisplayController(val page: BulmaPage, grain: Grain, model: GrainMode
 
     val status = Span(invisibleIcon, movingIcon, deathIcon)
 
-    val body = Level(left=listOf(errorIcon), center = listOf(visibilityCheckbox, icon, titleLabel, status), mobile = true)
+    val body = Level(left=listOf(errorIcon), center = listOf(visibilityControl, icon, titleLabel, status), mobile = true)
 
     val deleteCallbackProperty = DeleteCallbackProperty(null,this) { old, new ->
         old?.let { body.right -= it }
@@ -62,6 +88,8 @@ class GrainDisplayController(val page: BulmaPage, grain: Grain, model: GrainMode
     override val container = Box(body)
 
     override fun refresh() {
+        // the visibility can also be changed by a meta-action, not only by this switch
+        visibilitySwitch.checked = isVisible()
         icon.icon = data.icon
         icon.root.style.color = data.color
         titleLabel.text = "${data.name} (${data.id})"

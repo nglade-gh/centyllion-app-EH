@@ -2,6 +2,7 @@ package com.centyllion.client.controller.model
 
 import bulma.*
 import bulma.Field
+import bulma.extension.Switch
 import com.centyllion.client.page.BulmaPage
 import com.centyllion.model.*
 import kotlinx.browser.document
@@ -13,8 +14,6 @@ import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.Path2D
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLElement
-import org.w3c.dom.HTMLInputElement
-import org.w3c.dom.HTMLLabelElement
 import org.w3c.dom.ImageData
 import org.w3c.dom.Node
 import org.w3c.dom.events.Event
@@ -747,12 +746,28 @@ class SimulatorViewController(
      */
     private var clipboardPasted = false
 
-    /** True when the "Écraser" radio is active: a paste then replaces the visible agents. */
+    /** True when the "Écraser" switch is active: a paste then replaces the visible agents. */
     var overwriteOnPaste: Boolean = false
         set(value) {
             if (field == value) return
             field = value
             refreshEditButtons()
+        }
+
+    /**
+     * True when the "Torique ?" switch is active: a paste that overflows the grid continues on
+     * the opposite side (coordinates wrapped modulo the width and the height, like the edges
+     * of the simulation) instead of losing the cells that fall outside.
+     *
+     * It applies to the manual paste and to the `Paste`/`PasteAndFlush` meta-actions, which
+     * both go through [pasteAt].
+     */
+    var toricPaste: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            // the preview of the extraction shows the wrapped cells: repaint it
+            render()
         }
 
     private fun ensureColors() {
@@ -898,14 +913,17 @@ class SimulatorViewController(
 
         // content of the extraction first: one translucent square per memorised cell, empty
         // cells stay transparent; cells outside the grid are skipped, as the paste ignores them
+        // (or wrapped on the opposite side, as the paste does, when the toric switch is on)
         ensureColors()
         val simulation = data.simulation
         ctx.globalAlpha = 0.3
         for (row in 0 until clipboardHeight) {
-            val y = hoverY + row
+            val pastedY = hoverY + row
+            val y = if (toricPaste) wrapCoordinate(pastedY, simulation.height) else pastedY
             if (!simulation.positionInside(hoverX, y)) continue
             for (column in 0 until clipboardWidth) {
-                val x = hoverX + column
+                val pastedX = hoverX + column
+                val x = if (toricPaste) wrapCoordinate(pastedX, simulation.width) else pastedX
                 if (!simulation.positionInside(x, y)) continue
                 val id = cells[row * clipboardWidth + column]
                 if (id < 0 || id >= grainVisible.size || !grainVisible[id]) continue
@@ -1064,18 +1082,27 @@ class SimulatorViewController(
     /**
      * Pastes the extraction at a given top-left cell (the meta-action `Paste(x, y, overwrite)`
      * and `PasteAndFlush(x, y, overwrite)`), with an explicit paste mode: same rules as the
-     * manual paste, same model update path (undo), cells outside the grid ignored.
+     * manual paste, same model update path (undo).
+     *
+     * Cells outside the grid are dropped, unless the "Torique ?" switch ([toricPaste]) is on:
+     * their coordinates are then wrapped modulo the width and the height, so a paste that
+     * overflows on the left or on the top comes back from the right or the bottom edge (this
+     * also holds for negative coordinates, e.g. `Paste(-10, 10, true)`).
      */
     fun pasteAt(x: Int, y: Int, overwrite: Boolean): Boolean {
         if (readOnly) return false
         val cells = clipboard ?: return false
         val simulation = data.simulation
+        if (simulation.width <= 0 || simulation.height <= 0) return false
         var changed = false
         for (row in 0 until clipboardHeight) {
-            val targetY = y + row
+            val pastedY = y + row
+            // toric: fold the overflowing rows on the opposite side instead of dropping them
+            val targetY = if (toricPaste) wrapCoordinate(pastedY, simulation.height) else pastedY
             if (targetY < 0 || targetY >= simulation.height) continue
             for (column in 0 until clipboardWidth) {
-                val targetX = x + column
+                val pastedX = x + column
+                val targetX = if (toricPaste) wrapCoordinate(pastedX, simulation.width) else pastedX
                 if (targetX < 0 || targetX >= simulation.width) continue
                 val index = simulation.toIndex(targetX, targetY)
                 val incoming = cells[row * clipboardWidth + column]
@@ -1263,28 +1290,46 @@ class SimulatorViewController(
     /** Top/bottom mirror of the clipboard (see [flipClipboardVertical]). */
     val flipVerticalButton = transformButton("arrows-up-down", "Flip vertical") { flipClipboardVertical() }
 
-    private fun radioInput(mode: String, checked: Boolean): HTMLInputElement =
-        (document.createElement("input") as HTMLInputElement).apply {
-            type = "radio"
-            name = "centy-paste-mode"
-            value = mode
-            this.checked = checked
+    /**
+     * Toolbar switch with its caption above it, in a column. Bulma's [Switch] draws the text
+     * on the right of the input, which does not fit a compact bar where two switches sit side
+     * by side: the caption is therefore a separate label over the switch.
+     */
+    private fun captionedSwitch(
+        caption: String, checked: Boolean, color: ElementColor, onChange: (Boolean) -> Unit
+    ): Div {
+        val captionLabel = Label(page.i18n(caption)).apply {
+            root.classList.add("is-size-7")
+            root.style.marginBottom = "0.15rem"
+            root.style.whiteSpace = "nowrap"
         }
-
-    /** Radios of the paste mode, built by hand like the grid size ones (Bulma's API is not usable here). */
-    private val overwriteRadioInput = radioInput("overwrite", false)
-    private val keepRadioInput = radioInput("keep", true)
-
-    private fun radioLabel(input: HTMLInputElement, text: String) = HtmlWrapper(
-        (document.createElement("label") as HTMLLabelElement).apply {
-            classList.add("radio")
-            appendChild(input)
-            appendChild(document.createTextNode(" " + text))
+        val switch = Switch(
+            text = "", checked = checked, color = color, size = Size.Small, rounded = true
+        ) { _, value -> onChange(value) }
+        // Bulma's field wrapper carries a bottom margin: the caption already spaces the switch
+        switch.root.style.marginBottom = "0"
+        return Div(captionLabel, switch).apply {
+            root.classList.add("has-text-centered")
+            root.style.marginLeft = "1rem"
+            // clicking the caption toggles the switch, like a native <label for>
+            switch.root.querySelector("input")?.let { input ->
+                captionLabel.root.setAttribute("for", input.id)
+            }
         }
-    )
+    }
 
-    private val overwriteRadio = radioLabel(overwriteRadioInput, page.i18n("Overwrite"))
-    private val keepRadio = radioLabel(keepRadioInput, page.i18n("Keep"))
+    /**
+     * "Torique ?" switch: when on, a paste that overflows the grid is folded on the opposite
+     * side (see [toricPaste]).
+     */
+    private val toricControl = captionedSwitch("Toric ?", toricPaste, ElementColor.Info) {
+        toricPaste = it
+    }
+
+    /** "Écraser ?" switch: when on, a paste replaces the visible agents in place. */
+    private val overwriteControl = captionedSwitch("Overwrite ?", overwriteOnPaste, ElementColor.Warning) {
+        overwriteOnPaste = it
+    }
 
     private val editButtonsField = Field(addons = true).apply {
         body = listOf(
@@ -1294,13 +1339,14 @@ class SimulatorViewController(
         )
     }
 
-    private val pasteModeField = Div(overwriteRadio, keepRadio).apply {
-        root.classList.add("control")
-        root.style.paddingTop = "6px"
+    /** Paste options, right of the deselect button: toric paste and overwrite switches. */
+    private val pasteOptionsField = Div(toricControl, overwriteControl).apply {
+        root.classList.add("is-flex", "is-align-items-flex-end")
+        root.style.paddingTop = "2px"
     }
 
-    /** Bar under the drawing tools: copy, cut, paste, deselect and the paste mode. */
-    val editToolbar = Level(center = listOf(editButtonsField, pasteModeField))
+    /** Bar under the drawing tools: copy, cut, paste, deselect and the paste options. */
+    val editToolbar = Level(center = listOf(editButtonsField, pasteOptionsField))
 
     private fun refreshEditButtons() {
         val selected = selection != null
@@ -1399,8 +1445,6 @@ class SimulatorViewController(
         window.addEventListener("pointerup", selectionPointerUp)
         // document level, so the shortcuts also work right after a click on the canvas
         document.addEventListener("keydown", shortcutCallback)
-        overwriteRadioInput.addEventListener("change", { overwriteOnPaste = true })
-        keepRadioInput.addEventListener("change", { overwriteOnPaste = false })
         editToolbar.hidden = readOnly
         refreshEditButtons()
     }
@@ -1453,21 +1497,31 @@ class SimulatorViewController(
         render()
     }
 
-    /** Shows or hides the agents of type [grainId], like the "display" checkbox of the explorer. */
+    /** Shows or hides the agents of type [grainId], like the "Show ?" switch of the explorer. */
     private fun setGrainVisible(grainId: Int, visible: Boolean) {
         // unknown id: silently ignored (the model may have changed since the formula was written)
         if (data.model.grains.none { it.id == grainId }) return
         val hidden = page.appContext.hiddenGrainIds
         val changed = if (visible) hidden.remove(grainId) else hidden.add(grainId)
         if (!changed) return
-        // the colour table and the visibility flags are cached: rebuild them before repainting
-        invalidateColors()
+        // the colour table and the visibility flags are cached: rebuild them before repainting;
+        // refreshVisibility also tells the explorer switches to re-read the hidden ids
+        refreshVisibility()
     }
+
+    /**
+     * Called whenever the hidden agent/field ids may have changed, so the explorer switches can
+     * re-read them (see [refreshVisibility] and [setGrainVisible]). Wired by the ModelController.
+     */
+    var onVisibilityChanged: (() -> Unit)? = null
 
     /** Re-applies the visibility toggles from the side panel (hidden grain types and fields). */
     fun refreshVisibility() {
         invalidateColors()
         render()
+        // the switches own the ids they hide, but a meta-action can change them out of their
+        // own event: they must then be told to re-read the set, otherwise they keep a stale state
+        onVisibilityChanged?.invoke()
     }
 
     override fun refresh() = render()

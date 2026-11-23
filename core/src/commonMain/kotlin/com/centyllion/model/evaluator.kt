@@ -135,8 +135,15 @@ fun createEvaluator(simulator: Simulator) = NetbioDynEvaluator(simulator)
 
 fun createEvaluator() = NetbioDynEvaluator(null)
 
-/** Positive modulo: wraps [v] into [0, n) — toroidal coordinates (see [com.centyllion.model.Simulation.moveIndex]). */
-private fun wrapCoordinate(v: Int, n: Int): Int = ((v % n) + n) % n
+/**
+ * Positive modulo: wraps [v] into `[0, n)` — toroidal coordinates (see
+ * [com.centyllion.model.Simulation.moveIndex]).
+ *
+ * A negative value comes back from the opposite edge (-1 becomes n - 1), a value past the edge
+ * restarts at 0. Used by the model functions that take coordinates and by the toric paste of
+ * the view (a paste that overflows the grid is folded instead of being clipped).
+ */
+fun wrapCoordinate(v: Int, n: Int): Int = if (n <= 0) 0 else ((v % n) + n) % n
 
 fun validateFormula(formula: String): String? {
     val evaluator = createEvaluator()

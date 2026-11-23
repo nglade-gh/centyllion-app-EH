@@ -214,4 +214,33 @@ class GridCommandTest {
         // and the grid itself is untouched
         assertEquals(0, simulator.agents.count { it >= 0 })
     }
+
+    // ---- toric paste ----
+
+    @Test
+    fun testWrapCoordinateStaysInsideTheGrid() {
+        assertEquals(0, wrapCoordinate(0, 100))
+        assertEquals(99, wrapCoordinate(99, 100))
+        assertEquals(0, wrapCoordinate(100, 100))
+        assertEquals(3, wrapCoordinate(103, 100))
+        // a negative coordinate comes back from the opposite edge
+        assertEquals(99, wrapCoordinate(-1, 100))
+        assertEquals(90, wrapCoordinate(-10, 100))
+        assertEquals(0, wrapCoordinate(-100, 100))
+        // degenerate grid: never divide by zero
+        assertEquals(0, wrapCoordinate(7, 0))
+    }
+
+    @Test
+    fun testWrapCoordinateMatchesTheEdgeWrappingOfThePaste() {
+        // Paste(-10, 10, true) on a 100x100 grid with a 50 wide extraction: the ten left
+        // columns reappear at 90..99, the 40 others stay at 0..39
+        val columns = (0 until 50).map { wrapCoordinate(-10 + it, 100) }
+        assertEquals((90 until 100).toList() + (0 until 40).toList(), columns)
+        // overflow on the right: 95 + 10 wraps to 5
+        assertEquals(listOf(95, 96, 97, 98, 99, 0, 1, 2, 3, 4), (0 until 10).map { wrapCoordinate(95 + it, 100) })
+        // and the same vertically: 80 rows, a paste starting at y = 90 wraps to 10
+        assertEquals(20, wrapCoordinate(100, 80))
+        assertEquals(0, wrapCoordinate(80, 80))
+    }
 }

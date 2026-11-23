@@ -330,7 +330,7 @@ class ModelController(
             initialList = data.model.fields,
             onClick = { field, _ -> selected = field },
             controllerBuilder = { field, previous ->
-                previous ?: FieldDisplayController(field).wrap { controller ->
+                previous ?: FieldDisplayController(field, page).wrap { controller ->
                     controller.onDelete = {
                         data = data.dropField(controller.data)
                         selected = null
@@ -475,6 +475,18 @@ class ModelController(
         },
         onUpdate = { old, new, _ -> if (old != new) data = data.copy(simulation = new) }
     )
+
+    /**
+     * A Show(id) / Hide(id) meta-action changes page.appContext.hiddenGrainIds (or
+     * hiddenFieldIds) from the simulation loop: the explorer switches did not see the event
+     * that changed them, so they are told to re-read the sets, otherwise they keep a stale state.
+     */
+    init {
+        simulationController.simulationViewController.onVisibilityChanged = {
+            grainsController.dataControllers.forEach { it.refresh() }
+            fieldsController.dataControllers.forEach { it.refresh() }
+        }
+    }
 
 
     val emptyEditor = SubTitle(page.i18n("Select a element to edit it"))
