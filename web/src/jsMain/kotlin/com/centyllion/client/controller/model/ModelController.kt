@@ -180,20 +180,27 @@ class ModelController(
     var selected: ModelElement? by observable(null) { _, oldSelection, newSelection ->
         if (oldSelection != newSelection) {
             editorController = when (newSelection) {
-                is Field -> FieldEditController(newSelection, data.model, page) { old, new, _ ->
-                    data = data.updateField(old, new)
+                is Field -> FieldEditController(newSelection, data.model, page) { _, new, _ ->
+                    val current = data.model.fields.firstOrNull { it.uuid == new.uuid }
+                    if (current != null) data = data.updateField(current, new.copy(id = current.id))
                 }
 
-                is Grain -> GrainEditController(newSelection, data.model, page, expertMode) { old, new, _ ->
-                    data = data.updateGrain(old, new)
+                is Grain -> GrainEditController(newSelection, data.model, page, expertMode) { _, new, _ ->
+                    val current = data.model.grains.firstOrNull { it.uuid == new.uuid }
+                    if (current != null) data = data.updateGrain(current, new.copy(id = current.id))
                 }
 
-                is Behaviour -> BehaviourEditController(newSelection, data.model, page, expertMode) { old, new, _ ->
-                    data = data.updateBehaviour(old, new)
+                is Behaviour -> BehaviourEditController(newSelection, data.model, page, expertMode) { _, new, _ ->
+                    val current = data.model.behaviours.firstOrNull { it.uuid == new.uuid }
+                    if (current != null) {
+                        data = data.updateBehaviour(current, new.copy(id = current.id, enabled = current.enabled))
+                    }
                 }
 
-                is SimulationModifier -> ModifierEditController(newSelection, data.model, page) { old, new, _ ->
-                    data = data.copy(model = data.model.updateModifier(old, new))
+                is SimulationModifier -> ModifierEditController(newSelection, data.model, page) { _, new, _ ->
+                    val current = data.model.modifiers.firstOrNull { it.uuid == new.uuid }
+                    val merged = if (current != null) new.copy(id = current.id, enabled = current.enabled) else new
+                    data = data.copy(model = data.model.updateModifier(current ?: new, merged))
                     // validating a condition or an action must not close the editor: if the
                     // model change dropped the selection, put the modifier back
                     val kept = data.model.modifiers.firstOrNull { it.uuid == new.uuid }
