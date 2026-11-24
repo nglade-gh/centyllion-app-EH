@@ -527,6 +527,43 @@ class SimulationModifierTest {
         assertNull(validateModifierActions("AddRect(0, 5, 2, 2, 4, 4), pause()"))
         assertTrue(validateModifierActions("Add(0, 1, 0)")!!.contains("meta-actions"))
     }
+
+    @Test
+    fun testTheLoopControlActionsParse() {
+        // the five actions that drive the run loop, all written with a capital letter
+        assertNull(validateModifierActions("Pause()"))
+        assertNull(validateModifierActions("Continue()"))
+        assertNull(validateModifierActions("RunOneStep()"))
+        assertNull(validateModifierActions("RunNStep(3)"))
+        assertNull(validateModifierActions("Rewind()"))
+        assertNull(validateModifierActions("Restart()"))
+        assertNull(validateModifierActions("Continue(), RunOneStep(), RunNStep(2 + 1), Rewind(), Restart()"))
+        // arity of N
+        assertTrue(validateModifierActions("RunNStep()")!!.contains("expects 1 argument"))
+        assertTrue(validateModifierActions("RunNStep(1, 2)")!!.contains("expects 1 argument"))
+        // N is a number, never a boolean
+        assertTrue(validateModifierActions("RunNStep(true)")!!.contains("must be a number"))
+        assertTrue(validateModifierActions("RunOneStep(1)")!!.contains("expects 0 arguments"))
+        // parsed as their own action
+        assertTrue("RunNStep(3)".parseModifierActions().single() is Action.RunNStep)
+        assertEquals(Action.Continue, "Continue()".parseModifierActions().single())
+        assertEquals(Action.RunOneStep, "RunOneStep()".parseModifierActions().single())
+        assertEquals(Action.Rewind, "Rewind()".parseModifierActions().single())
+        assertEquals(Action.Restart, "Restart()".parseModifierActions().single())
+    }
+
+    @Test
+    fun testPauseIsCapitalisedAndTheLowercaseFormIsAnAlias() {
+        // pause() is obsolete but an already recorded model must keep loading and running
+        assertNull(validateModifierActions("pause()"))
+        assertEquals(Action.Pause, "pause()".parseModifierActions().single())
+        assertEquals(Action.Pause, "Pause()".parseModifierActions().single())
+        assertEquals(Action.Pause, "pause()".parseActionFormula().single())
+        // the alias table holds the obsolete spellings and nothing else
+        assertEquals(mapOf("pause" to "Pause"), deprecatedActionNames)
+        // the unknown-action message proposes the current spelling
+        assertTrue(validateModifierActions("Paused()")!!.contains("Pause"))
+    }
 }
 
 /** Use(id) and Unuse(id) switch the simulation modifiers on and off at run time. */

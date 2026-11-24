@@ -158,6 +158,7 @@ tr:hover td { background: var(--panel-2); }
   <a href="#exemples-champs" class="sub">4.4 Exemples — champs</a>
   <a href="#exemples-comportements" class="sub">4.5 Exemples — comportements</a>
   <a href="#exemples-complets">5. Exemples complets</a>
+  <a href="#boucle">8. Méta-actions de la boucle</a>
 </nav>
 
 <main>
@@ -644,14 +645,64 @@ Comportement "Reproduction" : 0 → 0, voisin (1) : 1 → 1, formule : count(0) 
   <p>Ce sont des <b>actions</b>, pas des tests : elles s'écrivent dans la formule d'actions, séparées par des virgules, et l'argument est le littéral <code>true</code> ou <code>false</code> (jamais une expression ni <code>0</code>/<code>1</code>).</p>
 
   <h3>7.2 Les tests d'état, réservés à la condition</h3>
-  <p>Trois fonctions, et elles seules avec <code>IsBehaviourActive</code>, <code>IsInactive</code>, <code>IsModifierActive</code> et <code>IsNotInUse</code>, permettent d'interroger l'état de la vue depuis une formule. Ce sont des <b>tests</b> : ils renvoient 1 (vrai) ou 0 (faux) et s'écrivent uniquement dans la <b>condition</b> d'un modificateur.</p>
+  <p>Cinq fonctions, toutes écrites avec une majuscule, permettent d'interroger l'état de la simulation et de la vue depuis une formule. Ce sont des <b>tests</b> : ils renvoient 1 (vrai) ou 0 (faux) et s'écrivent uniquement dans la <b>condition</b> d'un modificateur.</p>
   <ul>
+    <li><code>IsBehaviourActive(id)</code> — 1 quand le comportement <code>id</code> est actif, 0 quand il est inactif.</li>
+    <li><code>IsModifierActive(id)</code> — 1 quand le modificateur <code>id</code> est actif, 0 quand il est inactif.</li>
     <li><code>IsToricSelectionOn()</code> — 1 quand « Torique ? » est actif, 0 sinon.</li>
     <li><code>IsOverwritingOn()</code> — 1 quand « Écraser ? » est actif, 0 sinon.</li>
     <li><code>IsVisible(id)</code> — 1 quand les agents de type <code>id</code> sont visibles dans la vue, 0 quand ils sont masqués (par <code>Hide(id)</code> ou par l'interrupteur de l'explorateur).</li>
   </ul>
   <pre><code>Condition : IsVisible(0) &amp;&amp; IsToricSelectionOn()
 Actions   : Hide(0), AllowOverwriting(true)</code></pre>
-  <p>Une formule d'actions qui contient un test (<code>IsBehaviourActive(0)</code>, <code>IsVisible(0)</code>…) est refusée, et la condition d'un comportement aussi : ces tests décrivent la simulation entière et la vue, pas la cellule d'un comportement.</p>
+  <p>La négation s'écrit avec l'opérateur <code>!</code> : <code>!IsBehaviourActive(0)</code>. Il n'existe pas de test « inactif » séparé. Une formule d'actions qui contient un test (<code>IsBehaviourActive(0)</code>, <code>IsVisible(0)</code>…) est refusée, et la condition d'un comportement aussi : ces tests décrivent la simulation entière et la vue, pas la cellule d'un comportement.</p>
+
+  <section id="boucle">
+  <h2>8. Méta-actions de la boucle de simulation</h2>
+  <p>Dans la formule d'actions d'un modificateur — le seul endroit où les méta-actions sont admises — six actions pilotent la <b>boucle de course</b> et non la grille : elles arrêtent la course, la reprennent, exécutent un nombre de pas donné ou rembobinent la simulation à son état initial. Comme les autres méta-actions, une demande est appliquée <b>à la fin du pas</b> qui l'émet : le pas en cours est terminé, puis la boucle obéit.</p>
+  <table>
+    <tr><th>Action</th><th>Effet sur la boucle</th></tr>
+    <tr>
+      <td><code>Pause()</code></td>
+      <td>Arrête la course à la fin du pas courant. C'est le bouton Stop, écrit dans une formule.</td>
+    </tr>
+    <tr>
+      <td><code>Continue()</code></td>
+      <td>Reprend la course si elle est en pause. Sans effet si elle tourne déjà. C'est le bouton Run.</td>
+    </tr>
+    <tr>
+      <td><code>RunOneStep()</code></td>
+      <td>Exécute exactement <b>un pas</b> de plus, puis se remet en pause. C'est le bouton « pas à pas », écrit dans une formule : la course avance d'un pas et s'arrête.</td>
+    </tr>
+    <tr>
+      <td><code>RunNStep(N)</code></td>
+      <td>Exécute <b>N pas</b> de plus (N entier, arrondi au plus proche), puis se met en pause. <code>N &lt;= 0</code> est ignoré : aucune étape n'est demandée et la course n'est pas interrompue.</td>
+    </tr>
+    <tr>
+      <td><code>Rewind()</code></td>
+      <td>Revient à l'état initial <b>sans relancer</b> : la grille, l'état d'activation des comportements et des modificateurs et le compteur de pas repartent de zéro, et la course reste en pause. C'est le bouton de rembobinage.</td>
+    </tr>
+    <tr>
+      <td><code>Restart()</code></td>
+      <td>Revient à l'état initial <b>et relance</b> la course : rembobinage suivi du bouton Run.</td>
+    </tr>
+  </table>
+  <p>Deux exemples, à écrire dans la formule d'actions d'un modificateur :</p>
+  <pre><code>Condition : step == 20
+Actions   : RunNStep(5)
+# au pas 20, la course exécute cinq pas de plus puis s'arrête au pas 25
+
+Condition : step == 100
+Actions   : Rewind()
+# au pas 100, la simulation revient à son état initial et reste en pause</code></pre>
+  <p>Si plusieurs demandes tombent dans le même pas, l'ordre d'application est <code>Restart</code>, <code>Rewind</code>, <code>Pause</code>, <code>Continue</code>, <code>RunOneStep</code>/<code>RunNStep</code> : la dernière de cette liste l'emporte. Les pas demandés par deux formules s'additionnent, et un <code>Pause()</code> annule ceux qui restent à exécuter.</p>
+
+  <h3>8.1 Règle de casse des noms</h3>
+  <p>Les <b>méta-fonctions</b> (actions d'un modificateur) et les <b>méta-tests</b> (tests d'état de la condition) commencent par une <b>majuscule</b> : <code>Pause</code>, <code>Continue</code>, <code>RunOneStep</code>, <code>RunNStep</code>, <code>Rewind</code>, <code>Restart</code>, <code>AddRect</code>, <code>IsVisible</code>… Les fonctions de formule et les prédicats restent en <b>minuscules</b> : <code>abs</code>, <code>min</code>, <code>max</code>, <code>sin</code>, <code>cos</code>, <code>count</code>, <code>field</code>, <code>age</code>, <code>agent</code>, ainsi que les variables <code>step</code>, <code>x</code>, <code>y</code>, <code>z</code> et <code>current</code>. Un nom de formule est sensible à la casse : <code>isvisible(0)</code> n'existe pas et la formule est refusée.</p>
+
+  <h3>8.2 <code>pause()</code> est obsolète</h3>
+  <p>La méta-action <code>pause()</code>, écrite en minuscules, reste <b>acceptée</b> pour les modèles déjà enregistrés : ils continuent de se charger et de se comporter à l'identique. Elle est en revanche <b>obsolète</b>, et c'est la seule méta-fonction qui ne respectait pas la règle de casse. Écrivez <code>Pause()</code> : c'est ce nom qu'affiche l'aide contextuelle, et <code>pause()</code> n'est conservé que pour la compatibilité.</p>
+  </section>
+
 </body>
 </html>

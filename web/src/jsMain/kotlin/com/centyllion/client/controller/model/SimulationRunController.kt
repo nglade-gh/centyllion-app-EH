@@ -10,6 +10,7 @@ import com.centyllion.model.GrainModel
 import com.centyllion.model.PARALLEL_UPDATE_PLAN
 import com.centyllion.model.SEQUENTIAL_UPDATE_PLAN
 import com.centyllion.model.Simulation
+import com.centyllion.model.SimulationLoop
 import com.centyllion.model.Simulator
 import kotlinx.browser.window
 import org.w3c.dom.MutationObserver
@@ -28,6 +29,7 @@ class SimulationRunController(
     override var data: Simulation by observable(simulation) { _, old, new ->
         if (old != new) {
             currentSimulator = Simulator(context, new)
+            loop = SimulationLoop(currentSimulator)
             simulationViewController.data = currentSimulator
             running = false
             onUpdate(old, new, this@SimulationRunController)
@@ -39,6 +41,7 @@ class SimulationRunController(
         if (old != new) {
             data = data.cleaned(new)
             currentSimulator = Simulator(new, data)
+            loop = SimulationLoop(currentSimulator)
             simulationViewController.data = currentSimulator
             running = false
             refresh()
@@ -53,10 +56,17 @@ class SimulationRunController(
 
     private var currentSimulator = Simulator(context, data)
 
+    /**
+     * Run/pause state of the loop: the control meta-actions (Pause, Continue, RunOneStep,
+     * RunNStep, Rewind, Restart) change it at the end of the step that emitted them.
+     */
+    private var loop = SimulationLoop(currentSimulator)
+
     val simulator get() = currentSimulator
 
     private var running: Boolean by observable(false) { _, old, new ->
         if (old != new) {
+            if (new) loop.start() else loop.stop()
             simulationViewController.running = new
             if (new) {
                 refreshButtons()
@@ -191,7 +201,10 @@ class SimulationRunController(
                 setFpsColor(delta > time && lastRequestSkipped)
             }
 
-            val refresh = fps >= 200 || lastStepTimestamp == 0.0 || delta >= time
+            val refresh = fps >= 200 || lastStepTimestamp == 0.0 || delta >= time ||
+                // the steps asked by RunOneStep/RunNStep run without waiting for the fps limit
+                loop.remainingSteps > 0
+
             if (refresh) {
                 lastStepTimestamp = timestamp
                 executeStep()
@@ -234,6 +247,7 @@ class SimulationRunController(
 
     fun reset() {
         if (!running) {
+            loop.stop()
             currentSimulator.reset()
             // a rewind restores the activation state of the beginning of the run
             syncActivationRadios(currentSimulator)
@@ -243,18 +257,32 @@ class SimulationRunController(
         }
     }
 
+    /**
+     * Applies the control requests emitted by the meta-actions during the step that has just
+     * run: Pause, Continue, RunOneStep, RunNStep, Rewind, Restart. They drive the loop, never
+     * the grid.
+     */
+    private fun applyControlRequests() {
+        val update = loop.afterStep()
+        if (update.rewound) {
+            // the simulation is back to its initial state: the radios follow the restored state
+            syncActivationRadios(currentSimulator)
+            refresh()
+            onReset(currentSimulator)
+            stepLabel.text = "${currentSimulator.step}"
+        }
+        if (running != update.running) running = update.running
+    }
+
     private fun executeStep() {
         val (applied, dead) = simulator.oneStep()
-        // the pause() meta-action stops the run at the end of the step
         // Activate/Inactivate change the run time state: the radios must follow
         if (simulator.activationChanged) {
             simulator.clearActivationChanged()
             syncActivationRadios(simulator)
         }
-        if (simulator.pauseRequested) {
-            simulator.clearPauseRequest()
-            stop()
-        }
+        // a control meta-action stops, resumes or rewinds the loop at the end of the step
+        applyControlRequests()
         // without fields, nothing can change if no behaviour was applied and nothing died
         // a modifier can change the state even when no behaviour was applied
         if (applied.isNotEmpty() || dead.isNotEmpty() || simulator.modifiersChanged || simulator.model.fields.isNotEmpty()) {

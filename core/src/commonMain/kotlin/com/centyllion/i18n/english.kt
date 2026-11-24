@@ -466,6 +466,23 @@ object English: Locale {
             "AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones."
         "Pauses the simulation at the end of the current step, for instance %0." ->
             "Pauses the simulation at the end of the current step, for instance %0."
+        "Meta-functions and meta-tests start with a capital letter (Pause, Continue, RunNStep, IsVisible); the functions used in the conditions and in the arguments stay in lower case (abs, min, max, sin, cos, count, field, age, agent)." ->
+            "Meta-functions and meta-tests start with a capital letter (Pause, Continue, RunNStep, IsVisible); the functions used in the conditions and in the arguments stay in lower case (abs, min, max, sin, cos, count, field, age, agent)."
+        "pause() in lower case is still accepted for the models already recorded, but it is obsolete: write Pause()." ->
+            "pause() in lower case is still accepted for the models already recorded, but it is obsolete: write Pause()."
+        "The simulation loop" -> "The simulation loop"
+        "These meta-actions drive the run loop, not the grid: they stop it, resume it, run a given number of steps, or rewind the simulation to its initial state. A request is applied at the end of the step that emits it." ->
+            "These meta-actions drive the run loop, not the grid: they stop it, resume it, run a given number of steps, or rewind the simulation to its initial state. A request is applied at the end of the step that emits it."
+        "Resumes the run if it is paused; no effect while it runs, for instance %0." ->
+            "Resumes the run if it is paused; no effect while it runs, for instance %0."
+        "Runs exactly one more step, then pauses the run, for instance %0." ->
+            "Runs exactly one more step, then pauses the run, for instance %0."
+        "Runs N more steps (N >= 1, rounded), then pauses the run; N <= 0 is ignored, for instance %0." ->
+            "Runs N more steps (N >= 1, rounded), then pauses the run; N <= 0 is ignored, for instance %0."
+        "Goes back to the initial state and pauses the run, like the rewind button, for instance %0." ->
+            "Goes back to the initial state and pauses the run, like the rewind button, for instance %0."
+        "Goes back to the initial state and starts the run again, for instance %0." ->
+            "Goes back to the initial state and starts the run again, for instance %0."
         "Adds N agents of type id on empty cells drawn at random in the whole environment, for instance %0." ->
             "Adds N agents of type id on empty cells drawn at random in the whole environment, for instance %0."
         "Adds N agents of type id on the empty cells of the rectangle (x1, y1)-(x2, y2), for instance %0." ->

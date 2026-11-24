@@ -265,6 +265,46 @@ Add(0, 1, 0), Remove(1, 0, 0), Move(0, 0, 0, 1, 0), SetField(2, 0, 0, 0.5)
 - Les arguments sont des expressions numériques (`step`, `x`, `y`, `count(grainId)`, `field(id, dx, dy)`, fonctions mathématiques)
 - Validation automatique dans l'interface (champ **Actions** + aide) et dans le diagnostic du modèle
 
+### 4.5bis Méta-actions des modificateurs (`modifiers[].actions`)
+
+Les méta-actions ne s'écrivent **plus** dans un comportement : `validateActionFormula()` les
+refuse. Elles vivent dans la formule d'actions d'un **modificateur de simulation**
+(`model.modifiers[]`), exécutée une fois par pas, après les comportements, quand sa condition
+est vraie.
+
+**Règle de casse** : les méta-fonctions et les méta-tests commencent par une **majuscule** ; les
+fonctions de formule et les prédicats restent en **minuscules** (`abs`, `min`, `max`, `sin`,
+`cos`, `count`, `field`, `age`, `agent`, variables `step`, `x`, `y`, `z`, `current`).
+
+**Boucle de course** — ces actions pilotent la simulation, pas la grille (drapeaux du
+`Simulator` consommés par la boucle, jamais la file des commandes de grille) :
+
+| Action | Effet |
+|---|---|
+| `Pause()` | arrête la course à la fin du pas courant |
+| `Continue()` | reprend la course si elle est en pause (sans effet si elle tourne) |
+| `RunOneStep()` | exécute exactement un pas de plus, puis se met en pause |
+| `RunNStep(N)` | exécute N pas de plus (N >= 1, arrondi) puis se met en pause ; `N <= 0` est ignoré |
+| `Rewind()` | revient à l'état initial **sans relancer** (même effet que le bouton de rembobinage) |
+| `Restart()` | revient à l'état initial **et relance** la course |
+
+**Population et activation** : `Add(id, N)`, `AddRect(id, N, x1, y1, x2, y2)`,
+`AddDisc(id, N, x, y, radius)`, `DrawLine(id, x1, y1, x2, y2)`, `EraseRect(x1, y1, x2, y2)` /
+`EraseRect(id, x1, y1, x2, y2)`, `EraseDisc(x, y, radius)` / `EraseDisc(id, x, y, radius)`,
+`Erase(id)`, `Activate(id)`, `Inactivate(id)`, `Use(id)`, `Unuse(id)`.
+
+**Commandes de grille** : `Show(id)`, `Hide(id)`, `Select(x1, y1, x2, y2)`, `Cut()`, `Copy()`,
+`EraseSelection()`, `Paste(x, y, overwrite)`, `FlushSelection()`, `Unselect()`,
+`PasteAndFlush(x, y, overwrite)`, `Rotate(N)`, `FlipX()`, `FlipY()`,
+`AllowToricSelection(enabled)`, `AllowOverwriting(enabled)` (voir l'aide §7).
+
+**Tests d'état**, réservés à la condition d'un modificateur : `IsBehaviourActive(id)`,
+`IsModifierActive(id)`, `IsToricSelectionOn()`, `IsOverwritingOn()`, `IsVisible(id)`.
+
+`pause()` en minuscules reste accepté comme **alias de compatibilité** de `Pause()` pour les
+modèles déjà enregistrés (il a été la seule méta-fonction à ne pas respecter la règle de casse) ;
+il est **obsolète** et n'est plus documenté ailleurs que comme alias.
+
 ### 4.6 Visibilité des agents et des champs
 
 Dans le panneau latéral (liste des agents, comportements et champs), chaque grain et

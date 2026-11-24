@@ -17,6 +17,23 @@ val emptyFloatArray = FloatArray(0)
 
 class Agent(val index: Int, val direction: Direction, val reactiveId: Int, val age: Int, val fields: FloatArray)
 
+/**
+ * Control requests emitted by the meta-actions of a step: the run loop consumes them once per
+ * step (see [SimulationLoop]). They drive the **loop** (pause, resume, one step, N steps,
+ * rewind, restart) and never the grid, which is why they are flags carried by the [Simulator]
+ * and not entries of [Simulator.pendingGridCommands].
+ */
+data class SimulationControlRequests(
+    val pause: Boolean = false,
+    val resume: Boolean = false,
+    val steps: Int = 0,
+    val rewind: Boolean = false,
+    val restart: Boolean = false
+) {
+    val isEmpty: Boolean get() = !pause && !resume && steps == 0 && !rewind && !restart
+}
+
+
 class ApplicableBehavior(
     /** Index in the data where to apply the behavior */
     val index: Int, val age: Int,
@@ -119,13 +136,51 @@ class Simulator(
 
     private val threadContexts: MutableList<ThreadContext> = mutableListOf()
 
-    /** Set by the pause() meta-action: the run loop stops after the current step. */
+    /** Set by the Pause() meta-action: the run loop stops after the current step. */
     var pauseRequested: Boolean = false
+        private set
+
+    /** Set by the Continue() meta-action: the run loop resumes if it was stopped. */
+    var resumeRequested: Boolean = false
+        private set
+
+    /** Extra steps asked by RunOneStep() / RunNStep(N); 0 when none (the loop then pauses). */
+    var stepsRequested: Int = 0
+        private set
+
+    /** Set by the Rewind() meta-action: back to the initial state, without restarting. */
+    var rewindRequested: Boolean = false
+        private set
+
+    /** Set by the Restart() meta-action: back to the initial state, then the run resumes. */
+    var restartRequested: Boolean = false
         private set
 
     /** Clears the pause request once the run loop has stopped. */
     fun clearPauseRequest() {
         pauseRequested = false
+    }
+
+    /** Drops every pending control request: a rewind cancels what the step had asked for. */
+    private fun clearControlRequests() {
+        pauseRequested = false
+        resumeRequested = false
+        stepsRequested = 0
+        rewindRequested = false
+        restartRequested = false
+    }
+
+    /**
+     * Returns the control requests emitted during the last step and clears them: called once
+     * per step by the run loop (see [SimulationLoop]).
+     */
+    fun consumeControlRequests(): SimulationControlRequests {
+        val requests = SimulationControlRequests(
+            pause = pauseRequested, resume = resumeRequested, steps = stepsRequested,
+            rewind = rewindRequested, restart = restartRequested
+        )
+        clearControlRequests()
+        return requests
     }
 
     /**
@@ -229,7 +284,8 @@ class Simulator(
 
     /** True for the actions that act on the simulation as a whole rather than on a cell. */
     private fun isMetaAction(action: Action): Boolean = when (action) {
-        Action.Pause, is Action.AddMany, is Action.AddRect, is Action.AddDisc,
+        Action.Pause, Action.Continue, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
+        is Action.AddMany, is Action.AddRect, is Action.AddDisc,
         is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
         is Action.EraseAll, is Action.Activate, is Action.Inactivate -> true
         else -> false
@@ -491,6 +547,9 @@ class Simulator(
         // a command belongs to one step: a view that did not drain the previous queue (a UI
         // without grid edition, for instance) must not accumulate it forever
         gridCommands.clear()
+        // likewise, a control request belongs to the step that emitted it: a loop that did not
+        // consume the previous one must not accumulate it
+        clearControlRequests()
         applyModifiers()
 
         // count a step
@@ -827,7 +886,7 @@ class Simulator(
         activationSnapshot().copyInto(runtimeEnabled)
         modifierSnapshot().copyInto(runtimeModifierEnabled)
         activationChanged = true
-        pauseRequested = false
+        clearControlRequests()
         // commands queued by a step that is now rewound are meaningless
         gridCommands.clear()
         initialAgents.copyInto(agents)
@@ -963,6 +1022,15 @@ class Simulator(
             try {
                 when (action) {
                     Action.Pause -> pauseRequested = true
+                    Action.Continue -> resumeRequested = true
+                    Action.RunOneStep -> stepsRequested += 1
+                    is Action.RunNStep -> {
+                        // N <= 0 is ignored: it asks for no step at all
+                        val count = action.count.evalInt(evaluator)
+                        if (count > 0) stepsRequested += count
+                    }
+                    Action.Rewind -> rewindRequested = true
+                    Action.Restart -> restartRequested = true
 
                     is Action.AddMany -> {
                         val id = action.grain.evalInt(evaluator)
@@ -1237,6 +1305,15 @@ class Simulator(
                     }
 
                     Action.Pause -> pauseRequested = true
+                    Action.Continue -> resumeRequested = true
+                    Action.RunOneStep -> stepsRequested += 1
+                    is Action.RunNStep -> {
+                        // N <= 0 is ignored: it asks for no step at all
+                        val count = action.count.evalInt(evaluator)
+                        if (count > 0) stepsRequested += count
+                    }
+                    Action.Rewind -> rewindRequested = true
+                    Action.Restart -> restartRequested = true
 
                     is Action.AddMany -> {
                         val id = action.grain.evalInt(evaluator)

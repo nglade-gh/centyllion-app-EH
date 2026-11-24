@@ -564,6 +564,23 @@ object French: Locale {
 
         "Pauses the simulation at the end of the current step, for instance %0." ->
             "Met la simulation en pause à la fin de l'étape courante, par exemple %0."
+        "Meta-functions and meta-tests start with a capital letter (Pause, Continue, RunNStep, IsVisible); the functions used in the conditions and in the arguments stay in lower case (abs, min, max, sin, cos, count, field, age, agent)." ->
+            "Les méta-fonctions et les méta-tests commencent par une majuscule (Pause, Continue, RunNStep, IsVisible) ; les fonctions utilisées dans les conditions et dans les arguments restent en minuscules (abs, min, max, sin, cos, count, field, age, agent)."
+        "pause() in lower case is still accepted for the models already recorded, but it is obsolete: write Pause()." ->
+            "pause() en minuscules reste accepté pour les modèles déjà enregistrés, mais c'est obsolète : écrivez Pause()."
+        "The simulation loop" -> "La boucle de simulation"
+        "These meta-actions drive the run loop, not the grid: they stop it, resume it, run a given number of steps, or rewind the simulation to its initial state. A request is applied at the end of the step that emits it." ->
+            "Ces méta-actions pilotent la boucle de course, pas la grille : elles l'arrêtent, la reprennent, exécutent un nombre de pas donné ou rembobinent la simulation à son état initial. Une demande est appliquée à la fin du pas qui l'émet."
+        "Resumes the run if it is paused; no effect while it runs, for instance %0." ->
+            "Reprend la course si elle est en pause ; sans effet si elle tourne, par exemple %0."
+        "Runs exactly one more step, then pauses the run, for instance %0." ->
+            "Exécute exactement un pas de plus, puis met la course en pause, par exemple %0."
+        "Runs N more steps (N >= 1, rounded), then pauses the run; N <= 0 is ignored, for instance %0." ->
+            "Exécute N pas de plus (N >= 1, arrondi), puis met la course en pause ; N <= 0 est ignoré, par exemple %0."
+        "Goes back to the initial state and pauses the run, like the rewind button, for instance %0." ->
+            "Revient à l'état initial et met la course en pause, comme le bouton de rembobinage, par exemple %0."
+        "Goes back to the initial state and starts the run again, for instance %0." ->
+            "Revient à l'état initial et relance la course, par exemple %0."
         "Adds N agents of type id on empty cells drawn at random in the whole environment, for instance %0." ->
             "Ajoute N agents de type id sur des cellules vides tirées au hasard dans tout l'environnement, par exemple %0."
         "Adds N agents of type id on the empty cells of the rectangle (x1, y1)-(x2, y2), for instance %0." ->

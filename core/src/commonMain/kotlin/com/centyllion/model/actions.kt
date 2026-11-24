@@ -37,8 +37,26 @@ sealed class Action {
 
     // --- meta-actions: they act on the simulation itself, not on the current cell ---
 
-    /** Pauses the simulation at the end of the current step. */
+    /** Pauses the simulation at the end of the current step (the run loop stops). */
     object Pause : Action()
+
+    /** Resumes the simulation when it is paused (no effect while it is running). */
+    object Continue : Action()
+
+    /** Runs exactly one more step, then pauses the simulation. */
+    object RunOneStep : Action()
+
+    /**
+     * Runs `count` more steps, then pauses the simulation. A count below 1 is ignored.
+     * The argument is a number: it is rounded to the nearest integer when the action runs.
+     */
+    data class RunNStep(val count: Expression) : Action()
+
+    /** Rewinds the simulation to its initial state, without restarting the run. */
+    object Rewind : Action()
+
+    /** Rewinds the simulation to its initial state, then restarts the run. */
+    object Restart : Action()
 
     /** Adds `count` agents of type `grain` anywhere in the environment (empty cells only). */
     data class AddMany(val grain: Expression, val count: Expression) : Action()
@@ -105,12 +123,23 @@ sealed class Action {
 
 /** True for the actions that act on the simulation as a whole rather than on one cell. */
 fun isMetaAction(action: Action): Boolean = when (action) {
-    Action.Pause, is Action.AddMany, is Action.AddRect, is Action.AddDisc,
+    Action.Pause, Action.Continue, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
+    is Action.AddMany, is Action.AddRect, is Action.AddDisc,
     is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
     is Action.EraseAll, is Action.Activate, is Action.Inactivate, is Action.Use, is Action.Unuse,
     is Action.DrawLine, is Action.Grid -> true
     else -> false
 }
+
+/**
+ * Names kept for the models already recorded, mapped to the current spelling.
+ *
+ * `pause()` was the only meta-function written in lower case: the meta-functions and the
+ * meta-tests start with a capital letter, and so does every other one. The alias is accepted
+ * (an old `.nbd2` must keep loading and running) but it is obsolete: `Pause()` is the name to
+ * write, and the help says so.
+ */
+val deprecatedActionNames: Map<String, String> = mapOf("pause" to "Pause")
 
 /** Accepted arities of each action: some names are overloaded (relative or global). */
 private val actionArities = mapOf(
@@ -120,7 +149,12 @@ private val actionArities = mapOf(
     "SetField" to intArrayOf(4),
     "AddField" to intArrayOf(4),
     "ClearField" to intArrayOf(3),
-    "pause" to intArrayOf(0),
+    "Pause" to intArrayOf(0),
+    "Continue" to intArrayOf(0),
+    "RunOneStep" to intArrayOf(0),
+    "RunNStep" to intArrayOf(1),
+    "Rewind" to intArrayOf(0),
+    "Restart" to intArrayOf(0),
     "AddRect" to intArrayOf(6),
     "AddDisc" to intArrayOf(5),
     "EraseRect" to intArrayOf(4, 5),
@@ -134,7 +168,8 @@ private val actionArities = mapOf(
 )
 
 private const val availableActions =
-    "Add, Remove, Move, SetField, AddField, ClearField, pause, AddRect, AddDisc, EraseRect, EraseDisc, Erase, Activate, Inactivate, Use, Unuse, DrawLine"
+    "Add, Remove, Move, SetField, AddField, ClearField, Pause, Continue, RunOneStep, RunNStep, Rewind, Restart, " +
+        "AddRect, AddDisc, EraseRect, EraseDisc, Erase, Activate, Inactivate, Use, Unuse, DrawLine"
 
 /** Grid commands of the meta-actions: they are parsed by [parseGridCommandCall]. */
 private const val availableGridCommands =
@@ -161,7 +196,10 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
             ?: throw IllegalArgumentException(
                 "Expected a list of actions like Add(0, 1, 0), Remove(1, 0, 0) — got '$part'"
             )
-        val name = match.groupValues[1]
+        val writtenName = match.groupValues[1]
+        // obsolete spellings (pause) are mapped to the current name before any lookup, so that
+        // an old formula parses exactly like the new one
+        val name = deprecatedActionNames[writtenName] ?: writtenName
         val argsText = match.groupValues[2].trim()
         // a state test is a condition, not an action: say it instead of "unknown action"
         if (name in stateTestFunctions) {
@@ -208,7 +246,12 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
             "SetField" -> Action.SetField(args[0], args[1], args[2], args[3])
             "AddField" -> Action.AddField(args[0], args[1], args[2], args[3])
             "ClearField" -> Action.ClearField(args[0], args[1], args[2])
-            "pause" -> Action.Pause
+            "Pause" -> Action.Pause
+            "Continue" -> Action.Continue
+            "RunOneStep" -> Action.RunOneStep
+            "RunNStep" -> Action.RunNStep(args[0])
+            "Rewind" -> Action.Rewind
+            "Restart" -> Action.Restart
             "AddRect" -> Action.AddRect(args[0], args[1], args[2], args[3], args[4], args[5])
             "AddDisc" -> Action.AddDisc(args[0], args[1], args[2], args[3], args[4])
             "EraseRect" -> if (args.size == 4) Action.EraseRectAll(args[0], args[1], args[2], args[3])

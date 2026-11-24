@@ -402,6 +402,60 @@ Add(0, 1, 0), Remove(1, 0, 0), Move(0, 0, 0, 1, 0), SetField(2, 0, 0, 0.5)
 
 ---
 
+### 6.5bis Méta-actions d'un modificateur (`modifiers[].actions`)
+
+Un `SimulationModifier` (`name`, `description`, `formula`, `actions`, `probability`, `id`,
+`enabled`) est le **seul** endroit où les méta-actions sont admises : `validateActionFormula()`
+les refuse dans un comportement, `validateModifierActions()` n'accepte qu'elles. Elles tournent
+une fois par pas, hors de toute case, après les comportements.
+
+**Règle de casse** : méta-fonctions et méta-tests en **majuscule** (`Pause`, `AddRect`,
+`IsVisible`), fonctions de formule et prédicats en **minuscules** (`abs`, `min`, `max`, `sin`,
+`cos`, `count`, `field`, `age`, `agent`, variables `step`, `x`, `y`, `z`, `current`).
+
+| Catégorie | Noms |
+|---|---|
+| Boucle de course | `Pause()`, `Continue()`, `RunOneStep()`, `RunNStep(N)`, `Rewind()`, `Restart()` |
+| Population / activation | `Add(id, N)`, `AddRect(id, N, x1, y1, x2, y2)`, `AddDisc(id, N, x, y, radius)`, `DrawLine(id, x1, y1, x2, y2)`, `EraseRect(x1, y1, x2, y2)`, `EraseRect(id, x1, y1, x2, y2)`, `EraseDisc(x, y, radius)`, `EraseDisc(id, x, y, radius)`, `Erase(id)`, `Activate(id)`, `Inactivate(id)`, `Use(id)`, `Unuse(id)` |
+| Commandes de grille | `Show(id)`, `Hide(id)`, `Select(x1, y1, x2, y2)`, `Cut()`, `Copy()`, `EraseSelection()`, `Paste(x, y, overwrite)`, `FlushSelection()`, `Unselect()`, `PasteAndFlush(x, y, overwrite)`, `Rotate(N)`, `FlipX()`, `FlipY()`, `AllowToricSelection(enabled)`, `AllowOverwriting(enabled)` |
+| Tests d'état (condition seulement) | `IsBehaviourActive(id)`, `IsModifierActive(id)`, `IsToricSelectionOn()`, `IsOverwritingOn()`, `IsVisible(id)` |
+
+**Alias obsolète** : `pause()` (minuscules) reste accepté — table `deprecatedActionNames`
+(`actions.kt`), normalisée avant toute recherche de nom — pour que les `.nbd2` déjà enregistrés
+continuent de se charger et de se comporter à l'identique. `Pause()` est le nom courant ;
+`pause()` n'est plus documenté que comme alias.
+
+**Deux canaux distincts, à ne pas confondre** :
+
+- les **commandes de grille** sont mises en file dans `Simulator.pendingGridCommands` et drainées
+  par la vue en fin de pas (`drainGridCommands()`) : le noyau ne connaît ni la sélection ni le
+  presse-papiers ;
+- les **actions de boucle** passent par des **drapeaux** du `Simulator` —
+  `pauseRequested`, `resumeRequested`, `stepsRequested`, `rewindRequested`, `restartRequested` —
+  regroupés par `consumeControlRequests()` en un `SimulationControlRequests`, et transformés en
+  état de boucle par `SimulationLoop.afterStep()`. Elles ne touchent jamais la grille.
+
+`SimulationLoop` (commonMain, `simulationloop.kt`) porte la sémantique une seule fois, pour la vue
+web et pour les tests JVM : `canStep`, `start()`, `stop()`, `afterStep()` → `LoopUpdate(running,
+remainingSteps, rewound)`. `RunOneStep()` est `RunNStep(1)` : la boucle exécute les pas demandés
+puis se met en pause d'elle-même ; `N <= 0` n'ajoute aucun pas et n'arrête pas la course. Dans un
+même pas, l'ordre d'application est `Restart`, `Rewind`, `Pause`, `Continue`,
+`RunOneStep`/`RunNStep` (le dernier l'emporte) ; les pas de deux demandes s'additionnent et un
+`Pause()` annule ceux qui restent. `Rewind()` et `Restart()` appellent `Simulator.reset()`, qui
+restaure l'état d'activation du début de course et efface les demandes en attente.
+
+Côté web, `SimulationRunController.applyControlRequests()` applique le `LoopUpdate` : il resynchronise
+les radios d'activation et rappelle `onReset` après un rembobinage, et il suit `running`. Les pas
+demandés s'enchaînent sans attendre la limite de fps (`loop.remainingSteps > 0` lève la condition
+de cadence dans `animationCallback`).
+
+Tests : `core/src/commonTest/.../SimulationLoopTest.kt` (un pas puis pause, N pas puis arrêt,
+`N <= 0` ignoré, pause puis continue, rewind sans relance, restart avec relance, aucune commande
+de grille en file) et `ActionTest.testTheLoopControlActionsParse` / 
+`testPauseIsCapitalisedAndTheLowercaseFormIsAnAlias` pour le parseur.
+
+---
+
 ### 6.6 Persistance : contrat de sauvegarde et compatibilité
 
 La sauvegarde (`.netbiodyn`) sérialise le **modèle**, indépendamment du mode d'édition : tout ce qui est saisi en mode normal (prédicat d'âge, seuils de champs, nb voisins avec grain, influences, héritage d'âge, réactions, `toric`, `boundaryConditions`) et en mode expert (formule de prédicat, liste d'actions) est écrit et relu à l'identique.

@@ -19,7 +19,8 @@ class MetaActionsTutorial(
     override val name = i18n("Simulation modifiers: meta-actions")
 
     override val introduction: List<BulmaElement> = listOf(
-        p(i18n("Actions such as Add, Move or SetField act around the cell where a behaviour applies. Meta-actions act on the simulation itself: they add or erase agents in a zone, draw a line, pause the run, or switch a behaviour or another modifier on and off.")),
+        p(i18n("Actions such as Add, Move or SetField act around the cell where a behaviour applies. Meta-actions act on the simulation itself: they add or erase agents in a zone, draw a line, or switch a behaviour or another modifier on and off.")),
+        p(i18n("A second family drives the run loop instead of the grid: Pause() stops the run, Continue() resumes it, RunOneStep() and RunNStep(N) run one or N steps then pause, Rewind() goes back to the initial state without restarting and Restart() goes back and starts again. The loop meta-actions and the state tests start with a capital letter; the functions of the formulas stay in lower case (abs, min, count, field, agent).")),
         p(i18n("They are no longer written in a behaviour: the behaviour editor refuses them. They belong to a simulation modifier, in the section « Simulation modifiers », which only appears in expert mode. This tutorial puts you in expert mode and builds a small model to work on."))
     )
 
@@ -71,7 +72,7 @@ class MetaActionsTutorial(
                 code2("step == 10"),
                 p(i18n("A modifier is evaluated once per step, after the behaviours. With this condition it does nothing at steps 0 to 9, acts at step 10, and does nothing afterwards.")),
                 p(i18n("That is the whole point of the condition: without it, the modifier would run at every step, and its actions would be repeated indefinitely.")),
-                p(i18n("The condition is evaluated outside any cell: step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and the state tests IsBehaviourActive/IsInactive/IsModifierActive/IsNotInUse, which are written here and nowhere else — an actions formula and the condition of a behaviour refuse them."))
+                p(i18n("The condition is evaluated outside any cell: step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and the state tests IsBehaviourActive/IsModifierActive/IsToricSelectionOn/IsOverwritingOn/IsVisible, which are written here and nowhere else — an actions formula and the condition of a behaviour refuse them."))
             ),
             selector = modifiers,
             validated = { modifierWithPredicate() != null }
@@ -102,7 +103,7 @@ class MetaActionsTutorial(
 
     override val conclusion: List<BulmaElement> = listOf(
         p(i18n("Run it: at step 10 the rectangle fills with viruses, then they spread cell by cell through the behaviour Kill. The modifier itself is off from that moment on.")),
-        p(i18n("A modifier is evaluated once per step, after the behaviours. Its condition is evaluated outside any cell: use step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and IsBehaviourActive/IsInactive/IsModifierActive/IsNotInUse to test the activation state."))
+        p(i18n("A modifier is evaluated once per step, after the behaviours. Its condition is evaluated outside any cell: use step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and IsBehaviourActive/IsModifierActive/IsToricSelectionOn/IsOverwritingOn/IsVisible to test the state of the simulation; their negation is written with !."))
     )
 
     override val next: Tutorial<ShowPage>? = null
