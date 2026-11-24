@@ -34,7 +34,11 @@ sealed class GridCommand {
     data class Paste(val x: Int, val y: Int, val overwrite: Boolean) : GridCommand()
 
     /** Drops the selection without touching the clipboard. */
+    /** Drops the clipboard: the copied or cut selection is forgotten. */
     data object FlushSelection : GridCommand()
+
+    /** Drops the selection rectangle without touching the clipboard. */
+    data object Unselect : GridCommand()
 
     /** Pastes the clipboard, then drops the selection. */
     data class PasteAndFlush(val x: Int, val y: Int, val overwrite: Boolean) : GridCommand()
@@ -94,7 +98,8 @@ class GridCommandCall(
             "Copy" -> GridCommand.Copy
             "EraseSelection" -> GridCommand.EraseSelection
             "Paste" -> GridCommand.Paste(number(0), number(1), overwrite == true)
-            "FlushSelection", "Unselect" -> GridCommand.FlushSelection
+            "FlushSelection" -> GridCommand.FlushSelection
+            "Unselect" -> GridCommand.Unselect
             "PasteAndFlush" -> GridCommand.PasteAndFlush(number(0), number(1), overwrite == true)
             // negative turns go counter-clockwise: -1 is the same as three clockwise turns
             "Rotate" -> GridCommand.Rotate(((number(0) % 4) + 4) % 4)

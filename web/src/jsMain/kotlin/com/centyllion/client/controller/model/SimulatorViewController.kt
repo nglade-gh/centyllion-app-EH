@@ -896,6 +896,14 @@ class SimulatorViewController(
      * Drops the selection and the anchor (the "Désélectionner" button, Ctrl+Shift+S and the
      * right click inside the selection). Returns true when something was dropped.
      */
+    /** Forgets the copied or cut selection: nothing is left to paste. */
+    fun flushClipboard() {
+        clipboard = null
+        clipboardPasted = false
+        anchor = null
+        refreshEditButtons()
+    }
+    
     fun clearSelection(): Boolean {
         val changed = selection != null || anchor != null
         selection = null
@@ -1674,10 +1682,11 @@ class SimulatorViewController(
                 GridCommand.Copy -> copySelection()
                 GridCommand.EraseSelection -> eraseSelection()
                 is GridCommand.Paste -> pasteAt(command.x, command.y, command.overwrite)
-                GridCommand.FlushSelection -> clearSelection()
+                GridCommand.FlushSelection -> flushClipboard()
+                GridCommand.Unselect -> clearSelection()
                 is GridCommand.PasteAndFlush -> {
                     pasteAt(command.x, command.y, command.overwrite)
-                    clearSelection()
+                    flushClipboard()
                 }
                 // a quarter turn is the only transformation offered by the toolbar: N of them
                 is GridCommand.Rotate -> repeat(command.quarterTurns) { rotateClipboard() }
