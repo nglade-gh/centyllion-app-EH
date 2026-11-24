@@ -625,5 +625,14 @@ Comportement "Reproduction" : 0 → 0, voisin (1) : 1 → 1, formule : count(0) 
   <code>.nbd2</code>. La description saisie dans la galerie est une présentation
   destinée aux miniatures ; elle n'est jamais écrite dans le fichier de sauvegarde.</p>
 
+  <h2>7. Commandes de grille</h2>
+  <p>Dans les formules d'actions d'un modificateur, les commandes de grille agissent sur la sélection courante et sur la mémoire (presse-papiers) de la vue de simulation, jamais sur une cellule. Elles sont exécutées à la fin du pas, dans l'ordre de la formule.</p>
+  <p>Trois d'entre elles sont faciles à confondre :</p>
+  <ul>
+    <li><code>EraseSelection()</code> — détruit les agents de la zone sélectionnée, puis désélectionne. La grille est modifiée.</li>
+    <li><code>FlushSelection()</code> — vide la <em>mémoire</em> : la sélection copiée ou coupée est oubliée, il n'y a plus rien à coller. La grille n'est pas modifiée.</li>
+    <li><code>Unselect()</code> — lâche le rectangle de sélection, sans toucher ni à la grille ni à la mémoire.</li>
+  </ul>
+  <p><code>Copy()</code> et <code>Cut()</code> remplissent la mémoire, <code>Paste(x, y, overwrite)</code> la colle, <code>PasteAndFlush(x, y, overwrite)</code> colle puis vide la mémoire. <code>Select(x1, y1, x2, y2)</code> définit la zone, <code>Rotate(N)</code>, <code>FlipX()</code> et <code>FlipY()</code> transforment la mémoire, <code>Show(id)</code> et <code>Hide(id)</code> changent la visibilité des agents.</p>
 </body>
 </html>
