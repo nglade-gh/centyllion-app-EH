@@ -57,7 +57,7 @@ sealed class GridCommand {
 
 /** Names accepted in the actions formula, in the order they appear in the help. */
 val gridCommandNames: List<String> = listOf(
-    "Show", "Hide", "Select", "Cut", "Copy", "EraseSelection", "Paste", "FlushSelection", "Deselect",
+    "Show", "Hide", "Select", "Cut", "Copy", "EraseSelection", "Paste", "FlushSelection", "Unselect",
     "PasteAndFlush", "Rotate", "FlipX", "FlipY"
 )
 
@@ -94,7 +94,7 @@ class GridCommandCall(
             "Copy" -> GridCommand.Copy
             "EraseSelection" -> GridCommand.EraseSelection
             "Paste" -> GridCommand.Paste(number(0), number(1), overwrite == true)
-            "FlushSelection", "Deselect" -> GridCommand.FlushSelection
+            "FlushSelection", "Unselect" -> GridCommand.FlushSelection
             "PasteAndFlush" -> GridCommand.PasteAndFlush(number(0), number(1), overwrite == true)
             // negative turns go counter-clockwise: -1 is the same as three clockwise turns
             "Rotate" -> GridCommand.Rotate(((number(0) % 4) + 4) % 4)
