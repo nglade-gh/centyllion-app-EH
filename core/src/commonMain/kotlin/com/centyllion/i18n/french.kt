@@ -176,6 +176,7 @@ object French: Locale {
         "Close" -> "Fermer"
         "Age" -> "Âge"
         "Reactions" -> "Réactions"
+        "The distributed models cannot be removed from the gallery." -> "Les modèles distribués ne peuvent pas être retirés de la galerie."
         "Predicates" -> "Conditions"
         "Nb Neighbours" -> "Nb voisins"
         "Nb" -> "Nb"

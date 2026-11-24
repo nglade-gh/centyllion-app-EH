@@ -175,6 +175,7 @@ object English: Locale {
         "Close" -> "Close"
         "Age" -> "Age"
         "Reactions" -> "Reactions"
+        "The distributed models cannot be removed from the gallery." -> "The distributed models cannot be removed from the gallery."
         "Predicates" -> "Conditions"
         "Nb Neighbours" -> "Nb Neighbours"
         "Nb" -> "Nb"

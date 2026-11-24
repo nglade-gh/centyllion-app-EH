@@ -242,6 +242,11 @@ class GalleryController(private val page: ShowPage) {
 
     private fun deleteEntry(entry: GalleryEntry) {
         val isStatic = indexEntries.any { it.id == entry.id }
+        if (isStatic) {
+            // the distributed models are part of the software: they are always there
+            page.message(page.i18n("The distributed models cannot be removed from the gallery."))
+            return
+        }
         page.modalDialog(
             page.i18n("Delete this model from the gallery?"),
             listOf(

@@ -265,7 +265,7 @@ object GalleryStore {
             val patch = patches[base.id]
             when {
                 patch == null -> merged += base
-                patch.hidden -> Unit // masked by the user
+                // a distributed model is always shown: an old "hidden" flag is ignored
                 else -> merged += base.copy(
                     title = patch.title.ifBlank { base.title },
                     description = patch.description,
