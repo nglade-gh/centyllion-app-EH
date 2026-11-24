@@ -27,6 +27,9 @@ sealed class GridCommand {
     /** Copies the visible agents of the selection into the clipboard. */
     data object Copy : GridCommand()
 
+    /** Erases the visible agents of the selection from the grid, then drops the selection. */
+    data object EraseSelection : GridCommand()
+
     /** Pastes the clipboard with (x, y) as its top-left corner. */
     data class Paste(val x: Int, val y: Int, val overwrite: Boolean) : GridCommand()
 
@@ -54,7 +57,7 @@ sealed class GridCommand {
 
 /** Names accepted in the actions formula, in the order they appear in the help. */
 val gridCommandNames: List<String> = listOf(
-    "Show", "Hide", "Select", "Cut", "Copy", "Paste", "FlushSelection",
+    "Show", "Hide", "Select", "Cut", "Copy", "EraseSelection", "Paste", "FlushSelection", "Deselect",
     "PasteAndFlush", "Rotate", "FlipX", "FlipY"
 )
 
@@ -89,8 +92,9 @@ class GridCommandCall(
             "Select" -> GridCommand.Select(number(0), number(1), number(2), number(3))
             "Cut" -> GridCommand.Cut
             "Copy" -> GridCommand.Copy
+            "EraseSelection" -> GridCommand.EraseSelection
             "Paste" -> GridCommand.Paste(number(0), number(1), overwrite == true)
-            "FlushSelection" -> GridCommand.FlushSelection
+            "FlushSelection", "Deselect" -> GridCommand.FlushSelection
             "PasteAndFlush" -> GridCommand.PasteAndFlush(number(0), number(1), overwrite == true)
             // negative turns go counter-clockwise: -1 is the same as three clockwise turns
             "Rotate" -> GridCommand.Rotate(((number(0) % 4) + 4) % 4)
@@ -171,7 +175,7 @@ fun parseGridCommandCall(name: String, argsText: String): GridCommandCall? {
             expect(4)
             GridCommandCall(name, numbersOf(4))
         }
-        "Cut", "Copy", "FlushSelection", "FlipX", "FlipY" -> {
+        "Cut", "Copy", "EraseSelection", "FlushSelection", "FlipX", "FlipY" -> {
             expect(0)
             GridCommandCall(name)
         }

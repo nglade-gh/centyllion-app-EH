@@ -138,7 +138,7 @@ private const val availableActions =
 
 /** Grid commands of the meta-actions: they are parsed by [parseGridCommandCall]. */
 private const val availableGridCommands =
-    "Show, Hide, Select, Cut, Copy, Paste, FlushSelection, PasteAndFlush, Rotate, FlipX, FlipY"
+    "Show, Hide, Select, Cut, Copy, EraseSelection, Paste, FlushSelection, PasteAndFlush, Rotate, FlipX, FlipY"
 
 private val actionCallPattern = Regex("""^(\w+)\s*\((.*)\)$""")
 

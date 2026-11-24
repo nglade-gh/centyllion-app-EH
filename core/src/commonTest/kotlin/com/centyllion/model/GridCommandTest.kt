@@ -23,6 +23,7 @@ class GridCommandTest {
         assertNull(validateModifierActions("Select(0, 0, 4, 3)"))
         assertNull(validateModifierActions("Cut()"))
         assertNull(validateModifierActions("Copy()"))
+        assertNull(validateModifierActions("EraseSelection()"))
         assertNull(validateModifierActions("Paste(1, 2, true)"))
         assertNull(validateModifierActions("FlushSelection()"))
         assertNull(validateModifierActions("PasteAndFlush(1, 2, false)"))
@@ -60,6 +61,7 @@ class GridCommandTest {
         assertTrue(validateModifierActions("FlipX(0)")!!.contains("expects 0 arguments"))
         assertTrue(validateModifierActions("FlipY(0)")!!.contains("expects 0 arguments"))
         assertTrue(validateModifierActions("Cut(0, 1)")!!.contains("expects 0 arguments"))
+        assertTrue(validateModifierActions("EraseSelection(0)")!!.contains("EraseSelection expects 0 arguments, got 1"))
     }
 
     @Test
@@ -86,6 +88,7 @@ class GridCommandTest {
         assertTrue(validateActionFormula("Copy()")!!.contains("meta-action"))
         assertTrue(validateActionFormula("Select(0, 0, 2, 2)")!!.contains("meta-action"))
         assertTrue(validateActionFormula("Paste(1, 2, true)")!!.contains("meta-action"))
+        assertTrue(validateActionFormula("EraseSelection()")!!.contains("meta-action"))
         // a cell action is still accepted
         assertNull(validateActionFormula("Add(0, 1, 0)"))
     }
@@ -139,6 +142,7 @@ class GridCommandTest {
         assertEquals(GridCommand.Select(1, 2, 3, 4), resolve("Select(1, 2, 3, 4)"))
         assertEquals(GridCommand.Copy, resolve("Copy()"))
         assertEquals(GridCommand.Cut, resolve("Cut()"))
+        assertEquals(GridCommand.EraseSelection, resolve("EraseSelection()"))
         assertEquals(GridCommand.FlushSelection, resolve("FlushSelection()"))
         assertEquals(GridCommand.Paste(5, 6, true), resolve("Paste(5, 6, true)"))
         assertEquals(GridCommand.PasteAndFlush(5, 6, false), resolve("PasteAndFlush(5, 6, false)"))
@@ -176,6 +180,16 @@ class GridCommandTest {
         assertEquals(GridCommand.Hide(0), queued[5])
         // the view must redraw (it is the only one that can apply the commands)
         assertTrue(simulator.modifiersChanged)
+    }
+
+    @Test
+    fun testEraseSelectionIsQueuedAfterItsSelection() {
+        val simulator = Simulator(model("Select(0, 0, 2, 2), EraseSelection()"), simulation())
+        simulator.oneStep()
+        assertEquals(
+            listOf<GridCommand>(GridCommand.Select(0, 0, 2, 2), GridCommand.EraseSelection),
+            simulator.pendingGridCommands
+        )
     }
 
     @Test

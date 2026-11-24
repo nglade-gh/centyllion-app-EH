@@ -155,6 +155,7 @@ class ModifierEditController(
                 helpLine("Cut()", "Copies the visible agents of the selection into the clipboard, then erases them from the grid, for instance %0.", "Cut()"),
                 helpLine("Paste(x, y, overwrite)", "Pastes the clipboard with (x, y) as its top-left corner; overwrite is true (replace) or false (keep), for instance %0.", "Paste(10, 10, false)"),
                 helpLine("FlushSelection()", "Drops the selection; the clipboard is left untouched, for instance %0.", "FlushSelection()"),
+                helpLine("EraseSelection()", "Erases the visible agents of the selection from the grid, then drops the selection, for instance %0.", "EraseSelection()"),
                 helpLine("PasteAndFlush(x, y, overwrite)", "Pastes the clipboard with (x, y) as its top-left corner, then drops the selection, for instance %0.", "PasteAndFlush(10, 10, true)"),
                 helpLine("Rotate(N)", "Turns the clipboard N quarter turns clockwise (negative: counter-clockwise), for instance %0.", "Rotate(1)"),
                 helpLine("FlipX()", "Mirrors the clipboard left/right, for instance %0.", "FlipX()"),
