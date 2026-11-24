@@ -528,11 +528,22 @@ object French: Locale {
         "Cut" -> "Couper"
         "Paste" -> "Coller"
         "Deselect" -> "Désélectionner"
+        "Erase" -> "Suppr"
         "Overwrite" -> "Écraser"
         "Keep" -> "Conserver"
         "Rotate 90° (clockwise)" -> "Rotation 90° (horaire)"
         "Flip horizontal" -> "Miroir horizontal"
         "Flip vertical" -> "Miroir vertical"
+
+        // tooltips of the edit bar: the action and its keyboard shortcut
+        "Copy (Ctrl+C)" -> "Copier (Ctrl+C)"
+        "Cut (Ctrl+X)" -> "Couper (Ctrl+X)"
+        "Paste (Ctrl+V)" -> "Coller (Ctrl+V)"
+        "Erase selection (Ctrl+Delete)" -> "Supprimer (Ctrl+Suppr)"
+        "Deselect (Ctrl+Shift+S)" -> "Désélectionner (Ctrl+Maj+S)"
+        "Rotate 90° (Ctrl+R)" -> "Rotation 90° (Ctrl+R)"
+        "Flip horizontal (Ctrl+F)" -> "Miroir horizontal (Ctrl+F)"
+        "Flip vertical (Ctrl+Shift+F)" -> "Miroir vertical (Ctrl+Maj+F)"
 
         // edit bar switches and explorer visibility switches
         "Toric ?" -> "Torique ?"
@@ -593,6 +604,8 @@ object French: Locale {
             "Colle le presse-papiers avec (x, y) comme coin supérieur gauche ; overwrite vaut true (écraser) ou false (conserver), par exemple %0."
         "Drops the selection; the clipboard is left untouched, for instance %0." ->
             "Abandonne la sélection ; le presse-papiers n'est pas modifié, par exemple %0."
+        "Erases the visible agents of the selection from the grid, then drops the selection, for instance %0." ->
+            "Efface de la grille les agents visibles de la sélection, puis abandonne la sélection, par exemple %0."
         "Pastes the clipboard with (x, y) as its top-left corner, then drops the selection, for instance %0." ->
             "Colle le presse-papiers avec (x, y) comme coin supérieur gauche, puis abandonne la sélection, par exemple %0."
         "Turns the clipboard N quarter turns clockwise (negative: counter-clockwise), for instance %0." ->

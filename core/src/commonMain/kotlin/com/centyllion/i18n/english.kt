@@ -431,11 +431,22 @@ object English: Locale {
         "Cut" -> "Cut"
         "Paste" -> "Paste"
         "Deselect" -> "Deselect"
+        "Erase" -> "Erase"
         "Overwrite" -> "Overwrite"
         "Keep" -> "Keep"
         "Rotate 90° (clockwise)" -> "Rotate 90° (clockwise)"
         "Flip horizontal" -> "Flip horizontal"
         "Flip vertical" -> "Flip vertical"
+
+        // tooltips of the edit bar: the action and its keyboard shortcut
+        "Copy (Ctrl+C)" -> "Copy (Ctrl+C)"
+        "Cut (Ctrl+X)" -> "Cut (Ctrl+X)"
+        "Paste (Ctrl+V)" -> "Paste (Ctrl+V)"
+        "Erase selection (Ctrl+Delete)" -> "Erase selection (Ctrl+Delete)"
+        "Deselect (Ctrl+Shift+S)" -> "Deselect (Ctrl+Shift+S)"
+        "Rotate 90° (Ctrl+R)" -> "Rotate 90° (Ctrl+R)"
+        "Flip horizontal (Ctrl+F)" -> "Flip horizontal (Ctrl+F)"
+        "Flip vertical (Ctrl+Shift+F)" -> "Flip vertical (Ctrl+Shift+F)"
 
         // edit bar switches and explorer visibility switches
         "Toric ?" -> "Toric ?"
@@ -493,6 +504,8 @@ object English: Locale {
             "Pastes the clipboard with (x, y) as its top-left corner; overwrite is true (replace) or false (keep), for instance %0."
         "Drops the selection; the clipboard is left untouched, for instance %0." ->
             "Drops the selection; the clipboard is left untouched, for instance %0."
+        "Erases the visible agents of the selection from the grid, then drops the selection, for instance %0." ->
+            "Erases the visible agents of the selection from the grid, then drops the selection, for instance %0."
         "Pastes the clipboard with (x, y) as its top-left corner, then drops the selection, for instance %0." ->
             "Pastes the clipboard with (x, y) as its top-left corner, then drops the selection, for instance %0."
         "Turns the clipboard N quarter turns clockwise (negative: counter-clockwise), for instance %0." ->
