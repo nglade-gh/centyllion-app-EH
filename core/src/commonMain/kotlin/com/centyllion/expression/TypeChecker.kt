@@ -26,7 +26,7 @@ enum class ExprType {
 /** Functions of the model language that return a truth value instead of a number. */
 private val booleanFunctions = setOf(
     // state tests (condition of a simulation modifier only, see model.stateTestFunctions)
-    "IsActive", "IsInactive", "IsInUse", "IsNotInUse",
+    "IsBehaviourActive", "IsModifierActive",
     "IsToricSelectionOn", "IsOverwritingOn", "IsVisible"
 )
 

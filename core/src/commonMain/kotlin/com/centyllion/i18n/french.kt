@@ -598,8 +598,8 @@ object French: Locale {
             "Vaut 1 quand les agents de type id sont visibles dans la vue de simulation, 0 quand ils sont masqués"
         "The tests whose name begins with Is are written here, in the condition of the modifier, and nowhere else: an actions formula refuses them, and so does the condition of a behaviour." ->
             "Les tests dont le nom commence par Is s'écrivent ici, dans la condition du modificateur, et nulle part ailleurs : une formule d'actions les refuse, et la condition d'un comportement aussi."
-        "The tests whose name begins with Is (IsActive, IsInUse, IsToricSelectionOn, IsVisible…) test the state of the simulation: they are written in the Condition of the modifier, never here. An actions formula that calls one of them is refused." ->
-            "Les tests dont le nom commence par Is (IsActive, IsInUse, IsToricSelectionOn, IsVisible…) testent l'état de la simulation : ils s'écrivent dans la Condition du modificateur, jamais ici. Une formule d'actions qui en appelle un est refusée."
+        "The tests whose name begins with Is (IsBehaviourActive, IsModifierActive, IsToricSelectionOn, IsVisible…) test the state of the simulation: they are written in the Condition of the modifier, never here. An actions formula that calls one of them is refused." ->
+            "Les tests dont le nom commence par Is (IsBehaviourActive, IsModifierActive, IsToricSelectionOn, IsVisible…) testent l'état de la simulation : ils s'écrivent dans la Condition du modificateur, jamais ici. Une formule d'actions qui en appelle un est refusée."
         "Makes the agents of type id visible again in the simulation view, like the Show ? switch of the explorer, for instance %0." ->
             "Rend à nouveau visibles les agents de type id dans la vue de simulation, comme l'interrupteur Show ? de l'explorateur, par exemple %0."
         "Hides the agents of type id in the simulation view, without touching the simulation, for instance %0." ->

@@ -71,7 +71,7 @@ class MetaActionsTutorial(
                 code2("step == 10"),
                 p(i18n("A modifier is evaluated once per step, after the behaviours. With this condition it does nothing at steps 0 to 9, acts at step 10, and does nothing afterwards.")),
                 p(i18n("That is the whole point of the condition: without it, the modifier would run at every step, and its actions would be repeated indefinitely.")),
-                p(i18n("The condition is evaluated outside any cell: step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and the state tests IsActive/IsInactive/IsInUse/IsNotInUse, which are written here and nowhere else — an actions formula and the condition of a behaviour refuse them."))
+                p(i18n("The condition is evaluated outside any cell: step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and the state tests IsBehaviourActive/IsInactive/IsModifierActive/IsNotInUse, which are written here and nowhere else — an actions formula and the condition of a behaviour refuse them."))
             ),
             selector = modifiers,
             validated = { modifierWithPredicate() != null }
@@ -102,7 +102,7 @@ class MetaActionsTutorial(
 
     override val conclusion: List<BulmaElement> = listOf(
         p(i18n("Run it: at step 10 the rectangle fills with viruses, then they spread cell by cell through the behaviour Kill. The modifier itself is off from that moment on.")),
-        p(i18n("A modifier is evaluated once per step, after the behaviours. Its condition is evaluated outside any cell: use step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and IsActive/IsInactive/IsInUse/IsNotInUse to test the activation state."))
+        p(i18n("A modifier is evaluated once per step, after the behaviours. Its condition is evaluated outside any cell: use step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and IsBehaviourActive/IsInactive/IsModifierActive/IsNotInUse to test the activation state."))
     )
 
     override val next: Tutorial<ShowPage>? = null

@@ -498,8 +498,8 @@ object English: Locale {
             "1 when the agents of type id are visible in the simulation view, 0 when they are hidden"
         "The tests whose name begins with Is are written here, in the condition of the modifier, and nowhere else: an actions formula refuses them, and so does the condition of a behaviour." ->
             "The tests whose name begins with Is are written here, in the condition of the modifier, and nowhere else: an actions formula refuses them, and so does the condition of a behaviour."
-        "The tests whose name begins with Is (IsActive, IsInUse, IsToricSelectionOn, IsVisible…) test the state of the simulation: they are written in the Condition of the modifier, never here. An actions formula that calls one of them is refused." ->
-            "The tests whose name begins with Is (IsActive, IsInUse, IsToricSelectionOn, IsVisible…) test the state of the simulation: they are written in the Condition of the modifier, never here. An actions formula that calls one of them is refused."
+        "The tests whose name begins with Is (IsBehaviourActive, IsModifierActive, IsToricSelectionOn, IsVisible…) test the state of the simulation: they are written in the Condition of the modifier, never here. An actions formula that calls one of them is refused." ->
+            "The tests whose name begins with Is (IsBehaviourActive, IsModifierActive, IsToricSelectionOn, IsVisible…) test the state of the simulation: they are written in the Condition of the modifier, never here. An actions formula that calls one of them is refused."
         "Makes the agents of type id visible again in the simulation view, like the Show ? switch of the explorer, for instance %0." ->
             "Makes the agents of type id visible again in the simulation view, like the Show ? switch of the explorer, for instance %0."
         "Hides the agents of type id in the simulation view, without touching the simulation, for instance %0." ->

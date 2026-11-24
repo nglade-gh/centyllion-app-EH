@@ -644,7 +644,7 @@ Comportement "Reproduction" : 0 → 0, voisin (1) : 1 → 1, formule : count(0) 
   <p>Ce sont des <b>actions</b>, pas des tests : elles s'écrivent dans la formule d'actions, séparées par des virgules, et l'argument est le littéral <code>true</code> ou <code>false</code> (jamais une expression ni <code>0</code>/<code>1</code>).</p>
 
   <h3>7.2 Les tests d'état, réservés à la condition</h3>
-  <p>Trois fonctions, et elles seules avec <code>IsActive</code>, <code>IsInactive</code>, <code>IsInUse</code> et <code>IsNotInUse</code>, permettent d'interroger l'état de la vue depuis une formule. Ce sont des <b>tests</b> : ils renvoient 1 (vrai) ou 0 (faux) et s'écrivent uniquement dans la <b>condition</b> d'un modificateur.</p>
+  <p>Trois fonctions, et elles seules avec <code>IsBehaviourActive</code>, <code>IsInactive</code>, <code>IsModifierActive</code> et <code>IsNotInUse</code>, permettent d'interroger l'état de la vue depuis une formule. Ce sont des <b>tests</b> : ils renvoient 1 (vrai) ou 0 (faux) et s'écrivent uniquement dans la <b>condition</b> d'un modificateur.</p>
   <ul>
     <li><code>IsToricSelectionOn()</code> — 1 quand « Torique ? » est actif, 0 sinon.</li>
     <li><code>IsOverwritingOn()</code> — 1 quand « Écraser ? » est actif, 0 sinon.</li>
@@ -652,6 +652,6 @@ Comportement "Reproduction" : 0 → 0, voisin (1) : 1 → 1, formule : count(0) 
   </ul>
   <pre><code>Condition : IsVisible(0) &amp;&amp; IsToricSelectionOn()
 Actions   : Hide(0), AllowOverwriting(true)</code></pre>
-  <p>Une formule d'actions qui contient un test (<code>IsActive(0)</code>, <code>IsVisible(0)</code>…) est refusée, et la condition d'un comportement aussi : ces tests décrivent la simulation entière et la vue, pas la cellule d'un comportement.</p>
+  <p>Une formule d'actions qui contient un test (<code>IsBehaviourActive(0)</code>, <code>IsVisible(0)</code>…) est refusée, et la condition d'un comportement aussi : ces tests décrivent la simulation entière et la vue, pas la cellule d'un comportement.</p>
 </body>
 </html>

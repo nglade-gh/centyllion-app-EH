@@ -107,7 +107,7 @@ class NetbioDynEvaluator(
         "countEmpty" -> emptyCount.v
         // state tests: 1 when the test holds, 0 otherwise. Only the condition of a simulation
         // modifier may use them, hence the flag checked by stateTest().
-        "IsActive", "IsInactive", "IsInUse", "IsNotInUse",
+        "IsBehaviourActive", "IsModifierActive",
         "IsToricSelectionOn", "IsOverwritingOn", "IsVisible" -> stateTest(name, args)
         "age" -> {
             val sim = simulator?.simulation
@@ -124,7 +124,7 @@ class NetbioDynEvaluator(
     }
 
     /**
-     * Evaluates a state test (`IsActive`, `IsInUse`, `IsVisible`, `IsToricSelectionOn`...).
+     * Evaluates a state test (`IsBehaviourActive`, `IsModifierActive`, `IsVisible`, `IsToricSelectionOn`...).
      *
      * Those tests read the state of the simulation or of its view, which does not belong to the
      * cell of a behaviour: they are accepted in the condition of a simulation modifier only. An
@@ -151,22 +151,15 @@ class NetbioDynEvaluator(
                 val id = grainIdArgument(name, args)
                 (sim == null || sim.isGrainVisible(id)).v
             }
-            "IsActive" -> {
+            "IsBehaviourActive" -> {
                 val id = grainIdArgument(name, args)
                 (sim != null && sim.isRuntimeEnabled(id)).v
             }
-            "IsInactive" -> {
-                val id = grainIdArgument(name, args)
-                (sim != null && !sim.isRuntimeEnabled(id)).v
-            }
-            "IsInUse" -> {
+            "IsModifierActive" -> {
                 val id = grainIdArgument(name, args)
                 (sim != null && sim.isModifierUsed(id)).v
             }
-            else -> {
-                val id = grainIdArgument(name, args)
-                (sim != null && !sim.isModifierUsed(id)).v
-            }
+            else -> throw EvaluationException("unknown state test: $name")
         }
     }
 
@@ -194,7 +187,7 @@ class NetbioDynEvaluator(
  * [validatePredicateFormula]).
  */
 val stateTestFunctions: Set<String> = setOf(
-    "IsActive", "IsInactive", "IsInUse", "IsNotInUse",
+    "IsBehaviourActive", "IsModifierActive",
     "IsToricSelectionOn", "IsOverwritingOn", "IsVisible"
 )
 
@@ -227,7 +220,7 @@ fun wrapCoordinate(v: Int, n: Int): Int = if (n <= 0) 0 else ((v % n) + n) % n
  * Validates a formula: it must parse, reference only known functions and variables, and
  * evaluate without error. Returns an error message, or null when valid.
  *
- * [allowStateTests] opens the grammar to the state tests (`IsActive`, `IsVisible`...). They are
+ * [allowStateTests] opens the grammar to the state tests (`IsBehaviourActive`, `IsVisible`...). They are
  * refused by default because the only place they belong to is the condition of a simulation
  * modifier: see [validateModifierCondition], [validatePredicateFormula] and
  * [validateActionFormula].

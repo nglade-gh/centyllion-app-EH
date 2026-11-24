@@ -10,7 +10,6 @@ import kotlin.test.assertTrue
 
 /**
  * State tests of a simulation modifier: `IsToricSelectionOn`, `IsOverwritingOn` and `IsVisible`
- * (new), and the activation tests `IsActive`/`IsInactive`/`IsInUse`/`IsNotInUse` (older).
  *
  * They all read the state of the simulation or of its view, so the condition of a modifier is
  * their only home: an actions formula and the condition of a behaviour refuse them.
@@ -201,22 +200,20 @@ class StateTestFunctionsTest {
         assertNull(validateModifierCondition("IsOverwritingOn()"))
         assertNull(validateModifierCondition("IsVisible(0)"))
         assertNull(validateModifierCondition("IsVisible(0) && IsToricSelectionOn()"))
-        assertNull(validateModifierCondition("IsActive(0) && IsNotInUse(1)"))
-        assertNull(validateModifierCondition("IsInactive(2)"))
         assertNull(validateModifierCondition("step > 3 && !IsVisible(1)"))
     }
 
     @Test
     fun testTheStateTestsAreRefusedInAnActionFormula() {
-        val message = validateModifierActions("IsActive(0)")!!
+        val message = validateModifierActions("IsBehaviourActive(0)")!!
         assertTrue(message.contains("state test"), "clear message expected, got: $message")
         assertTrue(message.contains("condition of a simulation modifier"))
         assertTrue(validateModifierActions("IsVisible(0)")!!.contains("state test"))
         assertTrue(validateModifierActions("Add(0, 2), IsToricSelectionOn()")!!.contains("state test"))
         // an action argument may not contain one either
-        assertTrue(validateModifierActions("Add(0, IsActive(0), 1)")!!.contains("state test"))
+        assertTrue(validateModifierActions("Add(0, IsBehaviourActive(0), 1)")!!.contains("state test"))
         // a behaviour action list refuses them the same way
-        assertTrue(validateActionFormula("IsActive(0)")!!.contains("state test"))
+        assertTrue(validateActionFormula("IsBehaviourActive(0)")!!.contains("state test"))
         assertTrue(validateActionFormula("DrawLine(0, 0, 0, IsVisible(0), 1)")!!.contains("state test"))
     }
 
@@ -225,7 +222,7 @@ class StateTestFunctionsTest {
         val message = validatePredicateFormula("IsVisible(0)")!!
         assertTrue(message.contains("state test"), "clear message expected, got: $message")
         assertTrue(message.contains("condition of a behaviour"))
-        assertTrue(validatePredicateFormula("IsActive(0) && count(0) > 2")!!.contains("state test"))
+        assertTrue(validatePredicateFormula("IsBehaviourActive(0) && count(0) > 2")!!.contains("state test"))
         assertTrue(validatePredicateFormula("IsToricSelectionOn()")!!.contains("state test"))
         // a plain predicate is still accepted
         assertNull(validatePredicateFormula("count(0) > 2 && step < 20"))
@@ -267,7 +264,7 @@ class StateTestFunctionsTest {
             name = "state",
             grains = listOf(Grain(id = 0, name = "a", color = "Lime")),
             modifiers = listOf(
-                SimulationModifier(name = "bad", id = 0, formula = "", actions = "IsActive(0)"),
+                SimulationModifier(name = "bad", id = 0, formula = "", actions = "IsBehaviourActive(0)"),
                 SimulationModifier(name = "good", id = 1, formula = "IsVisible(0)", actions = "Hide(0)"),
             ),
         )

@@ -624,24 +624,20 @@ class ActivationTestFunctionsTest {
 
     @Test
     fun testTheyAreValidConditions() {
-        assertNull(validateModifierCondition("IsActive(0) && IsNotInUse(1)"))
-        assertNull(validateModifierCondition("IsInactive(2)"))
-        assertNull(validateModifierCondition("IsInUse(0)"))
+        assertNull(validateModifierCondition("IsModifierActive(0)"))
         // outside the condition of a modifier they are refused, with an explicit message
-        assertTrue(validateFormula("IsActive(0) && IsNotInUse(1)")!!.contains("state test"))
-        assertTrue(validateFormula("IsInUse(0)")!!.contains("state test"))
-        assertTrue(validatePredicateFormula("IsInactive(2)")!!.contains("state test"))
+        assertTrue(validateFormula("IsModifierActive(0)")!!.contains("state test"))
     }
 
     @Test
     fun testAModifierSeesItsOwnState() {
-        // the modifier switches itself off at the first step: IsInUse(0) is true, then false
+        // the modifier switches itself off at the first step: IsModifierActive(0) is true, then false
         val model = GrainModel(
             name = "tests",
             grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
             modifiers = listOf(
-                SimulationModifier(name = "self", id = 0, formula = "IsInUse(0)", actions = "Unuse(0)"),
-                SimulationModifier(name = "seed", id = 1, formula = "IsNotInUse(0)", actions = "DrawLine(0, 0, 0, 3, 0)"),
+                SimulationModifier(name = "self", id = 0, formula = "IsModifierActive(0)", actions = "Unuse(0)"),
+                SimulationModifier(name = "seed", id = 1, formula = "!IsModifierActive(0)", actions = "DrawLine(0, 0, 0, 3, 0)"),
             ),
         )
         val simulator = Simulator(model, createSimulation("tests", size = 8) { -1 })
