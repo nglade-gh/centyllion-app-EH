@@ -14,6 +14,13 @@
       "description": "1 type d'agent, 2 comportements, 4 modificateurs.",
       "image": "Gallery/GoL_Modifiers.jpg",
       "file": "Gallery/GoL_Modifiers.nbd2"
+    },
+    {
+      "id": "gol-engine",
+      "title": "GoL Engine",
+      "description": "Dans cette implémentation du jeu de la vie, j'ai codé une créature nommée Engine.",
+      "image": "Gallery/GoL_Engine.jpg",
+      "file": "Gallery/GoL_Engine.nbd2"
     }
   ]
 }
