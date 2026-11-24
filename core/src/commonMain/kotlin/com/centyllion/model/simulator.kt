@@ -147,6 +147,37 @@ class Simulator(
         return drained
     }
 
+    // ------------------------------------------------------------ edition state
+    //
+    // The switches and the visibility of the agents live in the view, which owns them. The core
+    // keeps this mirror so that the state tests of a modifier condition (IsToricSelectionOn,
+    // IsOverwritingOn, IsVisible) can answer, and so that AllowToricSelection/AllowOverwriting
+    // can change the view. The view writes it when its widgets change and reads it back after
+    // each step; the defaults below are those of a fresh view, so nothing moves unless asked.
+
+    /** True when the "Toric ?" switch of the edit bar is on (paste folded on the opposite side). */
+    var toricSelectionOn: Boolean = false
+
+    /** True when the "Overwrite ?" switch of the edit bar is on (paste replaces the agents). */
+    var overwritingOn: Boolean = false
+
+    /**
+     * Ids of the grain types hidden in the simulation view, empty by default: every grain is
+     * visible. It mirrors `page.appContext.hiddenGrainIds` in the web client.
+     */
+    var hiddenGrains: Set<Int> = emptySet()
+
+    /** True when the agents of type [grainId] are visible in the simulation view. */
+    fun isGrainVisible(grainId: Int): Boolean = grainId !in hiddenGrains
+
+    /** Shows or hides the agents of type [grainId] (the view repaints and updates its switches). */
+    fun setGrainHidden(grainId: Int, hidden: Boolean) {
+        // unknown id: ignored, like the view does (the model may have changed since the formula).
+        // The model lookup is used on purpose: the fast grain array has no upper bound guard.
+        if (model.grainForId(grainId) == null) return
+        hiddenGrains = if (hidden) hiddenGrains + grainId else hiddenGrains - grainId
+    }
+
     /** Activation state at run time, initialised from the model and changed by Activate/Inactivate. */
     private val runtimeEnabled: BooleanArray by lazy { BooleanArray(allBehaviours.size) { allBehaviours[it].enabled } }
 
@@ -888,6 +919,8 @@ class Simulator(
         if (model.modifiers.isEmpty()) return
         val evaluator = mainContext.evaluator
         evaluator.absoluteCoordinates = true
+        // the condition of a modifier is the only place where the state tests are allowed
+        evaluator.stateTestsAllowed = true
         evaluator.step = step.v
         try {
             for (modifierIndex in model.modifiers.indices) {
@@ -909,6 +942,7 @@ class Simulator(
             }
         } finally {
             evaluator.absoluteCoordinates = false
+            evaluator.stateTestsAllowed = false
         }
     }
 
@@ -1046,7 +1080,20 @@ class Simulator(
                         }
                     }
 
-                    is Action.Grid -> gridCommands.add(action.call.resolve(evaluator))
+                    is Action.Grid -> {
+                        val command = action.call.resolve(evaluator)
+                        // the switches and the visibility are view state mirrored here: the
+                        // command updates the mirror now (so a later modifier of the same step
+                        // sees it) and the view when it drains the queue
+                        when (command) {
+                            is GridCommand.AllowToricSelection -> toricSelectionOn = command.enabled
+                            is GridCommand.AllowOverwriting -> overwritingOn = command.enabled
+                            is GridCommand.Hide -> setGrainHidden(command.grainId, true)
+                            is GridCommand.Show -> setGrainHidden(command.grainId, false)
+                            else -> { /* selection and clipboard: the view is the only owner */ }
+                        }
+                        gridCommands.add(command)
+                    }
 
                     else -> { /* cell actions are not allowed in a modifier */ }
                 }

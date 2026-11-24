@@ -24,7 +24,11 @@ enum class ExprType {
  * (returns true/false) and that a field formula returns a number.
  */
 /** Functions of the model language that return a truth value instead of a number. */
-private val booleanFunctions = setOf("IsActive", "IsInactive", "IsInUse", "IsNotInUse")
+private val booleanFunctions = setOf(
+    // state tests (condition of a simulation modifier only, see model.stateTestFunctions)
+    "IsActive", "IsInactive", "IsInUse", "IsNotInUse",
+    "IsToricSelectionOn", "IsOverwritingOn", "IsVisible"
+)
 
 fun Expression.inferType(): ExprType = when (this) {
     is BooleanLiteral -> ExprType.Boolean

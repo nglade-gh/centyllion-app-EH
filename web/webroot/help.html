@@ -634,5 +634,24 @@ Comportement "Reproduction" : 0 → 0, voisin (1) : 1 → 1, formule : count(0) 
     <li><code>Unselect()</code> — lâche le rectangle de sélection, sans toucher ni à la grille ni à la mémoire.</li>
   </ul>
   <p><code>Copy()</code> et <code>Cut()</code> remplissent la mémoire, <code>Paste(x, y, overwrite)</code> la colle, <code>PasteAndFlush(x, y, overwrite)</code> colle puis vide la mémoire. <code>Select(x1, y1, x2, y2)</code> définit la zone, <code>Rotate(N)</code>, <code>FlipX()</code> et <code>FlipY()</code> transforment la mémoire, <code>Show(id)</code> et <code>Hide(id)</code> changent la visibilité des agents.</p>
+
+  <h3>7.1 Les interrupteurs de la barre d'édition</h3>
+  <p>Deux commandes agissent sur les interrupteurs « Torique ? » et « Écraser ? » de la barre d'édition, exactement comme un clic sur l'interrupteur : le widget change d'état, et le choix vaut pour les collages suivants.</p>
+  <ul>
+    <li><code>AllowToricSelection(true)</code> / <code>AllowToricSelection(false)</code> — active ou désactive « Torique ? » : un collage qui déborde de la grille se poursuit du côté opposé.</li>
+    <li><code>AllowOverwriting(true)</code> / <code>AllowOverwriting(false)</code> — active ou désactive « Écraser ? » : un collage remplace les agents visibles au lieu de se contenter des cellules vides.</li>
+  </ul>
+  <p>Ce sont des <b>actions</b>, pas des tests : elles s'écrivent dans la formule d'actions, séparées par des virgules, et l'argument est le littéral <code>true</code> ou <code>false</code> (jamais une expression ni <code>0</code>/<code>1</code>).</p>
+
+  <h3>7.2 Les tests d'état, réservés à la condition</h3>
+  <p>Trois fonctions, et elles seules avec <code>IsActive</code>, <code>IsInactive</code>, <code>IsInUse</code> et <code>IsNotInUse</code>, permettent d'interroger l'état de la vue depuis une formule. Ce sont des <b>tests</b> : ils renvoient 1 (vrai) ou 0 (faux) et s'écrivent uniquement dans la <b>condition</b> d'un modificateur.</p>
+  <ul>
+    <li><code>IsToricSelectionOn()</code> — 1 quand « Torique ? » est actif, 0 sinon.</li>
+    <li><code>IsOverwritingOn()</code> — 1 quand « Écraser ? » est actif, 0 sinon.</li>
+    <li><code>IsVisible(id)</code> — 1 quand les agents de type <code>id</code> sont visibles dans la vue, 0 quand ils sont masqués (par <code>Hide(id)</code> ou par l'interrupteur de l'explorateur).</li>
+  </ul>
+  <pre><code>Condition : IsVisible(0) &amp;&amp; IsToricSelectionOn()
+Actions   : Hide(0), AllowOverwriting(true)</code></pre>
+  <p>Une formule d'actions qui contient un test (<code>IsActive(0)</code>, <code>IsVisible(0)</code>…) est refusée, et la condition d'un comportement aussi : ces tests décrivent la simulation entière et la vue, pas la cellule d'un comportement.</p>
 </body>
 </html>

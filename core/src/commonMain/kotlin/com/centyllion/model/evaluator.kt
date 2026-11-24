@@ -32,10 +32,16 @@ class NetbioDynEvaluator(
 
     /** Names of functions provided by this evaluator (in addition to [functions]) */
     private val dynamicFunctions = setOf(
-        "agent", "field", "count", "countEmpty", "age",
-        // activation tests, available in every predicate and every action
-        "IsActive", "IsInactive", "IsInUse", "IsNotInUse"
+        "agent", "field", "count", "countEmpty", "age"
     )
+
+    /**
+     * True while evaluating the condition of a simulation modifier: the only place where the
+     * state tests ([stateTestFunctions]) are allowed. It is a flag and not a different evaluator
+     * because the same instance serves the behaviours, the fields and the modifiers of a step
+     * (like [absoluteCoordinates]).
+     */
+    var stateTestsAllowed: Boolean = false
 
     /** True when x, y, z are not the cell of a behaviour (simulation modifier). */
     var absoluteCoordinates: Boolean = false
@@ -44,7 +50,7 @@ class NetbioDynEvaluator(
     private val dynamicVariables = setOf("step", "x", "y", "z", "current")
 
     override fun hasFunction(name: String): Boolean =
-        dynamicFunctions.contains(name) || super.hasFunction(name)
+        stateTestFunctions.contains(name) || dynamicFunctions.contains(name) || super.hasFunction(name)
 
     override fun hasVariable(name: String): Boolean =
         dynamicVariables.contains(name) || super.hasVariable(name)
@@ -99,23 +105,10 @@ class NetbioDynEvaluator(
             }
         }
         "countEmpty" -> emptyCount.v
-        // activation tests: 1 when the condition holds, 0 otherwise
-        "IsActive" -> {
-            val sim = simulator
-            (sim != null && sim.isRuntimeEnabled(args[0].int)).v
-        }
-        "IsInactive" -> {
-            val sim = simulator
-            (sim != null && !sim.isRuntimeEnabled(args[0].int)).v
-        }
-        "IsInUse" -> {
-            val sim = simulator
-            (sim != null && sim.isModifierUsed(args[0].int)).v
-        }
-        "IsNotInUse" -> {
-            val sim = simulator
-            (sim != null && !sim.isModifierUsed(args[0].int)).v
-        }
+        // state tests: 1 when the test holds, 0 otherwise. Only the condition of a simulation
+        // modifier may use them, hence the flag checked by stateTest().
+        "IsActive", "IsInactive", "IsInUse", "IsNotInUse",
+        "IsToricSelectionOn", "IsOverwritingOn", "IsVisible" -> stateTest(name, args)
         "age" -> {
             val sim = simulator?.simulation
             if (args.size >= 2 && sim != null && simulator != null) {
@@ -129,7 +122,92 @@ class NetbioDynEvaluator(
         }
         else -> super.function(name, args)
     }
+
+    /**
+     * Evaluates a state test (`IsActive`, `IsInUse`, `IsVisible`, `IsToricSelectionOn`...).
+     *
+     * Those tests read the state of the simulation or of its view, which does not belong to the
+     * cell of a behaviour: they are accepted in the condition of a simulation modifier only. An
+     * out-of-context call throws instead of silently answering 0, so the validators report it.
+     * A missing simulator (formula validation) answers with the safe default of each test.
+     */
+    private fun stateTest(name: String, args: List<Value>): Value {
+        if (!stateTestsAllowed) throw EvaluationException(
+            "$name is a state test: it may only be used in the condition of a simulation modifier"
+        )
+        val sim = simulator
+        return when (name) {
+            "IsToricSelectionOn" -> {
+                expectArity(name, args, 0)
+                (sim != null && sim.toricSelectionOn).v
+            }
+            "IsOverwritingOn" -> {
+                expectArity(name, args, 0)
+                (sim != null && sim.overwritingOn).v
+            }
+            // nothing is hidden by default: without a simulator every grain is visible
+            "IsVisible" -> {
+                // the argument is checked even without a simulator: a formula is validated first
+                val id = grainIdArgument(name, args)
+                (sim == null || sim.isGrainVisible(id)).v
+            }
+            "IsActive" -> {
+                val id = grainIdArgument(name, args)
+                (sim != null && sim.isRuntimeEnabled(id)).v
+            }
+            "IsInactive" -> {
+                val id = grainIdArgument(name, args)
+                (sim != null && !sim.isRuntimeEnabled(id)).v
+            }
+            "IsInUse" -> {
+                val id = grainIdArgument(name, args)
+                (sim != null && sim.isModifierUsed(id)).v
+            }
+            else -> {
+                val id = grainIdArgument(name, args)
+                (sim != null && !sim.isModifierUsed(id)).v
+            }
+        }
+    }
+
+    private fun expectArity(name: String, args: List<Value>, count: Int) {
+        if (args.size != count) throw EvaluationException(
+            "$name expects $count argument${if (count == 1) "" else "s"}, got ${args.size}"
+        )
+    }
+
+    /** The single integer argument of a state test, with a clear message when it is missing or boolean. */
+    private fun grainIdArgument(name: String, args: List<Value>): Int {
+        expectArity(name, args, 1)
+        val value = args[0]
+        if (value is BooleanValue) throw EvaluationException("$name expects an integer id, not a boolean")
+        return value.int
+    }
 }
+
+/**
+ * Names of the state tests: boolean functions that read the state of the simulation or of its
+ * view (activation of a behaviour or of a modifier, visibility of a grain, paste options).
+ *
+ * They are accepted **only** in the condition of a simulation modifier: an action formula and
+ * the condition of a behaviour refuse them (see [validateActionFormula] and
+ * [validatePredicateFormula]).
+ */
+val stateTestFunctions: Set<String> = setOf(
+    "IsActive", "IsInactive", "IsInUse", "IsNotInUse",
+    "IsToricSelectionOn", "IsOverwritingOn", "IsVisible"
+)
+
+/** Name of the first state test called by this expression, `null` when it calls none. */
+fun Expression.stateTestName(): String? = stateTestFunctions.firstOrNull { containsFunctionCall(it) }
+
+/** Name of the first state test called by this formula, `null` when none (or when it does not parse). */
+fun String.stateTestUsedName(): String? =
+    try { parseExpression().stateTestName() } catch (e: Exception) { null }
+
+/** Message returned when a state test is written outside the condition of a simulation modifier. */
+fun misplacedStateTest(name: String, context: String): String =
+    "$name is a state test: it belongs to the condition of a simulation modifier, not to $context"
 
 fun createEvaluator(simulator: Simulator) = NetbioDynEvaluator(simulator)
 
@@ -145,12 +223,24 @@ fun createEvaluator() = NetbioDynEvaluator(null)
  */
 fun wrapCoordinate(v: Int, n: Int): Int = if (n <= 0) 0 else ((v % n) + n) % n
 
-fun validateFormula(formula: String): String? {
-    val evaluator = createEvaluator()
+/**
+ * Validates a formula: it must parse, reference only known functions and variables, and
+ * evaluate without error. Returns an error message, or null when valid.
+ *
+ * [allowStateTests] opens the grammar to the state tests (`IsActive`, `IsVisible`...). They are
+ * refused by default because the only place they belong to is the condition of a simulation
+ * modifier: see [validateModifierCondition], [validatePredicateFormula] and
+ * [validateActionFormula].
+ */
+fun validateFormula(formula: String, allowStateTests: Boolean = false): String? {
+    // the state tests are evaluable during the check: the context rule is applied below, with a
+    // message that names the function instead of a generic "function doesn't exist"
+    val evaluator = createEvaluator().also { it.stateTestsAllowed = true }
     return try {
         val parsed = formula.parseExpression()
         val errors = evaluator.check(parsed)
         if (errors.isNotEmpty()) return errors.first().message
+        if (!allowStateTests) parsed.stateTestName()?.let { return misplacedStateTest(it, "a formula") }
         evaluator.evaluate(parsed)
         null
     } catch (e: Exception) {
@@ -159,13 +249,23 @@ fun validateFormula(formula: String): String? {
 }
 
 /**
+ * Validates the condition of a simulation modifier: the state tests are accepted there, and
+ * only there. Returns an error message, or null when valid.
+ */
+fun validateModifierCondition(formula: String): String? = validateFormula(formula, allowStateTests = true)
+
+
+/**
  * Validates a behaviour condition formula: it must parse, reference only
  * known functions and variables, and evaluate to a boolean (logical predicate).
  * `field(id)`, `field(id, dx, dy)` and `agent(x, y)` are allowed (the simulator
- * state is available when the formula is evaluated).
+ * state is available when the formula is evaluated). The state tests (`Is...`) are refused:
+ * they read the simulation as a whole and belong to the condition of a modifier.
  * Returns an error message, or null when valid.
  */
 fun validatePredicateFormula(formula: String): String? {
+    // explicit message: a state test here is a mistake, not an unknown function
+    formula.stateTestUsedName()?.let { return misplacedStateTest(it, "the condition of a behaviour") }
     val error = validateFormula(formula)
     if (error != null) return error
     return try {

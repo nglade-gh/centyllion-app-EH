@@ -60,6 +60,9 @@ class SimulatorViewController(
 
     override var data: Simulator by observable(simulator) { _, old, new ->
         if (old != new) {
+            // a fresh simulator knows nothing of the widgets: hand it the edition state it
+            // mirrors for the state tests (IsToricSelectionOn, IsVisible...)
+            pushEditionState()
             onUpdate(true, new, this)
             if (old.model.grains != new.model.grains || old.model.fields != new.model.fields) {
                 invalidateColors()
@@ -805,6 +808,8 @@ class SimulatorViewController(
         set(value) {
             if (field == value) return
             field = value
+            // the core mirrors this switch for its state tests (IsOverwritingOn)
+            data.overwritingOn = value
             refreshEditButtons()
         }
 
@@ -820,12 +825,41 @@ class SimulatorViewController(
         set(value) {
             if (field == value) return
             field = value
+            // the core mirrors this switch for its state tests (IsToricSelectionOn)
+            data.toricSelectionOn = value
             // the preview of the extraction shows the wrapped cells: repaint it
             render()
         }
 
     private fun ensureColors() {
         if (!colorsValid) rebuildColors()
+    }
+
+    /**
+     * Copies the edition state owned by the view into the simulator: the two switches and the
+     * hidden grain ids. The core needs it for the state tests of a modifier condition
+     * (IsToricSelectionOn, IsOverwritingOn, IsVisible), which is why the mirror is refreshed at
+     * start-up, on every widget change and after each applied grid command.
+     */
+    private fun pushEditionState() {
+        data.toricSelectionOn = toricPaste
+        data.overwritingOn = overwriteOnPaste
+        data.hiddenGrains = page.appContext.hiddenGrainIds.toSet()
+    }
+
+    /**
+     * Applies the state a grid command asked for to the matching widget, so the toolbar shows
+     * what the simulation just did (an AllowToricSelection/AllowOverwriting is not a silent
+     * internal flag). The switch setter pushes the value back into the simulator.
+     */
+    private fun setToricSwitch(enabled: Boolean) {
+        toricSwitch.checked = enabled
+        toricPaste = enabled
+    }
+
+    private fun setOverwriteSwitch(enabled: Boolean) {
+        overwriteSwitch.checked = enabled
+        overwriteOnPaste = enabled
     }
 
     /** Id of the agent at [index] when it is visible in the view, -1 otherwise. */
@@ -1493,19 +1527,15 @@ class SimulatorViewController(
     /**
      * Toolbar switch with its caption above it, in a column. Bulma's [Switch] draws the text
      * on the right of the input, which does not fit a compact bar where two switches sit side
-     * by side: the caption is therefore a separate label over the switch.
+     * by side: the caption is therefore a separate label over the switch, and the switch itself
+     * is kept by the caller so that a grid command can flip it (AllowToricSelection...).
      */
-    private fun captionedSwitch(
-        caption: String, checked: Boolean, color: ElementColor, onChange: (Boolean) -> Unit
-    ): Div {
+    private fun captionedSwitch(caption: String, switch: Switch): Div {
         val captionLabel = Label(page.i18n(caption)).apply {
             root.classList.add("is-size-7")
             root.style.marginBottom = "0.15rem"
             root.style.whiteSpace = "nowrap"
         }
-        val switch = Switch(
-            text = "", checked = checked, color = color, size = Size.Small, rounded = true
-        ) { _, value -> onChange(value) }
         // Bulma's field wrapper carries a bottom margin: the caption already spaces the switch
         switch.root.style.marginBottom = "0"
         return Div(captionLabel, switch).apply {
@@ -1518,18 +1548,19 @@ class SimulatorViewController(
         }
     }
 
-    /**
-     * "Torique ?" switch: when on, a paste that overflows the grid is folded on the opposite
-     * side (see [toricPaste]).
-     */
-    private val toricControl = captionedSwitch("Toric ?", toricPaste, ElementColor.Info) {
-        toricPaste = it
-    }
+    /** "Toric ?" switch: when on, a paste that overflows the grid is folded on the opposite side. */
+    private val toricSwitch = Switch(
+        text = "", checked = toricPaste, color = ElementColor.Info, size = Size.Small, rounded = true
+    ) { _, value -> toricPaste = value }
 
-    /** "Écraser ?" switch: when on, a paste replaces the visible agents in place. */
-    private val overwriteControl = captionedSwitch("Overwrite ?", overwriteOnPaste, ElementColor.Warning) {
-        overwriteOnPaste = it
-    }
+    private val toricControl = captionedSwitch("Toric ?", toricSwitch)
+
+    /** "Overwrite ?" switch: when on, a paste replaces the visible agents in place. */
+    private val overwriteSwitch = Switch(
+        text = "", checked = overwriteOnPaste, color = ElementColor.Warning, size = Size.Small, rounded = true
+    ) { _, value -> overwriteOnPaste = value }
+
+    private val overwriteControl = captionedSwitch("Overwrite ?", overwriteSwitch)
 
     private val editButtonsField = Field(addons = true).apply {
         body = listOf(
@@ -1640,6 +1671,8 @@ class SimulatorViewController(
 
     init {
         installListeners()
+        // the simulator starts with the state of the widgets (a freshly loaded model gets it too)
+        pushEditionState()
         // first layout once the container is attached to the document
         window.setTimeout({ layout() }, 0)
         window.addEventListener("resize", resizeCallback)
@@ -1694,8 +1727,13 @@ class SimulatorViewController(
                 GridCommand.FlipY -> flipClipboardVertical()
                 is GridCommand.Show -> setGrainVisible(command.grainId, true)
                 is GridCommand.Hide -> setGrainVisible(command.grainId, false)
+                // the switch commanded by the formula is flipped on the toolbar, not only in the core
+                is GridCommand.AllowToricSelection -> setToricSwitch(command.enabled)
+                is GridCommand.AllowOverwriting -> setOverwriteSwitch(command.enabled)
             }
         }
+        // the commands may have changed the hidden ids: keep the mirror the core reads up to date
+        pushEditionState()
         refreshEditButtons()
         render()
     }
@@ -1721,6 +1759,8 @@ class SimulatorViewController(
     /** Re-applies the visibility toggles from the side panel (hidden grain types and fields). */
     fun refreshVisibility() {
         invalidateColors()
+        // the hidden ids changed in the view: the core mirror used by IsVisible(id) follows
+        data.hiddenGrains = page.appContext.hiddenGrainIds.toSet()
         render()
         // the switches own the ids they hide, but a meta-action can change them out of their
         // own event: they must then be told to re-read the set, otherwise they keep a stale state

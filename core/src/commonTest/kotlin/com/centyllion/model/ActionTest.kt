@@ -619,14 +619,18 @@ class DrawLineTest {
     }
 }
 
-/** Activation tests usable in every predicate and every action. */
+/** Activation tests: state tests, accepted in the condition of a simulation modifier only. */
 class ActivationTestFunctionsTest {
 
     @Test
-    fun testTheyAreValidFormulas() {
-        assertNull(validateFormula("IsActive(0) && IsNotInUse(1)"))
-        assertNull(validateFormula("IsInactive(2)"))
-        assertNull(validateFormula("IsInUse(0)"))
+    fun testTheyAreValidConditions() {
+        assertNull(validateModifierCondition("IsActive(0) && IsNotInUse(1)"))
+        assertNull(validateModifierCondition("IsInactive(2)"))
+        assertNull(validateModifierCondition("IsInUse(0)"))
+        // outside the condition of a modifier they are refused, with an explicit message
+        assertTrue(validateFormula("IsActive(0) && IsNotInUse(1)")!!.contains("state test"))
+        assertTrue(validateFormula("IsInUse(0)")!!.contains("state test"))
+        assertTrue(validatePredicateFormula("IsInactive(2)")!!.contains("state test"))
     }
 
     @Test

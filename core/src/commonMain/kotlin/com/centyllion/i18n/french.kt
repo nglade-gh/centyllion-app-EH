@@ -590,6 +590,16 @@ object French: Locale {
             "Vaut 1 quand le comportement id est actif, 0 quand il est inactif : utilisable dans la condition et dans les arguments, par exemple %0."
         "1 when the simulation modifier id is active, 0 when it is inactive: usable in the condition and in the arguments, for instance %0." ->
             "Vaut 1 quand le modificateur de simulation id est actif, 0 quand il est inactif : utilisable dans la condition et dans les arguments, par exemple %0."
+        "1 when the Toric ? switch of the edit bar is on, 0 when it is off" ->
+            "Vaut 1 quand l'interrupteur Torique ? de la barre d'édition est actif, 0 quand il est inactif"
+        "1 when the Overwrite ? switch of the edit bar is on, 0 when it is off" ->
+            "Vaut 1 quand l'interrupteur Écraser ? de la barre d'édition est actif, 0 quand il est inactif"
+        "1 when the agents of type id are visible in the simulation view, 0 when they are hidden" ->
+            "Vaut 1 quand les agents de type id sont visibles dans la vue de simulation, 0 quand ils sont masqués"
+        "The tests whose name begins with Is are written here, in the condition of the modifier, and nowhere else: an actions formula refuses them, and so does the condition of a behaviour." ->
+            "Les tests dont le nom commence par Is s'écrivent ici, dans la condition du modificateur, et nulle part ailleurs : une formule d'actions les refuse, et la condition d'un comportement aussi."
+        "The tests whose name begins with Is (IsActive, IsInUse, IsToricSelectionOn, IsVisible…) test the state of the simulation: they are written in the Condition of the modifier, never here. An actions formula that calls one of them is refused." ->
+            "Les tests dont le nom commence par Is (IsActive, IsInUse, IsToricSelectionOn, IsVisible…) testent l'état de la simulation : ils s'écrivent dans la Condition du modificateur, jamais ici. Une formule d'actions qui en appelle un est refusée."
         "Makes the agents of type id visible again in the simulation view, like the Show ? switch of the explorer, for instance %0." ->
             "Rend à nouveau visibles les agents de type id dans la vue de simulation, comme l'interrupteur Show ? de l'explorateur, par exemple %0."
         "Hides the agents of type id in the simulation view, without touching the simulation, for instance %0." ->
@@ -614,6 +624,10 @@ object French: Locale {
             "Miroir gauche/droite du presse-papiers, par exemple %0."
         "Mirrors the clipboard top/bottom, for instance %0." ->
             "Miroir haut/bas du presse-papiers, par exemple %0."
+        "Turns the Toric ? switch of the edit bar on (true) or off (false), like the switch itself, for instance %0." ->
+            "Active (true) ou désactive (false) l'interrupteur Torique ? de la barre d'édition, comme l'interrupteur lui-même, par exemple %0."
+        "Turns the Overwrite ? switch of the edit bar on (true) or off (false), like the switch itself, for instance %0." ->
+            "Active (true) ou désactive (false) l'interrupteur Écraser ? de la barre d'édition, comme l'interrupteur lui-même, par exemple %0."
         "The grid commands work on the current selection and on the clipboard of the simulation view, not on a cell. They are applied at the end of the step, in the order of the formula: a selection or a clipboard built by a modifier can then be used by hand. Copy, Cut, Paste, PasteAndFlush, Rotate, FlipX and FlipY are ignored when the selection or the clipboard they need is empty." ->
             "Les commandes de grille agissent sur la sélection courante et sur le presse-papiers de la vue de simulation, pas sur une cellule. Elles sont appliquées à la fin de l'étape, dans l'ordre de la formule : une sélection ou un presse-papiers construit par un modificateur peut ensuite être utilisé à la main. Copy, Cut, Paste, PasteAndFlush, Rotate, FlipX et FlipY sont ignorés quand la sélection ou le presse-papiers dont ils ont besoin est vide. Trois commandes touchent des objets différents : EraseSelection() détruit les agents de la zone sélectionnée puis désélectionne ; FlushSelection() vide la mémoire, donc la sélection copiée ou coupée est oubliée et il n'y a plus rien à coller ; Unselect() lâche le rectangle de sélection sans toucher à la mémoire. PasteAndFlush() colle puis vide la mémoire."
         "Paste and PasteAndFlush follow the Toric ? switch of the edit bar: on, the cells that overflow the grid are folded on the opposite side (coordinates wrapped modulo the width and the height), so Paste(-10, 10, true) brings back on the right what comes out on the left; off, the cells outside the grid are lost." ->

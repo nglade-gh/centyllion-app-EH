@@ -57,12 +57,24 @@ sealed class GridCommand {
 
     /** Hides the agents of type [grainId]. */
     data class Hide(val grainId: Int) : GridCommand()
+
+    /**
+     * Turns the "Toric ?" switch of the edit bar on or off: the paste then folds the cells that
+     * overflow the grid on the opposite side. Mirrors [Simulator.toricSelectionOn].
+     */
+    data class AllowToricSelection(val enabled: Boolean) : GridCommand()
+
+    /**
+     * Turns the "Overwrite ?" switch of the edit bar on or off: a paste then replaces the visible
+     * agents in place. Mirrors [Simulator.overwritingOn].
+     */
+    data class AllowOverwriting(val enabled: Boolean) : GridCommand()
 }
 
 /** Names accepted in the actions formula, in the order they appear in the help. */
 val gridCommandNames: List<String> = listOf(
     "Show", "Hide", "Select", "Cut", "Copy", "EraseSelection", "Paste", "FlushSelection", "Unselect",
-    "PasteAndFlush", "Rotate", "FlipX", "FlipY"
+    "PasteAndFlush", "Rotate", "FlipX", "FlipY", "AllowToricSelection", "AllowOverwriting"
 )
 
 /**
@@ -70,21 +82,22 @@ val gridCommandNames: List<String> = listOf(
  *
  * The numeric arguments are kept as [Expression]s: they are evaluated once per step, when
  * the command runs, with the same evaluator as the other meta-actions (so `step`, the
- * mathematical functions and the model functions are available). The `overwrite` flag of
- * Paste/PasteAndFlush is a boolean literal, checked by the parser.
+ * mathematical functions and the model functions are available). The boolean argument of
+ * Paste/PasteAndFlush (overwrite) and of AllowToricSelection/AllowOverwriting is a literal,
+ * checked by the parser.
  */
 class GridCommandCall(
     val name: String,
     private val numbers: List<Expression> = emptyList(),
-    private val overwrite: Boolean? = null
+    private val flag: Boolean? = null
 ) {
     override fun toString(): String = buildString {
         append(name)
         append('(')
         append(numbers.joinToString(", ") { "$it" })
-        if (overwrite != null) {
+        if (flag != null) {
             if (numbers.isNotEmpty()) append(", ")
-            append(overwrite)
+            append(flag)
         }
         append(')')
     }
@@ -97,16 +110,18 @@ class GridCommandCall(
             "Cut" -> GridCommand.Cut
             "Copy" -> GridCommand.Copy
             "EraseSelection" -> GridCommand.EraseSelection
-            "Paste" -> GridCommand.Paste(number(0), number(1), overwrite == true)
+            "Paste" -> GridCommand.Paste(number(0), number(1), flag == true)
             "FlushSelection" -> GridCommand.FlushSelection
             "Unselect" -> GridCommand.Unselect
-            "PasteAndFlush" -> GridCommand.PasteAndFlush(number(0), number(1), overwrite == true)
+            "PasteAndFlush" -> GridCommand.PasteAndFlush(number(0), number(1), flag == true)
             // negative turns go counter-clockwise: -1 is the same as three clockwise turns
             "Rotate" -> GridCommand.Rotate(((number(0) % 4) + 4) % 4)
             "FlipX" -> GridCommand.FlipX
             "FlipY" -> GridCommand.FlipY
             "Show" -> GridCommand.Show(number(0))
             "Hide" -> GridCommand.Hide(number(0))
+            "AllowToricSelection" -> GridCommand.AllowToricSelection(flag == true)
+            "AllowOverwriting" -> GridCommand.AllowOverwriting(flag == true)
             else -> throw IllegalArgumentException("Unknown grid command '$name'")
         }
     }
@@ -164,8 +179,8 @@ fun parseGridCommandCall(name: String, argsText: String): GridCommandCall? {
 
     fun numbersOf(count: Int): List<Expression> = List(count) { number(it) }
 
-    fun overwrite(): Boolean {
-        val text = args[2]
+    fun boolean(index: Int): Boolean {
+        val text = args[index]
         return when (text.lowercase()) {
             "true" -> true
             "false" -> false
@@ -174,6 +189,9 @@ fun parseGridCommandCall(name: String, argsText: String): GridCommandCall? {
             )
         }
     }
+
+    /** Boolean literal of Paste/PasteAndFlush, always the third argument. */
+    fun overwrite(): Boolean = boolean(2)
 
     return when (name) {
         "Select" -> {
@@ -195,6 +213,11 @@ fun parseGridCommandCall(name: String, argsText: String): GridCommandCall? {
         "Rotate", "Show", "Hide" -> {
             expect(1)
             GridCommandCall(name, numbersOf(1))
+        }
+        // switches of the edit bar: a literal true/false, never an expression
+        "AllowToricSelection", "AllowOverwriting" -> {
+            expect(1)
+            GridCommandCall(name, flag = boolean(0))
         }
         else -> throw IllegalArgumentException("Unknown grid command '$name'")
     }

@@ -138,7 +138,7 @@ private const val availableActions =
 
 /** Grid commands of the meta-actions: they are parsed by [parseGridCommandCall]. */
 private const val availableGridCommands =
-    "Show, Hide, Select, Cut, Copy, EraseSelection, Paste, FlushSelection, PasteAndFlush, Rotate, FlipX, FlipY"
+    "Show, Hide, Select, Cut, Copy, EraseSelection, Paste, FlushSelection, PasteAndFlush, Rotate, FlipX, FlipY, AllowToricSelection, AllowOverwriting"
 
 private val actionCallPattern = Regex("""^(\w+)\s*\((.*)\)$""")
 
@@ -163,6 +163,10 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
             )
         val name = match.groupValues[1]
         val argsText = match.groupValues[2].trim()
+        // a state test is a condition, not an action: say it instead of "unknown action"
+        if (name in stateTestFunctions) {
+            throw IllegalArgumentException(misplacedStateTest(name, "an action formula"))
+        }
         val gridCall = parseGridCommandCall(name, argsText)
         if (gridCall != null) {
             if (!allowMeta) {
@@ -181,6 +185,10 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
                 arg.parseExpression()
             } catch (e: Exception) {
                 throw IllegalArgumentException("Invalid argument '$arg' in $name: ${e.message}")
+            }
+            // a state test read the simulation state: refused inside an action argument too
+            expr.stateTestName()?.let {
+                throw IllegalArgumentException(misplacedStateTest(it, "an action formula"))
             }
             if (expr.inferType() != ExprType.Number) {
                 throw IllegalArgumentException("Argument '$arg' of $name must be a number")

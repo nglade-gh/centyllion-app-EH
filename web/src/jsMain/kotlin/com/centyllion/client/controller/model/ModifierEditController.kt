@@ -108,9 +108,13 @@ class ModifierEditController(
                 helpLine("field(id, x, y)", "Value of the field id at the cell (x, y)"),
                 helpLine("IsActive(id) / IsInactive(id)", "1 when the behaviour id is active (resp. inactive), 0 otherwise"),
                 helpLine("IsInUse(id) / IsNotInUse(id)", "1 when the simulation modifier id is active (resp. inactive), 0 otherwise"),
+                helpLine("IsToricSelectionOn()", "1 when the Toric ? switch of the edit bar is on, 0 when it is off"),
+                helpLine("IsOverwritingOn()", "1 when the Overwrite ? switch of the edit bar is on, 0 when it is off"),
+                helpLine("IsVisible(id)", "1 when the agents of type id are visible in the simulation view, 0 when they are hidden"),
             ),
             fullWidth = true, striped = true
         ),
+        p(page.i18n("The tests whose name begins with Is are written here, in the condition of the modifier, and nowhere else: an actions formula refuses them, and so does the condition of a behaviour.")),
         p(page.i18n("Coordinates are wrapped around the grid (toroidal). There is no x, y, z variable and no age(n): those depend on the cell of a behaviour."))
     )
 
@@ -136,13 +140,7 @@ class ModifierEditController(
             fullWidth = true, striped = true
         ),
         SubTitle(page.i18n("State tests")),
-        Table(
-            body = listOf(
-                helpLine("IsActive(id)\nIsInactive(id)", "1 when the behaviour id is active, 0 when it is inactive: usable in the condition and in the arguments, for instance %0.", "IsActive(2)"),
-                helpLine("IsInUse(id)\nIsNotInUse(id)", "1 when the simulation modifier id is active, 0 when it is inactive: usable in the condition and in the arguments, for instance %0.", "IsInUse(0)"),
-            ),
-            fullWidth = true, striped = true
-        ),
+        p(page.i18n("The tests whose name begins with Is (IsActive, IsInUse, IsToricSelectionOn, IsVisible…) test the state of the simulation: they are written in the Condition of the modifier, never here. An actions formula that calls one of them is refused.")),
         p(page.i18n("The identifiers are those displayed in the explorer, after the name: name (id). Arguments can be expressions built on the condition functions.")),
         p(page.i18n("AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones.")),
         SubTitle(page.i18n("Grid commands")),
@@ -160,6 +158,8 @@ class ModifierEditController(
                 helpLine("Rotate(N)", "Turns the clipboard N quarter turns clockwise (negative: counter-clockwise), for instance %0.", "Rotate(1)"),
                 helpLine("FlipX()", "Mirrors the clipboard left/right, for instance %0.", "FlipX()"),
                 helpLine("FlipY()", "Mirrors the clipboard top/bottom, for instance %0.", "FlipY()"),
+                helpLine("AllowToricSelection(enabled)", "Turns the Toric ? switch of the edit bar on (true) or off (false), like the switch itself, for instance %0.", "AllowToricSelection(true)"),
+                helpLine("AllowOverwriting(enabled)", "Turns the Overwrite ? switch of the edit bar on (true) or off (false), like the switch itself, for instance %0.", "AllowOverwriting(true)"),
             ),
             fullWidth = true, striped = true
         ),
@@ -171,7 +171,7 @@ class ModifierEditController(
     private val problemsLabel = Label("").apply { root.style.color = "#f14668" }
 
     private fun problems(): String = buildList {
-        validateFormula(data.formula)?.let { add("${page.i18n("Condition")}: $it") }
+        validateModifierCondition(data.formula)?.let { add("${page.i18n("Condition")}: $it") }
         validateModifierActions(data.actions)?.let { add("${page.i18n("Actions")}: $it") }
     }.joinToString("\n")
 

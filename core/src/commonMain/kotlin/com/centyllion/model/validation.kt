@@ -6,6 +6,7 @@ fun GrainModel.diagnose(locale: Locale): List<Problem> = buildList {
     grains.forEach { it.diagnose(this@diagnose, locale, this) }
     behaviours.forEach { it.diagnose(this@diagnose, locale, this) }
     fields.forEach { it.diagnose(this@diagnose, locale, this) }
+    modifiers.forEach { it.diagnose(locale, this) }
 }
 
 fun Grain.hasNoError(model: GrainModel, locale: Locale) =
@@ -142,4 +143,16 @@ fun Field.diagnose(model: GrainModel, locale: Locale, result: MutableList<Proble
     }
 }
 
-
+/**
+ * Diagnoses a simulation modifier: its condition (the only place where the state tests are
+ * allowed) and its actions (meta-actions only). Without this, a formula the simulator cannot
+ * parse would be silently ignored at run time instead of being reported in the editor.
+ */
+fun SimulationModifier.diagnose(locale: Locale, result: MutableList<Problem>) {
+    if (formula.isNotBlank()) {
+        validateModifierCondition(formula)?.let { result.add(Problem(this, "Condition", it)) }
+    }
+    if (actions.isNotBlank()) {
+        validateModifierActions(actions)?.let { result.add(Problem(this, "Actions", it)) }
+    }
+}

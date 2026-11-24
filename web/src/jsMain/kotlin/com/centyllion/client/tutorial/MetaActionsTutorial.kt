@@ -71,7 +71,7 @@ class MetaActionsTutorial(
                 code2("step == 10"),
                 p(i18n("A modifier is evaluated once per step, after the behaviours. With this condition it does nothing at steps 0 to 9, acts at step 10, and does nothing afterwards.")),
                 p(i18n("That is the whole point of the condition: without it, the modifier would run at every step, and its actions would be repeated indefinitely.")),
-                p(i18n("The condition is evaluated outside any cell: step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and the test functions IsActive/IsInactive/IsInUse/IsNotInUse are available."))
+                p(i18n("The condition is evaluated outside any cell: step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and the state tests IsActive/IsInactive/IsInUse/IsNotInUse, which are written here and nowhere else — an actions formula and the condition of a behaviour refuse them."))
             ),
             selector = modifiers,
             validated = { modifierWithPredicate() != null }

@@ -490,6 +490,16 @@ object English: Locale {
             "1 when the behaviour id is active, 0 when it is inactive: usable in the condition and in the arguments, for instance %0."
         "1 when the simulation modifier id is active, 0 when it is inactive: usable in the condition and in the arguments, for instance %0." ->
             "1 when the simulation modifier id is active, 0 when it is inactive: usable in the condition and in the arguments, for instance %0."
+        "1 when the Toric ? switch of the edit bar is on, 0 when it is off" ->
+            "1 when the Toric ? switch of the edit bar is on, 0 when it is off"
+        "1 when the Overwrite ? switch of the edit bar is on, 0 when it is off" ->
+            "1 when the Overwrite ? switch of the edit bar is on, 0 when it is off"
+        "1 when the agents of type id are visible in the simulation view, 0 when they are hidden" ->
+            "1 when the agents of type id are visible in the simulation view, 0 when they are hidden"
+        "The tests whose name begins with Is are written here, in the condition of the modifier, and nowhere else: an actions formula refuses them, and so does the condition of a behaviour." ->
+            "The tests whose name begins with Is are written here, in the condition of the modifier, and nowhere else: an actions formula refuses them, and so does the condition of a behaviour."
+        "The tests whose name begins with Is (IsActive, IsInUse, IsToricSelectionOn, IsVisible…) test the state of the simulation: they are written in the Condition of the modifier, never here. An actions formula that calls one of them is refused." ->
+            "The tests whose name begins with Is (IsActive, IsInUse, IsToricSelectionOn, IsVisible…) test the state of the simulation: they are written in the Condition of the modifier, never here. An actions formula that calls one of them is refused."
         "Makes the agents of type id visible again in the simulation view, like the Show ? switch of the explorer, for instance %0." ->
             "Makes the agents of type id visible again in the simulation view, like the Show ? switch of the explorer, for instance %0."
         "Hides the agents of type id in the simulation view, without touching the simulation, for instance %0." ->
@@ -512,6 +522,10 @@ object English: Locale {
             "Turns the clipboard N quarter turns clockwise (negative: counter-clockwise), for instance %0."
         "Mirrors the clipboard left/right, for instance %0." -> "Mirrors the clipboard left/right, for instance %0."
         "Mirrors the clipboard top/bottom, for instance %0." -> "Mirrors the clipboard top/bottom, for instance %0."
+        "Turns the Toric ? switch of the edit bar on (true) or off (false), like the switch itself, for instance %0." ->
+            "Turns the Toric ? switch of the edit bar on (true) or off (false), like the switch itself, for instance %0."
+        "Turns the Overwrite ? switch of the edit bar on (true) or off (false), like the switch itself, for instance %0." ->
+            "Turns the Overwrite ? switch of the edit bar on (true) or off (false), like the switch itself, for instance %0."
         "The grid commands work on the current selection and on the clipboard of the simulation view, not on a cell. They are applied at the end of the step, in the order of the formula: a selection or a clipboard built by a modifier can then be used by hand. Copy, Cut, Paste, PasteAndFlush, Rotate, FlipX and FlipY are ignored when the selection or the clipboard they need is empty. Three commands act on different things: EraseSelection() destroys the agents of the selected zone and then deselects; FlushSelection() empties the memory, so the copied or cut selection is forgotten and nothing is left to paste; Unselect() drops the selection rectangle without touching the memory. PasteAndFlush() pastes, then empties the memory." ->
             "The grid commands work on the current selection and on the clipboard of the simulation view, not on a cell. They are applied at the end of the step, in the order of the formula: a selection or a clipboard built by a modifier can then be used by hand. Copy, Cut, Paste, PasteAndFlush, Rotate, FlipX and FlipY are ignored when the selection or the clipboard they need is empty. Three commands act on different things: EraseSelection() destroys the agents of the selected zone and then deselects; FlushSelection() empties the memory, so the copied or cut selection is forgotten and nothing is left to paste; Unselect() drops the selection rectangle without touching the memory. PasteAndFlush() pastes, then empties the memory."
         "Paste and PasteAndFlush follow the Toric ? switch of the edit bar: on, the cells that overflow the grid are folded on the opposite side (coordinates wrapped modulo the width and the height), so Paste(-10, 10, true) brings back on the right what comes out on the left; off, the cells outside the grid are lost." ->
