@@ -423,6 +423,14 @@ une fois par pas, hors de toute case, après les comportements.
 | Commandes de grille | `Show(id)`, `Hide(id)`, `Select(x1, y1, x2, y2)`, `Cut()`, `Copy()`, `EraseSelection()`, `Paste(x, y, overwrite)`, `FlushSelection()`, `Unselect()`, `PasteAndFlush(x, y, overwrite)`, `Rotate(N)`, `FlipX()`, `FlipY()`, `AllowToricSelection(enabled)`, `AllowOverwriting(enabled)` |
 | Tests d'état (condition seulement) | `IsBehaviourActive(id)`, `IsModifierActive(id)`, `IsToricSelectionOn()`, `IsOverwritingOn()`, `IsVisible(id)` |
 
+**Fin d'opération et rectangle de sélection** : `GridCommand.dropsSelection` (vrai pour
+`EraseSelection`, `FlushSelection`, `PasteAndFlush` et `Unselect`) dit quelles commandes *terminent*
+une opération et **lâchent donc le rectangle de sélection**, comme `Unselect()` : la vue appelle son
+`clearSelection()` après le travail de la commande (`applyGridCommands`). Ce lâcher ne concerne que
+l'affichage — `FlushSelection()` vide la mémoire (le presse-papiers) et ne modifie pas la grille,
+`PasteAndFlush()` colle d'abord (le collage a besoin du presse-papiers) puis vide la mémoire — et
+`Unselect()` ne fait que cela : ni la grille ni la mémoire ne changent.
+
 **Alias obsolètes** : `pause()` (minuscules), `AddDisc` et `EraseDisc` restent acceptés — table
 `deprecatedActionNames` (`actions.kt`), normalisée avant toute recherche de nom — pour que les
 `.nbd2` déjà enregistrés continuent de se charger et de se comporter à l'identique. `Pause()`,

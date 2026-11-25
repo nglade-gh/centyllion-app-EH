@@ -18,6 +18,19 @@ import kotlin.math.roundToInt
  * [GridCommandCall.resolve]): a queued command only holds plain integers.
  */
 sealed class GridCommand {
+    /**
+     * True when the command ends the operation it performs by dropping the selection rectangle,
+     * exactly like [Unselect].
+     *
+     * The rectangle is a view state, so the core cannot drop it: the view calls its own
+     * `clearSelection()` for every command whose flag is true, after the work of the command.
+     * The flag therefore says *what the command means*, not what it draws: a command that
+     * empties the memory or pastes does not have to be doubled by an `Unselect()` in the formula.
+     * Only the commands that end an operation on the selection set it; those that read or fill
+     * the selection and the clipboard leave the rectangle in place.
+     */
+    open val dropsSelection: Boolean get() = false
+
     /** Selects the rectangle spanned by (x1, y1) and (x2, y2), in any order. */
     data class Select(val x1: Int, val y1: Int, val x2: Int, val y2: Int) : GridCommand()
 
@@ -28,20 +41,31 @@ sealed class GridCommand {
     data object Copy : GridCommand()
 
     /** Erases the visible agents of the selection from the grid, then drops the selection. */
-    data object EraseSelection : GridCommand()
+    data object EraseSelection : GridCommand() {
+        override val dropsSelection: Boolean get() = true
+    }
 
     /** Pastes the clipboard with (x, y) as its top-left corner. */
     data class Paste(val x: Int, val y: Int, val overwrite: Boolean) : GridCommand()
 
-    /** Drops the selection without touching the clipboard. */
-    /** Drops the clipboard: the copied or cut selection is forgotten. */
-    data object FlushSelection : GridCommand()
+    /**
+     * Empties the memory: the copied or cut selection is forgotten, there is nothing left to
+     * paste. The grid is not modified, and the rectangle of the selection goes away too: the
+     * operation is over.
+     */
+    data object FlushSelection : GridCommand() {
+        override val dropsSelection: Boolean get() = true
+    }
 
-    /** Drops the selection rectangle without touching the clipboard. */
-    data object Unselect : GridCommand()
+    /** Drops the selection rectangle without touching the grid or the memory. */
+    data object Unselect : GridCommand() {
+        override val dropsSelection: Boolean get() = true
+    }
 
-    /** Pastes the clipboard, then drops the selection. */
-    data class PasteAndFlush(val x: Int, val y: Int, val overwrite: Boolean) : GridCommand()
+    /** Pastes the clipboard, then empties the memory and drops the selection rectangle. */
+    data class PasteAndFlush(val x: Int, val y: Int, val overwrite: Boolean) : GridCommand() {
+        override val dropsSelection: Boolean get() = true
+    }
 
     /** Rotates the clipboard [quarterTurns] times 90° clockwise (0 to 3). */
     data class Rotate(val quarterTurns: Int) : GridCommand()
@@ -198,7 +222,7 @@ fun parseGridCommandCall(name: String, argsText: String): GridCommandCall? {
             expect(4)
             GridCommandCall(name, numbersOf(4))
         }
-        "Cut", "Copy", "EraseSelection", "FlushSelection", "FlipX", "FlipY" -> {
+        "Cut", "Copy", "EraseSelection", "FlushSelection", "Unselect", "FlipX", "FlipY" -> {
             expect(0)
             GridCommandCall(name)
         }

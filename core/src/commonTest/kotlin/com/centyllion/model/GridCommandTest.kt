@@ -26,6 +26,7 @@ class GridCommandTest {
         assertNull(validateModifierActions("EraseSelection()"))
         assertNull(validateModifierActions("Paste(1, 2, true)"))
         assertNull(validateModifierActions("FlushSelection()"))
+        assertNull(validateModifierActions("Unselect()"))
         assertNull(validateModifierActions("PasteAndFlush(1, 2, false)"))
         assertNull(validateModifierActions("Rotate(1)"))
         assertNull(validateModifierActions("FlipX()"))
@@ -58,6 +59,7 @@ class GridCommandTest {
         assertTrue(validateModifierActions("Rotate()")!!.contains("Rotate expects 1 argument, got 0"))
         assertTrue(validateModifierActions("Copy(1)")!!.contains("Copy expects 0 arguments, got 1"))
         assertTrue(validateModifierActions("FlushSelection(0)")!!.contains("expects 0 arguments"))
+        assertTrue(validateModifierActions("Unselect(1)")!!.contains("expects 0 arguments"))
         assertTrue(validateModifierActions("FlipX(0)")!!.contains("expects 0 arguments"))
         assertTrue(validateModifierActions("FlipY(0)")!!.contains("expects 0 arguments"))
         assertTrue(validateModifierActions("Cut(0, 1)")!!.contains("expects 0 arguments"))
@@ -144,12 +146,51 @@ class GridCommandTest {
         assertEquals(GridCommand.Cut, resolve("Cut()"))
         assertEquals(GridCommand.EraseSelection, resolve("EraseSelection()"))
         assertEquals(GridCommand.FlushSelection, resolve("FlushSelection()"))
+        assertEquals(GridCommand.Unselect, resolve("Unselect()"))
         assertEquals(GridCommand.Paste(5, 6, true), resolve("Paste(5, 6, true)"))
         assertEquals(GridCommand.PasteAndFlush(5, 6, false), resolve("PasteAndFlush(5, 6, false)"))
         assertEquals(GridCommand.FlipX, resolve("FlipX()"))
         assertEquals(GridCommand.FlipY, resolve("FlipY()"))
         assertEquals(GridCommand.Show(2), resolve("Show(2)"))
         assertEquals(GridCommand.Hide(2), resolve("Hide(2)"))
+    }
+
+    // ---- end of an operation: the selection rectangle goes away ----
+
+    /**
+     * The view drops the selection rectangle for every command whose [GridCommand.dropsSelection]
+     * is true, right after the work of that command (`applyGridCommands`). Pinning the flag here
+     * keeps the two effects of a command together: `FlushSelection()` empties the memory *and*
+     * deselects, `PasteAndFlush()` pastes, then empties the memory *and* deselects, exactly like
+     * `Unselect()`, which does nothing else.
+     */
+    @Test
+    fun testTheCommandsThatEndAnOperationDropTheSelection() {
+        assertTrue(GridCommand.Unselect.dropsSelection, "Unselect() only drops the rectangle")
+        assertTrue(GridCommand.EraseSelection.dropsSelection, "the erased zone is deselected")
+        assertTrue(GridCommand.FlushSelection.dropsSelection, "flushing ends the operation")
+        assertTrue(GridCommand.PasteAndFlush(1, 2, false).dropsSelection, "paste then flush ends it too")
+        // the flag survives the resolution of the formula, which is what the view receives
+        fun resolved(formula: String) =
+            ((formula.parseModifierActions().single() as Action.Grid).call.resolve(evaluator()))
+        assertTrue(resolved("Unselect()").dropsSelection)
+        assertTrue(resolved("EraseSelection()").dropsSelection)
+        assertTrue(resolved("FlushSelection()").dropsSelection)
+        assertTrue(resolved("PasteAndFlush(1, 2, true)").dropsSelection)
+    }
+
+    @Test
+    fun testTheOtherCommandsKeepTheSelection() {
+        // a command that only reads, fills or transforms the clipboard leaves the rectangle alone
+        val keeping = listOf(
+            GridCommand.Select(0, 0, 2, 2), GridCommand.Copy, GridCommand.Cut,
+            GridCommand.Paste(1, 2, true), GridCommand.Rotate(1), GridCommand.FlipX,
+            GridCommand.FlipY, GridCommand.Show(0), GridCommand.Hide(0),
+            GridCommand.AllowToricSelection(true), GridCommand.AllowOverwriting(false)
+        )
+        keeping.forEach { command ->
+            assertFalse(command.dropsSelection, "$command must keep the selection")
+        }
     }
 
     // ---- queueing in the simulator ----

@@ -959,17 +959,23 @@ class SimulatorViewController(
     }
 
     /**
-     * Drops the selection and the anchor (the "Désélectionner" button, Ctrl+Shift+S and the
-     * right click inside the selection). Returns true when something was dropped.
+     * Forgets the copied or cut selection: nothing is left to paste. The clipboard is only a
+     * memory, so the selection rectangle stays where it is; the grid commands that end an
+     * operation drop it in addition (see [GridCommand.dropsSelection]).
      */
-    /** Forgets the copied or cut selection: nothing is left to paste. */
     fun flushClipboard() {
         clipboard = null
         clipboardPasted = false
         anchor = null
         refreshEditButtons()
     }
-    
+
+    /**
+     * Drops the selection rectangle and the anchor (the "Deselect" button, Ctrl+Shift+S, the
+     * right click inside the selection, the `Unselect()` meta-action and the end of an
+     * operation on the selection). Neither the grid nor the memory is touched: the clipboard
+     * keeps its content. Returns true when something was dropped.
+     */
     fun clearSelection(): Boolean {
         val changed = selection != null || anchor != null
         selection = null
@@ -1764,8 +1770,10 @@ class SimulatorViewController(
                 GridCommand.EraseSelection -> eraseSelection()
                 is GridCommand.Paste -> pasteAt(command.x, command.y, command.overwrite)
                 GridCommand.FlushSelection -> flushClipboard()
-                GridCommand.Unselect -> clearSelection()
+                // nothing else to do: the rectangle is the only effect (see dropsSelection below)
+                GridCommand.Unselect -> Unit
                 is GridCommand.PasteAndFlush -> {
+                    // paste first, empty the memory after: the paste needs its clipboard
                     pasteAt(command.x, command.y, command.overwrite)
                     flushClipboard()
                 }
@@ -1779,6 +1787,10 @@ class SimulatorViewController(
                 is GridCommand.AllowToricSelection -> setToricSwitch(command.enabled)
                 is GridCommand.AllowOverwriting -> setOverwriteSwitch(command.enabled)
             }
+            // a command that ends an operation (Unselect, EraseSelection, FlushSelection,
+            // PasteAndFlush) also drops the selection rectangle, exactly like Unselect(): the
+            // work above runs first, so both effects hold together and only the rectangle goes
+            if (command.dropsSelection) clearSelection()
         }
         // the commands may have changed the hidden ids: keep the mirror the core reads up to date
         pushEditionState()

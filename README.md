@@ -367,6 +367,16 @@ dessin utilisent : il n'existe qu'une seule définition du disque dans l'applica
 `PasteAndFlush(x, y, overwrite)`, `Rotate(N)`, `FlipX()`, `FlipY()`,
 `AllowToricSelection(enabled)`, `AllowOverwriting(enabled)` (voir l'aide §7).
 
+**Fin d'opération et rectangle de sélection** : quatre commandes *terminent* une opération et
+**lâchent donc le rectangle de sélection**, exactement comme `Unselect()` — `EraseSelection()`,
+`FlushSelection()`, `PasteAndFlush(x, y, overwrite)` et `Unselect()` elle-même
+(`GridCommand.dropsSelection`, appliqué par `applyGridCommands` après le travail de la commande).
+Ce lâcher ne touche que l'affichage : `FlushSelection()` vide la mémoire (le presse-papiers), la
+grille n'est pas modifiée, et `PasteAndFlush()` colle d'abord (le collage a besoin du
+presse-papiers) avant de vider la mémoire. `Unselect()` ne fait que cela : ni la grille ni la
+mémoire ne changent — l'action « Déselectionner » existe donc déjà, dans la barre d'édition
+(bouton, Ctrl+Maj+S, clic droit dans la sélection) comme dans les formules.
+
 **Tests d'état**, réservés à la condition d'un modificateur : `IsBehaviourActive(id)`,
 `IsModifierActive(id)`, `IsToricSelectionOn()`, `IsOverwritingOn()`, `IsVisible(id)`.
 

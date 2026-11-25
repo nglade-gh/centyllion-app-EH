@@ -182,9 +182,10 @@ class ModifierEditController(
                 helpLine("Copy()", "Copies the visible agents of the selection into the clipboard, for instance %0.", "Copy()"),
                 helpLine("Cut()", "Copies the visible agents of the selection into the clipboard, then erases them from the grid, for instance %0.", "Cut()"),
                 helpLine("Paste(x, y, overwrite)", "Pastes the clipboard with (x, y) as its top-left corner; overwrite is true (replace) or false (keep), for instance %0.", "Paste(10, 10, false)"),
-                helpLine("FlushSelection()", "Drops the selection; the clipboard is left untouched, for instance %0.", "FlushSelection()"),
-                helpLine("EraseSelection()", "Erases the visible agents of the selection from the grid, then drops the selection, for instance %0.", "EraseSelection()"),
-                helpLine("PasteAndFlush(x, y, overwrite)", "Pastes the clipboard with (x, y) as its top-left corner, then drops the selection, for instance %0.", "PasteAndFlush(10, 10, true)"),
+                helpLine("FlushSelection()", "Empties the memory: the copied or cut selection is forgotten and nothing is left to paste. The grid is not modified, and the selection rectangle is dropped as well, for instance %0.", "FlushSelection()"),
+                helpLine("Unselect()", "Drops the selection rectangle without touching the grid or the memory: it does only that, for instance %0.", "Unselect()"),
+                helpLine("EraseSelection()", "Erases the visible agents of the selection from the grid, then drops the selection rectangle, for instance %0.", "EraseSelection()"),
+                helpLine("PasteAndFlush(x, y, overwrite)", "Pastes the clipboard with (x, y) as its top-left corner, then empties the memory and drops the selection rectangle, for instance %0.", "PasteAndFlush(10, 10, true)"),
                 helpLine("Rotate(N)", "Turns the clipboard N quarter turns clockwise (negative: counter-clockwise), for instance %0.", "Rotate(1)"),
                 helpLine("FlipX()", "Mirrors the clipboard left/right, for instance %0.", "FlipX()"),
                 helpLine("FlipY()", "Mirrors the clipboard top/bottom, for instance %0.", "FlipY()"),
@@ -193,7 +194,7 @@ class ModifierEditController(
             ),
             fullWidth = true, striped = true
         ),
-        p(page.i18n("The grid commands work on the current selection and on the clipboard of the simulation view, not on a cell. They are applied at the end of the step, in the order of the formula: a selection or a clipboard built by a modifier can then be used by hand. Copy, Cut, Paste, PasteAndFlush, Rotate, FlipX and FlipY are ignored when the selection or the clipboard they need is empty.")),
+        p(page.i18n("The grid commands work on the current selection and on the clipboard of the simulation view, not on a cell. They are applied at the end of the step, in the order of the formula: a selection or a clipboard built by a modifier can then be used by hand. Copy, Cut, Paste, PasteAndFlush, Rotate, FlipX and FlipY are ignored when the selection or the clipboard they need is empty. Four commands end an operation and drop the selection rectangle as well: EraseSelection() destroys the agents of the selected zone, then deselects; FlushSelection() empties the memory, so the copied or cut selection is forgotten, and deselects; PasteAndFlush() pastes, then empties the memory and deselects. Unselect() does only that: it drops the rectangle, without touching the grid or the memory.")),
         p(page.i18n("Paste and PasteAndFlush follow the Toric ? switch of the edit bar: on, the cells that overflow the grid are folded on the opposite side (coordinates wrapped modulo the width and the height), so Paste(-10, 10, true) brings back on the right what comes out on the left; off, the cells outside the grid are lost."))
     )
 
