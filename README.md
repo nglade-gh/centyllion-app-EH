@@ -103,6 +103,27 @@ Sous Firefox, ou en accédant à l'application via l'IP de la machine, lancez le
 pont local (`python3 save_bridge.py`) pour conserver un véritable explorateur
 de fichiers.
 
+#### Captures (`Capture()`) et dossier de travail
+
+La méta-action `Capture()` demande une image JPEG (qualité 0,92) de la vue de
+simulation ; le fichier s'appelle `NOM_MODELE__PAS.jpg` (ex. `GoL_Modifiers__12.jpg`).
+Le bouton **Dossier de travail…** de la barre du haut laisse choisir un dossier
+du disque : les images vont alors dans un sous-dossier portant le nom du modèle
+(`MonDossier/GoL_Modifiers/GoL_Modifiers__12.jpg`). Le `handle` du dossier est
+mémorisé dans IndexedDB (`centyllion-files` / `handles` / `workFolder`),
+`localStorage` ne gardant que deux chaînes (nom affiché, mode de repli).
+
+| Navigateur | Dossier de travail | Captures |
+|---|---|---|
+| Chrome, Chromium, Edge — HTTPS ou `localhost` | oui | écrites dans le sous-dossier du modèle |
+| Chrome, Chromium, Edge — HTTP sur une IP | non (hors contexte sécurisé) | téléchargées |
+| Firefox, Safari | non | téléchargées |
+
+Sans dossier, sans permission ou en cas d'échec d'écriture, l'image est
+téléchargée et un message dit toujours laquelle des deux voies a été suivie :
+aucune capture ne bascule silencieusement en téléchargement, et rien n'est
+réservé à Chrome ou à Edge. Détails : aide intégrée §9.
+
 > **⚠ Mise en garde — Opera** : les graphiques de la page Simulation peuvent
 > s'afficher avec un artefact de double dessin (labels d'axes et courbes
 > reproduits avec un léger décalage). Cet artefact est propre au compositeur
@@ -287,6 +308,18 @@ fonctions de formule et les prédicats restent en **minuscules** (`abs`, `min`, 
 | `RunNStep(N)` | exécute N pas de plus (N >= 1, arrondi) puis se met en pause ; `N <= 0` est ignoré |
 | `Rewind()` | revient à l'état initial **sans relancer** (même effet que le bouton de rembobinage) |
 | `Restart()` | revient à l'état initial **et relance** la course |
+
+**Captures** — `Capture()` (sans argument) demande une image **JPEG** (qualité 0,92) de la vue de
+simulation, prise à la fin du pas qui l'émet, après le rendu complet et avant le pas suivant. Le
+noyau ne dessine rien : il incrémente un simple compteur (`Simulator.captureRequestCount`, sur le
+modèle de `modifierPauseCount`), que la vue consomme (`consumeCaptureRequest()`) pour encoder le
+canevas. Le fichier s'appelle `NOM_MODELE__PAS.jpg` (`GoL_Modifiers__12.jpg`), le nom du modèle
+étant nettoyé pour le système de fichiers (caractères interdits, espaces et points en début et en
+fin, longueur bornée à 64 ; repli explicite `model`). Il est écrit dans un sous-dossier du
+**dossier de travail** (bouton « Dossier de travail… » : `showDirectoryPicker`, `handle` en
+IndexedDB, permission renouvelable d'un clic), ou **téléchargé** quand aucun dossier n'est défini
+— un message dit toujours laquelle des deux voies a été suivie. Voir l'aide intégrée §9 pour les
+limites par navigateur.
 
 `Pause(t)` est une **pause de confort** (démonstration), pas une horloge de modèle : elle
 n'exécute aucun pas, donc la grille et la trajectoire des états ne dépendent pas du temps et

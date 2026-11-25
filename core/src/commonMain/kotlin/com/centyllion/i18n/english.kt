@@ -554,6 +554,37 @@ object English: Locale {
             "The grid commands work on the current selection and on the clipboard of the simulation view, not on a cell. They are applied at the end of the step, in the order of the formula: a selection or a clipboard built by a modifier can then be used by hand. Copy, Cut, Paste, PasteAndFlush, Rotate, FlipX and FlipY are ignored when the selection or the clipboard they need is empty. Three commands act on different things: EraseSelection() destroys the agents of the selected zone and then deselects; FlushSelection() empties the memory, so the copied or cut selection is forgotten and nothing is left to paste; Unselect() drops the selection rectangle without touching the memory. PasteAndFlush() pastes, then empties the memory."
         "Paste and PasteAndFlush follow the Toric ? switch of the edit bar: on, the cells that overflow the grid are folded on the opposite side (coordinates wrapped modulo the width and the height), so Paste(-10, 10, true) brings back on the right what comes out on the left; off, the cells outside the grid are lost." ->
             "Paste and PasteAndFlush follow the Toric ? switch of the edit bar: on, the cells that overflow the grid are folded on the opposite side (coordinates wrapped modulo the width and the height), so Paste(-10, 10, true) brings back on the right what comes out on the left; off, the cells outside the grid are lost."
+
+        // --- captures: Capture() meta-action and working folder
+        "Working folder…" -> "Working folder…"
+        "Working folder" -> "Working folder"
+        "not defined" -> "not defined"
+        "defined" -> "defined"
+        "permission to renew" -> "permission to renew"
+        "Working folder: %0" -> "Working folder: %0"
+        "Working folder: %0 (%1)" -> "Working folder: %0 (%1)"
+        "Captures are downloaded: this browser has no access to a folder." -> "Captures are downloaded: this browser has no access to a folder."
+        "A capture is a JPEG picture of the simulation view, taken at the end of the step that asks for it. It is written in a sub-folder of the working folder, named after the model, as %0." -> "A capture is a JPEG picture of the simulation view, taken at the end of the step that asks for it. It is written in a sub-folder of the working folder, named after the model, as %0."
+        "This browser has no access to a folder: every capture is downloaded, one file per step. Chrome and Edge offer the working folder on HTTPS or on localhost; Firefox and Safari do not." -> "This browser has no access to a folder: every capture is downloaded, one file per step. Chrome and Edge offer the working folder on HTTPS or on localhost; Firefox and Safari do not."
+        "The browser may ask for the permission again after a restart: the button Reconnect gives it back without choosing the folder a second time. As long as it is not granted, the captures are downloaded." -> "The browser may ask for the permission again after a restart: the button Reconnect gives it back without choosing the folder a second time. As long as it is not granted, the captures are downloaded."
+        "Choose a folder…" -> "Choose a folder…"
+        "Reconnect" -> "Reconnect"
+        "Forget the folder" -> "Forget the folder"
+        "The folder is now the working folder: the captures are written in %0." -> "The folder is now the working folder: the captures are written in %0."
+        "The folder is used until the page is reloaded: this browser could not remember it, so the captures are written in %0 now and downloaded after a restart." -> "The folder is used until the page is reloaded: this browser could not remember it, so the captures are written in %0 now and downloaded after a restart."
+        "The folder could not be opened: the captures are downloaded." -> "The folder could not be opened: the captures are downloaded."
+        "The permission is granted again: the captures are written in %0." -> "The permission is granted again: the captures are written in %0."
+        "The permission was not granted: the captures are downloaded." -> "The permission was not granted: the captures are downloaded."
+        "The folder is forgotten: the captures are downloaded." -> "The folder is forgotten: the captures are downloaded."
+        "Capture saved in %0." -> "Capture saved in %0."
+        "Capture downloaded: %0 (no working folder)." -> "Capture downloaded: %0 (no working folder)."
+        "Capture downloaded: %0 (this browser has no access to a folder)." -> "Capture downloaded: %0 (this browser has no access to a folder)."
+        "Capture downloaded: %0 (the permission of the working folder must be renewed)." -> "Capture downloaded: %0 (the permission of the working folder must be renewed)."
+        "Capture downloaded: %0 (the working folder could not be written)." -> "Capture downloaded: %0 (the working folder could not be written)."
+        "The simulation view could not be captured." -> "The simulation view could not be captured."
+        "Takes a JPEG picture of the simulation view at the end of the step (quality 0.92), for instance %0." -> "Takes a JPEG picture of the simulation view at the end of the step (quality 0.92), for instance %0."
+        "The picture is named model__step.jpg: the model name is cleaned for the file system (no slash, backslash, colon, star, question mark, quotation mark, angle bracket or vertical bar; no surrounding space; bounded length) and becomes the sub-folder of the working folder; the number is the step of the picture, that is the counter displayed once the step has run, so a Capture() triggered by step == 5 writes model__6.jpg. Without a working folder, or on a browser without the File System Access API, the picture is downloaded." -> "The picture is named model__step.jpg: the model name is cleaned for the file system (no slash, backslash, colon, star, question mark, quotation mark, angle bracket or vertical bar; no surrounding space; bounded length) and becomes the sub-folder of the working folder; the number is the step of the picture, that is the counter displayed once the step has run, so a Capture() triggered by step == 5 writes model__6.jpg. Without a working folder, or on a browser without the File System Access API, the picture is downloaded."
+        "Working folder and captures" -> "Working folder and captures"
         else -> key
     }
 }

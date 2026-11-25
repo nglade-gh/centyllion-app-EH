@@ -1789,4 +1789,48 @@ class SimulatorViewController(
     }
 
     fun thumbnail(): Promise<Blob> = screenshot(400, 267)
+
+    // ---------------------------------------------------------------- captures
+
+    /**
+     * Encodes the display canvas as a JPEG picture (quality [CAPTURE_JPEG_QUALITY]) and returns it,
+     * or null when the view is not laid out yet or the browser cannot encode it.
+     *
+     * The encoding is synchronous on purpose: `toBlob` would hand the picture back after the next
+     * step has repainted the canvas, while a `data:` URL is read at the moment of the call. Called
+     * right after [render] by the run controller, this is the complete image of the step that
+     * asked for a capture.
+     */
+    fun captureJpeg(): Blob? {
+        if (display.width <= 0 || display.height <= 0 || cssWidth <= 0.0) return null
+        return try {
+            val url = display.toDataURL("image/jpeg", CAPTURE_JPEG_QUALITY)
+            if (url.startsWith("data:image/jpeg")) dataUrlToBlob(url) as Blob else null
+        } catch (t: Throwable) {
+            console.warn("Capture: the simulation view cannot be encoded.", t)
+            null
+        }
+    }
 }
+
+/** JPEG quality of the pictures taken by the `Capture()` meta-action. */
+private const val CAPTURE_JPEG_QUALITY = 0.92
+
+/**
+ * Decodes a `data:` URL into a Blob, in ES5 JavaScript: the synchronous counterpart of
+ * `canvas.toBlob`, used by [SimulatorViewController.captureJpeg].
+ */
+private val dataUrlToBlob: dynamic = js("""
+function (dataUrl) {
+    var comma = dataUrl.indexOf(',');
+    var header = dataUrl.substring(0, comma);
+    var binary = window.atob(dataUrl.substring(comma + 1));
+    var length = binary.length;
+    var bytes = new Uint8Array(length);
+    for (var i = 0; i < length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    var mime = header.substring(header.indexOf(':') + 1, header.indexOf(';'));
+    return new Blob([bytes], { type: mime });
+}
+""")

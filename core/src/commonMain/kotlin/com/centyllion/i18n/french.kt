@@ -656,6 +656,53 @@ object French: Locale {
             "Les commandes de grille agissent sur la sélection courante et sur le presse-papiers de la vue de simulation, pas sur une cellule. Elles sont appliquées à la fin de l'étape, dans l'ordre de la formule : une sélection ou un presse-papiers construit par un modificateur peut ensuite être utilisé à la main. Copy, Cut, Paste, PasteAndFlush, Rotate, FlipX et FlipY sont ignorés quand la sélection ou le presse-papiers dont ils ont besoin est vide. Trois commandes touchent des objets différents : EraseSelection() détruit les agents de la zone sélectionnée puis désélectionne ; FlushSelection() vide la mémoire, donc la sélection copiée ou coupée est oubliée et il n'y a plus rien à coller ; Unselect() lâche le rectangle de sélection sans toucher à la mémoire. PasteAndFlush() colle puis vide la mémoire."
         "Paste and PasteAndFlush follow the Toric ? switch of the edit bar: on, the cells that overflow the grid are folded on the opposite side (coordinates wrapped modulo the width and the height), so Paste(-10, 10, true) brings back on the right what comes out on the left; off, the cells outside the grid are lost." ->
             "Paste et PasteAndFlush suivent l'interrupteur Torique ? de la barre d'édition : actif, les cellules qui débordent de la grille se poursuivent du côté opposé (coordonnées ramenées modulo la largeur et la hauteur), si bien que Paste(-10, 10, true) fait réapparaître à droite ce qui sort à gauche ; inactif, les cellules hors grille sont perdues."
+
+        // --- captures : méta-action Capture() et dossier de travail
+        "Working folder…" -> "Dossier de travail…"
+        "Working folder" -> "Dossier de travail"
+        "not defined" -> "non défini"
+        "defined" -> "défini"
+        "permission to renew" -> "permission à renouveler"
+        "Working folder: %0" -> "Dossier de travail : %0"
+        "Working folder: %0 (%1)" -> "Dossier de travail : %0 (%1)"
+        "Captures are downloaded: this browser has no access to a folder." ->
+            "Les captures sont téléchargées : ce navigateur n'a pas accès aux dossiers."
+        "A capture is a JPEG picture of the simulation view, taken at the end of the step that asks for it. It is written in a sub-folder of the working folder, named after the model, as %0." ->
+            "Une capture est une image JPEG de la vue de simulation, prise à la fin du pas qui la demande. Elle est écrite dans un sous-dossier du dossier de travail qui porte le nom du modèle, sous la forme %0."
+        "This browser has no access to a folder: every capture is downloaded, one file per step. Chrome and Edge offer the working folder on HTTPS or on localhost; Firefox and Safari do not." ->
+            "Ce navigateur n'a pas accès aux dossiers : chaque capture est téléchargée, un fichier par pas. Chrome et Edge proposent le dossier de travail en HTTPS ou sur localhost ; Firefox et Safari non."
+        "The browser may ask for the permission again after a restart: the button Reconnect gives it back without choosing the folder a second time. As long as it is not granted, the captures are downloaded." ->
+            "Le navigateur peut redemander la permission après un redémarrage : le bouton Reconnecter la rend sans choisir le dossier une seconde fois. Tant qu'elle n'est pas accordée, les captures sont téléchargées."
+        "Choose a folder…" -> "Choisir un dossier…"
+        "Reconnect" -> "Reconnecter"
+        "Forget the folder" -> "Oublier le dossier"
+        "The folder is now the working folder: the captures are written in %0." ->
+            "Le dossier est maintenant le dossier de travail : les captures y sont écrites (%0)."
+        "The folder is used until the page is reloaded: this browser could not remember it, so the captures are written in %0 now and downloaded after a restart." ->
+            "Le dossier est utilisé jusqu'au rechargement de la page : ce navigateur n'a pas pu le mémoriser, les captures sont donc écrites dans %0 maintenant, et téléchargées après un redémarrage."
+        "The folder could not be opened: the captures are downloaded." ->
+            "Le dossier n'a pas pu être ouvert : les captures sont téléchargées."
+        "The permission is granted again: the captures are written in %0." ->
+            "La permission est de nouveau accordée : les captures sont écrites dans %0."
+        "The permission was not granted: the captures are downloaded." ->
+            "La permission n'a pas été accordée : les captures sont téléchargées."
+        "The folder is forgotten: the captures are downloaded." ->
+            "Le dossier est oublié : les captures sont téléchargées."
+        "Capture saved in %0." -> "Capture enregistrée dans %0."
+        "Capture downloaded: %0 (no working folder)." ->
+            "Capture téléchargée : %0 (aucun dossier de travail)."
+        "Capture downloaded: %0 (this browser has no access to a folder)." ->
+            "Capture téléchargée : %0 (ce navigateur n'a pas accès aux dossiers)."
+        "Capture downloaded: %0 (the permission of the working folder must be renewed)." ->
+            "Capture téléchargée : %0 (la permission du dossier de travail doit être renouvelée)."
+        "Capture downloaded: %0 (the working folder could not be written)." ->
+            "Capture téléchargée : %0 (le dossier de travail n'a pas pu être écrit)."
+        "The simulation view could not be captured." -> "La vue de simulation n'a pas pu être capturée."
+        "Takes a JPEG picture of the simulation view at the end of the step (quality 0.92), for instance %0." ->
+            "Prend une image JPEG de la vue de simulation à la fin du pas (qualité 0,92), par exemple %0."
+        "The picture is named model__step.jpg: the model name is cleaned for the file system (no slash, backslash, colon, star, question mark, quotation mark, angle bracket or vertical bar; no surrounding space; bounded length) and becomes the sub-folder of the working folder; the number is the step of the picture, that is the counter displayed once the step has run, so a Capture() triggered by step == 5 writes model__6.jpg. Without a working folder, or on a browser without the File System Access API, the picture is downloaded." ->
+            "L'image s'appelle modele__pas.jpg : le nom du modèle est nettoyé pour le système de fichiers (ni barre oblique, ni barre inverse, ni deux-points, ni étoile, ni point d'interrogation, ni guillemet, ni chevron, ni barre verticale ; pas d'espace en début ou en fin ; longueur bornée) et devient le sous-dossier du dossier de travail ; le nombre est le pas de l'image, c'est-à-dire le compteur affiché une fois le pas exécuté : une Capture() déclenchée par step == 5 écrit donc modele__6.jpg. Sans dossier de travail, ou sur un navigateur sans File System Access, l'image est téléchargée."
+        "Working folder and captures" -> "Dossier de travail et captures"
         else -> null
     }
 }

@@ -175,6 +175,27 @@ class Simulator(
         return count
     }
 
+    /**
+     * Number of `Capture()` meta-actions executed by a simulation modifier and not taken yet.
+     *
+     * The core never renders anything: it only counts the requests, and the view reads this
+     * counter (and [consumeCaptureRequest]) after the step to encode the simulation canvas and
+     * write the picture. The image is therefore the complete frame of the step that asked for it,
+     * and the name carries the step counter displayed for that frame.
+     */
+    var captureRequestCount: Int = 0
+        private set
+
+    /**
+     * Returns the number of captures asked by a modifier and resets the counter: called by the
+     * view once the picture of the step is taken, so that a single `Capture()` is served once.
+     */
+    fun consumeCaptureRequest(): Int {
+        val count = captureRequestCount
+        captureRequestCount = 0
+        return count
+    }
+
     /** Extra steps asked by RunOneStep() / RunNStep(N); 0 when none (the loop then pauses). */
     var stepsRequested: Int = 0
         private set
@@ -318,6 +339,7 @@ class Simulator(
     /** True for the actions that act on the simulation as a whole rather than on a cell. */
     private fun isMetaAction(action: Action): Boolean = when (action) {
         Action.Pause, is Action.TimedPause, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
+        Action.Capture,
         is Action.AddMany, is Action.AddRect, is Action.AddDisc,
         is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
         is Action.EraseAll, is Action.Activate, is Action.Inactivate -> true
@@ -922,6 +944,8 @@ class Simulator(
         clearControlRequests()
         // a rewind or a restart discards the pauses that were not shown yet
         modifierPauseCount = 0
+        // ... and the captures that were not taken yet (the image they asked for is gone)
+        captureRequestCount = 0
         // commands queued by a step that is now rewound are meaningless
         gridCommands.clear()
         initialAgents.copyInto(agents)
@@ -1080,6 +1104,9 @@ class Simulator(
                     }
                     Action.Rewind -> rewindRequested = true
                     Action.Restart -> restartRequested = true
+                    // the view owns the canvas: it reads the counter after the step and writes
+                    // the picture (the core only counts the request)
+                    Action.Capture -> captureRequestCount += 1
 
                     is Action.AddMany -> {
                         val id = action.grain.evalInt(evaluator)
@@ -1491,7 +1518,7 @@ class Simulator(
                         }
                     }
 
-                    is Action.Use, is Action.Unuse, is Action.DrawLine, is Action.Grid -> {
+                    is Action.Use, is Action.Unuse, is Action.DrawLine, is Action.Grid, Action.Capture -> {
                         /* meta-actions: they belong to the simulation modifiers */
                     }
 

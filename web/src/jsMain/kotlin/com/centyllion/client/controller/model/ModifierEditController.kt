@@ -136,6 +136,18 @@ class ModifierEditController(
             ),
             fullWidth = true, striped = true
         ),
+        SubTitle(page.i18n("Working folder and captures")),
+        Table(
+            body = listOf(
+                helpLine(
+                    "Capture()",
+                    "Takes a JPEG picture of the simulation view at the end of the step (quality 0.92), for instance %0.",
+                    "Capture()"
+                ),
+            ),
+            fullWidth = true, striped = true
+        ),
+        p(page.i18n("The picture is named model__step.jpg: the model name is cleaned for the file system (no slash, backslash, colon, star, question mark, quotation mark, angle bracket or vertical bar; no surrounding space; bounded length) and becomes the sub-folder of the working folder; the number is the step of the picture, that is the counter displayed once the step has run, so a Capture() triggered by step == 5 writes model__6.jpg. Without a working folder, or on a browser without the File System Access API, the picture is downloaded.")),
         p(page.i18n("A timed pause never advances the simulation: no step runs while it lasts, so the sequence of states stays reproducible as soon as the trigger is deterministic (step == 10). Only its duration comes from the clock of the machine: at least t seconds, and longer in a background tab, where the animation frames that notice the end of the pause are rare.")),
         SubTitle(page.i18n("Meta-actions")),
         Table(

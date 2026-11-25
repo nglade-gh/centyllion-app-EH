@@ -73,6 +73,17 @@ sealed class Action {
     /** Rewinds the simulation to its initial state, then restarts the run. */
     object Restart : Action()
 
+    /**
+     * Takes a JPEG capture of the simulation view at the current step.
+     *
+     * The core knows nothing of the canvas, so the action only counts the request
+     * ([Simulator.captureRequestCount]); the view reads the counter after the step, encodes the
+     * simulation canvas and writes the picture in the working folder (or downloads it) under the
+     * name `model__step.jpg`. Like the other meta-actions it runs once per step, after the
+     * behaviours, so the image is the complete frame of the step that asked for it.
+     */
+    object Capture : Action()
+
     /** Adds `count` agents of type `grain` anywhere in the environment (empty cells only). */
     data class AddMany(val grain: Expression, val count: Expression) : Action()
 
@@ -139,6 +150,7 @@ sealed class Action {
 /** True for the actions that act on the simulation as a whole rather than on one cell. */
 fun isMetaAction(action: Action): Boolean = when (action) {
     Action.Pause, is Action.TimedPause, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
+    Action.Capture,
     is Action.AddMany, is Action.AddRect, is Action.AddDisc,
     is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
     is Action.EraseAll, is Action.Activate, is Action.Inactivate, is Action.Use, is Action.Unuse,
@@ -169,6 +181,7 @@ private val actionArities = mapOf(
     "RunNStep" to intArrayOf(1),
     "Rewind" to intArrayOf(0),
     "Restart" to intArrayOf(0),
+    "Capture" to intArrayOf(0),
     "AddRect" to intArrayOf(6),
     "AddDisc" to intArrayOf(5),
     "EraseRect" to intArrayOf(4, 5),
@@ -182,7 +195,7 @@ private val actionArities = mapOf(
 )
 
 private const val availableActions =
-    "Add, Remove, Move, SetField, AddField, ClearField, Pause, RunOneStep, RunNStep, Rewind, Restart, " +
+    "Add, Remove, Move, SetField, AddField, ClearField, Pause, RunOneStep, RunNStep, Rewind, Restart, Capture, " +
         "AddRect, AddDisc, EraseRect, EraseDisc, Erase, Activate, Inactivate, Use, Unuse, DrawLine"
 
 /** Grid commands of the meta-actions: they are parsed by [parseGridCommandCall]. */
@@ -280,6 +293,7 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
             "RunNStep" -> Action.RunNStep(args[0])
             "Rewind" -> Action.Rewind
             "Restart" -> Action.Restart
+            "Capture" -> Action.Capture
             "AddRect" -> Action.AddRect(args[0], args[1], args[2], args[3], args[4], args[5])
             "AddDisc" -> Action.AddDisc(args[0], args[1], args[2], args[3], args[4])
             "EraseRect" -> if (args.size == 4) Action.EraseRectAll(args[0], args[1], args[2], args[3])

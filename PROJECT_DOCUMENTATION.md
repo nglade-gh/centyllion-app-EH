@@ -16,6 +16,7 @@
 | **Compteurs de voisins** | `agentCountPredicates` : conditions sur le nombre de voisins d'un type (`Agent_B > 3`) |
 | **Prédicats graphiques** | En mode normal : lignes « Âge de la simulation » (`agePredicates`), « Seuils des champs » (`fieldPredicates`) et « Nb voisins » (`agentCountPredicates`, avec choix du type), toutes combinées en **ET** ; chaque groupe a son bouton `Aide` (voir §8.3bis) |
 | **Actions de comportement** | `actions` : `Add`, `Remove`, `Move`, `SetField`, `AddField`, `ClearField`, exécutées après les réactions (voir §6.5) |
+| **Captures** | `Capture()` : image JPEG de la vue de simulation (`NOM_MODELE__PAS.jpg`), écrite dans le sous-dossier du modèle du **dossier de travail** ou téléchargée (voir §6.5bis) |
 | **Formules de comportement** | `formula` avec `step` (étape courante), `age(n)` (âge du réactif n), `count`, `field`, `agent` (voir §6.4) |
 | **Expressions de condition** | `formula` : expressions logiques avec parenthèses et opérateurs (`count(1) > 2 && count(2) == 1`) |
 | **Mise à jour parallèle** | `Simulation.parallelUpdate` (défaut) : calculs depuis l'état initial du pas, adapté aux automates cellulaires |
@@ -416,6 +417,7 @@ une fois par pas, hors de toute case, après les comportements.
 | Catégorie | Noms |
 |---|---|
 | Boucle de course | `Pause()`, `Pause(t)`, `RunOneStep()`, `RunNStep(N)`, `Rewind()`, `Restart()` |
+| Captures | `Capture()` |
 | Population / activation | `Add(id, N)`, `AddRect(id, N, x1, y1, x2, y2)`, `AddDisc(id, N, x, y, radius)`, `DrawLine(id, x1, y1, x2, y2)`, `EraseRect(x1, y1, x2, y2)`, `EraseRect(id, x1, y1, x2, y2)`, `EraseDisc(x, y, radius)`, `EraseDisc(id, x, y, radius)`, `Erase(id)`, `Activate(id)`, `Inactivate(id)`, `Use(id)`, `Unuse(id)` |
 | Commandes de grille | `Show(id)`, `Hide(id)`, `Select(x1, y1, x2, y2)`, `Cut()`, `Copy()`, `EraseSelection()`, `Paste(x, y, overwrite)`, `FlushSelection()`, `Unselect()`, `PasteAndFlush(x, y, overwrite)`, `Rotate(N)`, `FlipX()`, `FlipY()`, `AllowToricSelection(enabled)`, `AllowOverwriting(enabled)` |
 | Tests d'état (condition seulement) | `IsBehaviourActive(id)`, `IsModifierActive(id)`, `IsToricSelectionOn()`, `IsOverwritingOn()`, `IsVisible(id)` |
@@ -435,6 +437,27 @@ continuent de se charger et de se comporter à l'identique. `Pause()` est le nom
   `restartRequested` — regroupés par `consumeControlRequests()` en un
   `SimulationControlRequests`, et transformés en état de boucle par
   `SimulationLoop.afterStep()`. Elles ne touchent jamais la grille.
+
+**Troisième canal — les captures** : `Capture()` n'agit ni sur la grille ni sur la boucle. Le noyau
+incrémente `Simulator.captureRequestCount` (même forme que `modifierPauseCount`, remis à zéro par
+`reset()`), et la vue consomme le compteur juste après le pas (`consumeCaptureRequest()`, appelé par
+`SimulationRunController.takeCaptures()`, après le rendu du pas et avant le pas suivant). L'encodage
+est **synchrone** (`SimulatorViewController.captureJpeg()`, JPEG qualité 0,92 par `toDataURL` :
+`toBlob` rendrait la main après que le pas suivant a repeint le canevas). Le nom,
+`NOM_MODELE__PAS.jpg`, vient des fonctions pures `captureFileName()` / `sanitizeCaptureName()`
+(`core/.../model/capture.kt`) : caractères interdits (`/ \ : * ? " < > |`) remplacés par `_`,
+espaces et points de bord retirés, longueur bornée à `CAPTURE_NAME_MAX_LENGTH` (64), repli explicite
+`model`, préfixe `_` pour un nom de périphérique Windows. Le numéro est le compteur affiché pour
+l'image : une condition `step == 5` produit `modele__6.jpg`, puisque l'image montre l'état obtenu
+par ce pas. `WorkFolder` (`web/.../client/capture/`) écrit dans un sous-dossier du dossier de travail
+(`getDirectoryHandle(create: true)` → `getFileHandle(create: true)` → `createWritable()`), après
+`queryPermission({mode: 'readwrite'})` ; sans dossier, sans permission ou si l'écriture échoue,
+l'image est **téléchargée** (`Blob` + ancre `download`) et un message dit toujours laquelle des deux
+voies a été suivie. Le `handle` du dossier vit dans IndexedDB (`centyllion-files` v1, magasin
+`handles`, clé `workFolder`) ; `localStorage` ne contient que deux chaînes (nom affiché, mode de
+repli). Tests : `core/src/commonTest/.../CaptureTest.kt` — nom et nettoyage du nom de modèle, refus
+dans une action de comportement, incrément/consommation du compteur, remise à zéro par un
+rembobinage ; aucun test ne dépend d'un navigateur.
 
 `SimulationLoop` (commonMain, `simulationloop.kt`) porte la sémantique une seule fois, pour la vue
 web et pour les tests JVM : `canStep`, `start()`, `stop()`, `afterStep()` → `LoopUpdate(running,
@@ -602,6 +625,7 @@ Le code Kotlin/JS est compilé en **AMD modules** (`moduleKind = "amd"`), charge
 | `SimulationRunController.kt` | Contrôleur de la simulation : lecture complète, lecture, pas, settings, répercussion sur les charts. |
 | `PlotterController.kt` | Graphique via **data2viz** (LinePlotter) + Legende; `push(x, ys)`, `reset()`. |
 | `BulmaPage.kt` | Interface commune pour les écrans Bulma (modal, notification, erreur). |
+| `capture/WorkFolder.kt` / `capture/WorkFolderController.kt` | Dossier de travail des captures : `handle` en IndexedDB (`centyllion-files`/`handles`/`workFolder`), picker, permission (`queryPermission`/`requestPermission`), écriture dans `<dossier>/<modèle>/` ou téléchargement ; bouton « Dossier de travail… », état (non défini / défini / permission à renouveler) et note de repli quand l'API manque. |
 | `TutorialLayer.kt` | Tour du tutorial (étapes, validation, navigation, conclusion) ; supprime ses widgets au redémarrage. |
 | `BacteriasTutorial.kt` / `FieldTutorial.kt` | Tutoriels débutants pas-à-pas (bactéries, champs). |
 | `GameOfLifeTutorial.kt` / `ActionsTutorial.kt` / `FieldFormulaTutorial.kt` | Tutoriels experts : `count(0)`, actions + `age(1)`, formule de champ animée. |
@@ -646,7 +670,7 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 ### 8.4 Graphiques (Plotter) et vue de simulation 2D
 
 - **data2viz** (`plotter/`) : tracé des courbes (nombre de grains, quantité de champs) dans `Plotter` (Canvas Skia) avec axes, ticks et courbes coloriées.
-- **Vue de simulation** (`controller/model/SimulatorViewController.kt`) : vue de dessus en canvas 2D, **sans 3D ni éclairage**. Un buffer hors écran de la taille de la grille (1 pixel = 1 cellule) reçoit les agents (couleur du grain, aplats stricts) puis la couche des champs (alpha identique à l'ancienne texture 3D) ; il est ensuite agrandi en `imageSmoothingEnabled = false` dans le canvas affiché (backing store en pixels de périphérique, `devicePixelRatio`), sur lequel sont tracés la grille et l'aperçu du pinceau. Outils conservés : stylo, ligne, carré, spray, gomme, déplacement (panoramique) ; zoom molette ×0,25 à ×16 ; bouton plein écran ; vignettes/captures par `canvas.toDataURL` / `toBlob`. Les grains masqués (case à cocher) et les champs masqués sont rendus en couleur de fond. Les clés `simulation.assets` et `settings.gridTextureUrl` restent dans le modèle (compatibilité) mais ne sont plus rendues.
+- **Vue de simulation** (`controller/model/SimulatorViewController.kt`) : vue de dessus en canvas 2D, **sans 3D ni éclairage**. Un buffer hors écran de la taille de la grille (1 pixel = 1 cellule) reçoit les agents (couleur du grain, aplats stricts) puis la couche des champs (alpha identique à l'ancienne texture 3D) ; il est ensuite agrandi en `imageSmoothingEnabled = false` dans le canvas affiché (backing store en pixels de périphérique, `devicePixelRatio`), sur lequel sont tracés la grille et l'aperçu du pinceau. Outils conservés : stylo, ligne, carré, spray, gomme, déplacement (panoramique) ; zoom molette ×0,25 à ×16 ; bouton plein écran ; vignettes/captures par `canvas.toDataURL` / `toBlob`. `captureJpeg()` fournit l'image de la méta-action `Capture()` (JPEG 0,92, `toDataURL` synchrone décodé en `Blob`, pour lire le canevas avant le pas suivant). Les grains masqués (case à cocher) et les champs masqués sont rendus en couleur de fond. Les clés `simulation.assets` et `settings.gridTextureUrl` restent dans le modèle (compatibilité) mais ne sont plus rendues.
 - Coût mesuré sur `coeur` (8 694 agents, grille 100×100) : ~0,5 ms par repeint, contre ~31 ms par rendu de scène Babylon et 17 404 maillages ; débit en lecture ≈ 7 pas/s contre ≈ 1,8 pas/s (même modèle, même machine). Bundle JS : 806 Ko contre 3,5 Mo.
 
 ---

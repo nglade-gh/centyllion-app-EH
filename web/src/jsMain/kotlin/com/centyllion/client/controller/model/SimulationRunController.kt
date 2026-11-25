@@ -4,7 +4,12 @@ import bulma.*
 import kotlinx.browser.document
 import org.w3c.dom.HTMLInputElement
 import bulma.extension.Slider
+import com.centyllion.client.capture.CaptureDestination
+import com.centyllion.client.capture.CaptureFallback
+import com.centyllion.client.capture.CaptureResult
+import com.centyllion.client.capture.WorkFolder
 import com.centyllion.client.page.BulmaPage
+import com.centyllion.client.page.notification
 import com.centyllion.client.toggleElementToFullScreen
 import com.centyllion.model.GrainModel
 import com.centyllion.model.PARALLEL_UPDATE_PLAN
@@ -358,11 +363,66 @@ class SimulationRunController(
         applyControlRequests()
         // without fields, nothing can change if no behaviour was applied and nothing died
         // a modifier can change the state even when no behaviour was applied
-        if (applied.isNotEmpty() || dead.isNotEmpty() || simulator.modifiersChanged || simulator.model.fields.isNotEmpty()) {
+        val painted = applied.isNotEmpty() || dead.isNotEmpty() ||
+            simulator.modifiersChanged || simulator.model.fields.isNotEmpty()
+        if (painted) {
             simulationViewController.oneStep(applied, dead)
         }
+        // the image of the step is complete (oneStep ends with a render): a Capture() asked by
+        // this step is taken now, before the next step erases it
+        takeCaptures(painted)
         stepLabel.text = "${currentSimulator.step}"
         onStep(simulator)
+    }
+
+    /**
+     * Takes the captures the step has just asked for (the `Capture()` meta-action).
+     *
+     * The core only counts the requests: the picture is encoded here, from the simulation canvas
+     * as it stands at the end of the step, then written in the working folder when one is defined —
+     * or downloaded. [reportCapture] says which of the two happened: a capture never falls back to
+     * a download silently.
+     *
+     * [painted] is false when the step changed nothing that is drawn: the canvas already shows the
+     * state of the step, since the grid is only repainted when it changes.
+     */
+    private fun takeCaptures(painted: Boolean) {
+        val count = simulator.consumeCaptureRequest()
+        if (count <= 0) return
+        if (!painted) simulationViewController.render()
+        val modelName = simulator.model.name
+        // the name carries the step of the picture: the counter shown once the step is done
+        val step = simulator.step
+        repeat(count) {
+            val picture = simulationViewController.captureJpeg()
+            if (picture == null) {
+                page.error("The simulation view could not be captured.")
+            } else {
+                WorkFolder.saveCapture(modelName, step, picture) { result -> reportCapture(result) }
+            }
+        }
+    }
+
+    /** Tells the reader where the capture went: the working folder, or a download and why. */
+    private fun reportCapture(result: CaptureResult) {
+        when (result.destination) {
+            CaptureDestination.FOLDER -> notification(
+                page.i18n("Capture saved in %0.", result.path ?: result.fileName),
+                ElementColor.Success, 6000
+            )
+            CaptureDestination.DOWNLOAD -> notification(
+                page.i18n(captureFallbackMessage(result.fallback), result.fileName),
+                ElementColor.Warning, 7000
+            )
+        }
+    }
+
+    /** Message of a downloaded capture: the reason is part of the sentence, never silent. */
+    private fun captureFallbackMessage(fallback: CaptureFallback): String = when (fallback) {
+        CaptureFallback.UNSUPPORTED -> "Capture downloaded: %0 (this browser has no access to a folder)."
+        CaptureFallback.PERMISSION -> "Capture downloaded: %0 (the permission of the working folder must be renewed)."
+        CaptureFallback.WRITE_ERROR -> "Capture downloaded: %0 (the working folder could not be written)."
+        else -> "Capture downloaded: %0 (no working folder)."
     }
 
 

@@ -3,6 +3,7 @@ package com.centyllion.client.page
 import bulma.*
 import bulma.extension.Switch
 import com.centyllion.client.*
+import com.centyllion.client.capture.WorkFolderController
 import com.centyllion.client.controller.model.ModelController
 import com.centyllion.client.controller.utils.EditableStringController
 import com.centyllion.client.controller.utils.UndoRedoSupport
@@ -160,6 +161,13 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         i18n("Gallery"), Icon("images"), color = ElementColor.Primary
     ) { showGallery() })
 
+    /**
+     * Where the pictures of the `Capture()` meta-action go: a working folder chosen by the
+     * visitor, or the downloads. The control keeps its own state (IndexedDB handle + two strings
+     * of localStorage), so the run loop can save a capture without going through this page.
+     */
+    private val workFolderController = WorkFolderController(this)
+
     val tutorialControl = Control(Button(
         i18n("Tutorial"), Icon("question-circle"), color = ElementColor.Primary
     ) { startTutorial() })
@@ -184,6 +192,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         Control(fileInput),
         saveAsControl,
         galleryControl,
+        workFolderController.control,
         tutorialControl,
         helpControl,
         aboutControl,
@@ -199,7 +208,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
                     left = listOf(
                         Label("NetBioDyn", size = Size.Large)
                     ),
-                    center = listOf(tools),
+                    center = listOf(tools, workFolderController.note),
                     right = listOf(expertModeSwitch)
                 ),
                 size = ColumnSize.Full

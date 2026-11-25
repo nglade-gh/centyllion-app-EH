@@ -159,6 +159,7 @@ tr:hover td { background: var(--panel-2); }
   <a href="#exemples-comportements" class="sub">4.5 Exemples — comportements</a>
   <a href="#exemples-complets">5. Exemples complets</a>
   <a href="#boucle">8. Méta-actions de la boucle</a>
+  <a href="#captures">9. Captures et dossier de travail</a>
 </nav>
 
 <main>
@@ -687,6 +688,7 @@ Actions   : Hide(0), AllowOverwriting(true)</code></pre>
       <td>Revient à l'état initial <b>et relance</b> la course : rembobinage suivi du bouton Run.</td>
     </tr>
   </table>
+  <p>Une septième méta-action ne touche ni la boucle ni la grille : <code>Capture()</code> demande une image JPEG de la vue de simulation, prise à la fin du même pas. Elle est décrite en détail au §9.</p>
   <p>Deux exemples, à écrire dans la formule d'actions d'un modificateur :</p>
   <pre><code>Condition : step == 20
 Actions   : RunNStep(5)
@@ -708,6 +710,43 @@ Actions   : Pause(2)
 
   <h3>8.2 <code>pause()</code> est obsolète</h3>
   <p>La méta-action <code>pause()</code>, écrite en minuscules, reste <b>acceptée</b> pour les modèles déjà enregistrés : ils continuent de se charger et de se comporter à l'identique. Elle est en revanche <b>obsolète</b>, et c'est la seule méta-fonction qui ne respectait pas la règle de casse. Écrivez <code>Pause()</code> : c'est ce nom qu'affiche l'aide contextuelle, et <code>pause()</code> n'est conservé que pour la compatibilité.</p>
+  </section>
+
+  <section id="captures">
+  <h2>9. Captures et dossier de travail</h2>
+  <p>La méta-action <code>Capture()</code> demande une <b>image JPEG</b> (qualité 0,92) de la vue de simulation. Elle s'écrit <b>sans argument</b>, en majuscule, dans la formule d'actions d'un modificateur : c'est une méta-action, une formule d'actions de comportement la refuse comme toutes les autres.</p>
+  <pre><code>Condition : step == 20
+Actions   : Capture()
+# au pas 20, l'image de la vue de simulation est enregistrée</code></pre>
+
+  <h3>9.1 Quand l'image est prise</h3>
+  <p>Comme toute méta-action, <code>Capture()</code> s'exécute une fois par pas, après les comportements, à la fin du pas dont la condition est vraie. L'image est prise <b>juste après le rendu complet</b> de ce pas, avant que le pas suivant ne repeigne le canevas : elle montre exactement l'état obtenu par le pas déclencheur, avec la grille, les champs et la sélection tels qu'ils sont affichés.</p>
+  <p>Le cœur de la simulation <b>ne dessine rien</b> : il ne fait qu'incrémenter un compteur (<code>Simulator.captureRequestCount</code>, construit sur le modèle de <code>modifierPauseCount</code>). La vue lit ce compteur après le pas (<code>consumeCaptureRequest()</code>), encode le canevas puis remet le compteur à zéro : tout le rendu reste dans la vue.</p>
+
+  <h3>9.2 Nom du fichier</h3>
+  <p>Le fichier s'appelle <code>NOM_MODELE__PAS.jpg</code> : le nom du modèle, <b>deux soulignés</b>, le numéro de pas.</p>
+  <pre><code>GoL_Modifiers__12.jpg</code></pre>
+  <p>Le nom du modèle est <b>nettoyé</b> pour le système de fichiers : les caractères <code>/</code>, <code>\</code>, <code>:</code>, <code>*</code>, <code>?</code>, <code>"</code>, <code>&lt;</code>, <code>&gt;</code> et <code>|</code> deviennent des soulignés, les espaces et les points en début et en fin sont retirés, et la longueur est bornée à 64 caractères. Les accents sont conservés. Un nom inutilisable (vide, composé d'espaces, <code>.</code> ou <code>..</code>) donne le repli explicite <code>model</code> : l'image s'appelle alors <code>model__12.jpg</code>. Un nom de périphérique Windows (<code>CON</code>, <code>NUL</code>, <code>COM1</code>…) reçoit un souligné en tête.</p>
+  <p>Le numéro est celui du pas de l'image, c'est-à-dire le <b>compteur affiché</b> une fois le pas exécuté : une condition <code>step == 5</code> déclenche la capture à la fin de ce pas, et l'image — qui montre l'état obtenu par ce pas — porte le numéro <b>6</b>.</p>
+
+  <h3>9.3 Dossier de travail</h3>
+  <p>Le bouton <b>Dossier de travail…</b> de la barre du haut laisse choisir un dossier du disque en lecture-écriture. Les captures sont alors écrites dans un <b>sous-dossier portant le nom du modèle</b>, créé au besoin :</p>
+  <pre><code>Mes simulations/
+  └── GoL_Modifiers/
+        ├── GoL_Modifiers__12.jpg
+        └── GoL_Modifiers__13.jpg</code></pre>
+  <p>Le dossier est mémorisé : son <em>handle</em> dans IndexedDB (base <code>centyllion-files</code>, magasin <code>handles</code>, clé <code>workFolder</code>) et <b>deux chaînes seulement</b> dans <code>localStorage</code> — le nom à afficher et le mode de repli. La boîte de dialogue donne l'état du dossier : <b>non défini</b>, <b>défini</b> ou <b>permission à renouveler</b>. Un navigateur redemande parfois la permission après un redémarrage : le bouton <b>Reconnecter</b> la rend d'un clic (<code>queryPermission</code> puis <code>requestPermission</code>), sans choisir le dossier une seconde fois.</p>
+  <p>Sans dossier de travail, si la permission n'est pas accordée, ou si l'écriture échoue, l'image est <b>téléchargée</b> (Blob + attribut <code>download</code>). Un message dit toujours laquelle des deux voies a été suivie, et pourquoi : une capture ne bascule jamais silencieusement en téléchargement, et <code>showSaveFilePicker</code> n'est jamais la seule voie.</p>
+
+  <h3>9.4 Limites par navigateur</h3>
+  <table>
+    <tr><th>Navigateur</th><th>Dossier de travail</th><th>Captures</th></tr>
+    <tr><td>Chrome, Chromium, Edge — HTTPS ou <code>localhost</code></td><td>oui (<code>showDirectoryPicker</code>)</td><td>écrites dans le sous-dossier du modèle</td></tr>
+    <tr><td>Chrome, Chromium, Edge — HTTP sur une IP (page non sécurisée)</td><td>non : l'API n'existe pas hors contexte sécurisé</td><td>téléchargées</td></tr>
+    <tr><td>Firefox, Safari</td><td>non</td><td>téléchargées</td></tr>
+  </table>
+  <p>Sur un navigateur sans File System Access, le bouton <b>Dossier de travail…</b> est <b>absent</b> : une note à sa place explique que les captures partiront en téléchargement, un fichier par pas. Aucune fonctionnalité de capture n'est réservée à Chrome ou à Edge.</p>
+  <p><b>Débit</b> : chaque capture encode le canevas en JPEG et écrit un fichier. À 50 pas par seconde, un <code>Capture()</code> sans condition produit 50 fichiers par seconde : préférez un déclencheur rare (<code>step % 10 == 0</code>, un comptage de voisins, une valeur de champ), ou une pause avant la capture.</p>
   </section>
 
 </body>
