@@ -13,10 +13,19 @@ import org.w3c.files.Blob
  * browser, in which every `Capture()` meta-action writes its picture.
  *
  * The directory handle (`FileSystemDirectoryHandle`) cannot go into localStorage: it is a live
- * object, so it lives in IndexedDB, in the `handles` store of the `centyllion-files` database —
- * the database the save dialog already uses for its own handle — under the key `workFolder`, with
- * the same style of code as `GalleryStore`. localStorage only keeps two strings: the name to
- * display and the fallback mode.
+ * object, so it lives in IndexedDB, in its own database — `centyllion-home`, version 1, store
+ * `handles`, key `home`. It shares nothing with the gallery (`centyllion-gallery`) nor with the
+ * handles of the save dialog (`centyllion-files`): no other feature opens this database, so the
+ * working folder can be forgotten, moved or cleared without touching a model or a picture.
+ * localStorage only keeps two strings: the name to display and the fallback mode.
+ *
+ * Nothing else is remembered: no picture byte ever reaches IndexedDB, localStorage,
+ * sessionStorage or the Cache Storage of the page. A capture is encoded in memory as a `Blob`,
+ * then written in the folder or downloaded — it has no other destination.
+ *
+ * The old location of the handle (key `workFolder` of `centyllion-files`) is not read and not
+ * migrated: it is deleted once, if it exists, so a folder chosen before this change is simply
+ * chosen again.
  *
  * File System Access is not available everywhere (Firefox, Safari, and any non-secure page):
  * the directory part of this object is then unsupported and every capture is downloaded through a
@@ -24,17 +33,27 @@ import org.w3c.files.Blob
  * result says which of the two paths was taken and why ([CaptureResult.fallback]).
  */
 
-/** IndexedDB database shared with the file handles of the save dialog. */
-const val FILES_DB_NAME = "centyllion-files"
+/** IndexedDB database of the working folder alone: no other feature writes in it. */
+const val HOME_DB_NAME = "centyllion-home"
 
-/** Schema version of [FILES_DB_NAME]. */
-const val FILES_DB_VERSION = 1
+/** Schema version of [HOME_DB_NAME]. */
+const val HOME_DB_VERSION = 1
 
-/** Object store of [FILES_DB_NAME]: one handle per key. */
-const val FILES_DB_STORE = "handles"
+/** Object store of [HOME_DB_NAME]: one handle per key. */
+const val HOME_DB_STORE = "handles"
 
-/** Key of the working folder handle in [FILES_DB_STORE]. */
-const val WORK_FOLDER_HANDLE_KEY = "workFolder"
+/** Key of the working folder handle in [HOME_DB_STORE]. */
+const val HOME_HANDLE_KEY = "home"
+
+/**
+ * Database where the handle was kept before it had its own: it belongs to the save dialog and is
+ * only opened once, to delete [LEGACY_HANDLE_KEY]. Nothing is read from it, nothing is written in
+ * it, and it is not created when it does not exist.
+ */
+const val LEGACY_HANDLE_DB_NAME = "centyllion-files"
+
+/** Key of the working folder handle in [LEGACY_HANDLE_DB_NAME]: deleted, never migrated. */
+const val LEGACY_HANDLE_KEY = "workFolder"
 
 /** localStorage key: name of the working folder, displayed only (a plain string). */
 const val WORK_FOLDER_NAME_KEY = "centyllion-work-folder-name"
@@ -121,6 +140,9 @@ object WorkFolder {
     /** Last known read/write permission of [handle]. */
     private var permission: String = PERMISSION_UNKNOWN
 
+    /** True once the deletion of the handle of the previous database has been attempted. */
+    private var legacyChecked = false
+
     /** True when the browser exposes the directory picker of the File System Access API. */
     fun isSupported(): Boolean = try {
         directoryAccess.supported() as Boolean
@@ -144,10 +166,12 @@ object WorkFolder {
         }
 
     /**
-     * Restores the remembered handle from IndexedDB and asks the browser whether its permission is
-     * still granted; [onReady] is called in every case (no folder, no database, no API).
+     * Restores the remembered handle from its own database and asks the browser whether its
+     * permission is still granted; [onReady] is called in every case (no folder, no database, no
+     * API). The old key of the save dialog database is deleted once, on the way.
      */
     fun restore(onReady: () -> Unit = {}) {
+        forgetLegacyHandle()
         if (!isSupported()) {
             onReady()
             return
@@ -174,6 +198,29 @@ object WorkFolder {
         } catch (t: Throwable) {
             console.warn("Working folder: cannot read the remembered folder from IndexedDB.", t)
             onReady()
+        }
+    }
+
+    /**
+     * Deletes the handle left in the database of the save dialog by an older version, once: it is
+     * not read (nothing is migrated, the visitor chooses the folder again) and nothing is written
+     * there. A browser without `indexedDB.databases()` cannot tell whether that database exists
+     * without creating it, so the stale key is left alone — no code reads it any more.
+     */
+    private fun forgetLegacyHandle() {
+        if (legacyChecked) return
+        legacyChecked = true
+        try {
+            val promise = workFolderDatabase.forgetLegacy() as Promise<dynamic>
+            promise.then { removed: dynamic ->
+                if (removed == true) {
+                    console.log("Working folder: the handle left in $LEGACY_HANDLE_DB_NAME was deleted.")
+                }
+            }.catch { error: dynamic ->
+                console.warn("Working folder: cannot delete the handle of $LEGACY_HANDLE_DB_NAME.", error)
+            }
+        } catch (t: Throwable) {
+            console.warn("Working folder: cannot delete the handle of $LEGACY_HANDLE_DB_NAME.", t)
         }
     }
 
@@ -397,15 +444,21 @@ object WorkFolder {
  * travels as the stored value itself, since a structured clone keeps a `FileSystemDirectoryHandle`
  * usable across sessions in the browsers that support it.
  *
- * The database and the store are the ones of the save dialog ([FILES_DB_NAME],
- * [FILES_DB_STORE]): the store is created without a key path, the key is passed explicitly.
+ * The database is the one of the working folder alone (`centyllion-home`, store `handles`, key
+ * `home`): it holds a directory handle and nothing else. [write] refuses any value that is not a
+ * directory handle, so a picture (a `Blob`, a `data:` URL) can never be kept here.
+ *
+ * [forgetLegacy] deletes the key left by an older version in the database of the save dialog; it
+ * never reads it and never writes anything there.
  */
 private val workFolderDatabase: dynamic = js("""
 (function () {
-    var DB_NAME = 'centyllion-files';
+    var DB_NAME = 'centyllion-home';
     var DB_VERSION = 1;
     var STORE = 'handles';
-    var KEY = 'workFolder';
+    var KEY = 'home';
+    var LEGACY_DB_NAME = 'centyllion-files';
+    var LEGACY_KEY = 'workFolder';
 
     function open() {
         return new Promise(function (resolve, reject) {
@@ -446,6 +499,11 @@ private val workFolderDatabase: dynamic = js("""
     }
 
     function write(handle) {
+        // a directory handle is the only value this database accepts: a picture has no
+        // getFileHandle, so no image byte can ever be stored here
+        if (!handle || typeof handle.getFileHandle !== 'function') {
+            return Promise.reject(new Error('not a directory handle'));
+        }
         return open().then(function (db) {
             return new Promise(function (resolve, reject) {
                 try {
@@ -479,7 +537,59 @@ private val workFolderDatabase: dynamic = js("""
         });
     }
 
-    return { read: read, write: write, remove: remove };
+    // deletes the handle of the previous database when that database exists
+    function forgetLegacy() {
+        var listing;
+        try {
+            // only indexedDB.databases() tells whether a database exists without creating it
+            if (typeof indexedDB.databases !== 'function') return Promise.resolve(false);
+            listing = indexedDB.databases();
+        } catch (e) {
+            return Promise.resolve(false);
+        }
+        return listing.then(function (databases) {
+            var exists = false;
+            (databases || []).forEach(function (info) {
+                if (info && info.name === LEGACY_DB_NAME) exists = true;
+            });
+            if (!exists) return false;
+            return new Promise(function (resolve, reject) {
+                var request;
+                try {
+                    request = indexedDB.open(LEGACY_DB_NAME);
+                } catch (e) {
+                    reject(e);
+                    return;
+                }
+                request.onupgradeneeded = function () {
+                    var db = request.result;
+                    if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+                };
+                request.onsuccess = function () {
+                    var db = request.result;
+                    try {
+                        if (!db.objectStoreNames.contains(STORE)) {
+                            db.close();
+                            resolve(false);
+                            return;
+                        }
+                        var tx = db.transaction(STORE, 'readwrite');
+                        tx.objectStore(STORE).delete(LEGACY_KEY);
+                        tx.oncomplete = function () { db.close(); resolve(true); };
+                        tx.onerror = function () { db.close(); reject(tx.error); };
+                        tx.onabort = function () { db.close(); reject(tx.error); };
+                    } catch (e) {
+                        db.close();
+                        reject(e);
+                    }
+                };
+                request.onerror = function () { reject(request.error); };
+                request.onblocked = function () { reject(new Error('indexedDB blocked')); };
+            });
+        });
+    }
+
+    return { read: read, write: write, remove: remove, forgetLegacy: forgetLegacy };
 })()
 """)
 

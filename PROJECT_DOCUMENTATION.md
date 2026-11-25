@@ -453,9 +453,18 @@ par ce pas. `WorkFolder` (`web/.../client/capture/`) écrit dans un sous-dossier
 (`getDirectoryHandle(create: true)` → `getFileHandle(create: true)` → `createWritable()`), après
 `queryPermission({mode: 'readwrite'})` ; sans dossier, sans permission ou si l'écriture échoue,
 l'image est **téléchargée** (`Blob` + ancre `download`) et un message dit toujours laquelle des deux
-voies a été suivie. Le `handle` du dossier vit dans IndexedDB (`centyllion-files` v1, magasin
-`handles`, clé `workFolder`) ; `localStorage` ne contient que deux chaînes (nom affiché, mode de
-repli). Tests : `core/src/commonTest/.../CaptureTest.kt` — nom et nettoyage du nom de modèle, refus
+voies a été suivie. Le `handle` du dossier vit dans **sa propre base IndexedDB** (`centyllion-home`
+v1, magasin `handles`, clé `home`) : elle ne partage rien avec `centyllion-gallery` ni avec
+`centyllion-files`, et son writer refuse tout ce qui n'est pas un handle de dossier, donc aucune
+image ne peut y entrer ; `localStorage` ne contient que deux chaînes (nom affiché, mode de repli).
+L'ancienne clé `workFolder` de `centyllion-files` n'est ni lue ni migrée : elle est supprimée une
+fois si elle existe. **Aucun octet d'image ne passe par le stockage du navigateur** : la capture est
+un `Blob` en mémoire, écrit dans le dossier ou téléchargé, jamais dans IndexedDB, `localStorage`,
+`sessionStorage` ni Cache Storage. Le contrôle est le **bouton maison rouge** (`fa-home`,
+`ElementColor.Danger`, `#f14668`) placé à gauche de la barre du haut, à côté du titre NetBioDyn :
+rouge plein quand le dossier est défini et sa permission accordée, rouge en contour atténué sinon ;
+une note grise à côté du bouton reprend l'état et dit où vont les captures. Tests :
+`core/src/commonTest/.../CaptureTest.kt` — nom et nettoyage du nom de modèle, refus
 dans une action de comportement, incrément/consommation du compteur, remise à zéro par un
 rembobinage ; aucun test ne dépend d'un navigateur.
 
@@ -620,12 +629,12 @@ Le code Kotlin/JS est compilé en **AMD modules** (`moduleKind = "amd"`), charge
 |---------|------|
 | `index.kt` | Point d'entrée ; instancie `Api`, `BrowserContext`, `ShowPage`, injecte le DOM. |
 | `Api.kt` | Client HTTP via `XMLHttpRequest` ; methods : `searchQuery`, `simulationGet`, `fetchVersion`. |
-| `ShowPage.kt` | Page principale : en-tête (nom, boutons nouvelle/export/import/tutoriel, mode expert), contrôle du modèle, sauvegarde en localStorage, gestion des tutoriels. |
+| `ShowPage.kt` | Page principale : en-tête (nom, bouton maison du dossier de travail à côté du titre, boutons nouvelle/export/import/tutoriel, mode expert), contrôle du modèle, sauvegarde en localStorage, gestion des tutoriels. |
 | `ModelController.kt` | Contrôleur de la page modèle : liste grains/comportements/champs (chaque section se replie indépendamment via son chevron), recherche, édition, graphiques. |
 | `SimulationRunController.kt` | Contrôleur de la simulation : lecture complète, lecture, pas, settings, répercussion sur les charts. |
 | `PlotterController.kt` | Graphique via **data2viz** (LinePlotter) + Legende; `push(x, ys)`, `reset()`. |
 | `BulmaPage.kt` | Interface commune pour les écrans Bulma (modal, notification, erreur). |
-| `capture/WorkFolder.kt` / `capture/WorkFolderController.kt` | Dossier de travail des captures : `handle` en IndexedDB (`centyllion-files`/`handles`/`workFolder`), picker, permission (`queryPermission`/`requestPermission`), écriture dans `<dossier>/<modèle>/` ou téléchargement ; bouton « Dossier de travail… », état (non défini / défini / permission à renouveler) et note de repli quand l'API manque. |
+| `capture/WorkFolder.kt` / `capture/WorkFolderController.kt` | Dossier de travail des captures : base IndexedDB propre (`centyllion-home`/`handles`/`home`, ancienne clé `workFolder` de `centyllion-files` supprimée sans migration), picker, permission (`queryPermission`/`requestPermission`), écriture dans `<dossier>/<modèle>/` ou téléchargement ; bouton maison rouge (`fa-home`, `ElementColor.Danger`) à gauche de la barre du haut, à côté du titre, plein quand le dossier est défini et accessible, en contour atténué sinon ; note d'état et de destination à côté du bouton. Aucune image en stockage navigateur. |
 | `TutorialLayer.kt` | Tour du tutorial (étapes, validation, navigation, conclusion) ; supprime ses widgets au redémarrage. |
 | `BacteriasTutorial.kt` / `FieldTutorial.kt` | Tutoriels débutants pas-à-pas (bactéries, champs). |
 | `GameOfLifeTutorial.kt` / `ActionsTutorial.kt` / `FieldFormulaTutorial.kt` | Tutoriels experts : `count(0)`, actions + `age(1)`, formule de champ animée. |

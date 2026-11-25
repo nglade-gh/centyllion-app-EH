@@ -107,11 +107,22 @@ de fichiers.
 
 La méta-action `Capture()` demande une image JPEG (qualité 0,92) de la vue de
 simulation ; le fichier s'appelle `NOM_MODELE__PAS.jpg` (ex. `GoL_Modifiers__12.jpg`).
-Le bouton **Dossier de travail…** de la barre du haut laisse choisir un dossier
-du disque : les images vont alors dans un sous-dossier portant le nom du modèle
-(`MonDossier/GoL_Modifiers/GoL_Modifiers__12.jpg`). Le `handle` du dossier est
-mémorisé dans IndexedDB (`centyllion-files` / `handles` / `workFolder`),
-`localStorage` ne gardant que deux chaînes (nom affiché, mode de repli).
+Le **bouton maison rouge** de la barre du haut — icône `fa-home`, à gauche de la
+barre, juste à côté du titre NetBioDyn, infobulle « Dossier de travail » — laisse
+choisir un dossier du disque, redonner la permission ou oublier le dossier : les
+images vont alors dans un sous-dossier portant le nom du modèle
+(`MonDossier/GoL_Modifiers/GoL_Modifiers__12.jpg`). Le bouton est rouge plein quand
+le dossier est défini et accessible, rouge en contour atténué sinon ; une note à
+côté du titre dit l'état et où vont les captures.
+
+Le dossier est mémorisé **à part de tout le reste** : son `handle` vit dans sa
+propre base IndexedDB (`centyllion-home` v1, magasin `handles`, clé `home`), qui ne
+partage rien avec la galerie (`centyllion-gallery`) ni avec les handles du dialogue
+d'enregistrement (`centyllion-files`) ; `localStorage` ne garde que deux chaînes
+(nom affiché, mode de repli). L'ancienne clé `workFolder` de `centyllion-files` n'est
+ni lue ni migrée, seulement supprimée si elle existe. **Aucune image ne transite par
+le stockage du navigateur** (IndexedDB, `localStorage`, `sessionStorage`, Cache
+Storage) : la capture est un `Blob` en mémoire, écrit dans le dossier ou téléchargé.
 
 | Navigateur | Dossier de travail | Captures |
 |---|---|---|
@@ -316,10 +327,13 @@ modèle de `modifierPauseCount`), que la vue consomme (`consumeCaptureRequest()`
 canevas. Le fichier s'appelle `NOM_MODELE__PAS.jpg` (`GoL_Modifiers__12.jpg`), le nom du modèle
 étant nettoyé pour le système de fichiers (caractères interdits, espaces et points en début et en
 fin, longueur bornée à 64 ; repli explicite `model`). Il est écrit dans un sous-dossier du
-**dossier de travail** (bouton « Dossier de travail… » : `showDirectoryPicker`, `handle` en
-IndexedDB, permission renouvelable d'un clic), ou **téléchargé** quand aucun dossier n'est défini
-— un message dit toujours laquelle des deux voies a été suivie. Voir l'aide intégrée §9 pour les
-limites par navigateur.
+**dossier de travail** (bouton maison rouge de la barre du haut, icône `fa-home` à côté du titre,
+infobulle « Dossier de travail » : `showDirectoryPicker`, `handle` dans la base IndexedDB
+`centyllion-home` — seule de son espèce, le magasin `handles`, clé `home` —, permission
+renouvelable d'un clic), ou **téléchargé** quand aucun dossier n'est défini — un message dit
+toujours laquelle des deux voies a été suivie. Aucun octet d'image n'est stocké par le navigateur :
+la capture reste un `Blob` en mémoire jusqu'à l'écriture ou au téléchargement. Voir l'aide
+intégrée §9 pour les limites par navigateur.
 
 `Pause(t)` est une **pause de confort** (démonstration), pas une horloge de modèle : elle
 n'exécute aucun pas, donc la grille et la trajectoire des états ne dépendent pas du temps et

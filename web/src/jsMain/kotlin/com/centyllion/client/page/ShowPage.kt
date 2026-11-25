@@ -163,8 +163,10 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     /**
      * Where the pictures of the `Capture()` meta-action go: a working folder chosen by the
-     * visitor, or the downloads. The control keeps its own state (IndexedDB handle + two strings
-     * of localStorage), so the run loop can save a capture without going through this page.
+     * visitor, or the downloads. Its control is the red home button of the title bar (left of the
+     * bar, beside the title) and its note says in which state the folder is; the control keeps its
+     * own state (IndexedDB handle + two strings of localStorage), so the run loop can save a
+     * capture without going through this page.
      */
     private val workFolderController = WorkFolderController(this)
 
@@ -192,7 +194,6 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         Control(fileInput),
         saveAsControl,
         galleryControl,
-        workFolderController.control,
         tutorialControl,
         helpControl,
         aboutControl,
@@ -205,10 +206,13 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         Columns(
             Column(
                 Level(
+                    // the home button and its note belong to the title, not to the tools
                     left = listOf(
-                        Label("NetBioDyn", size = Size.Large)
+                        Label("NetBioDyn", size = Size.Large),
+                        workFolderController.control,
+                        workFolderController.note
                     ),
-                    center = listOf(tools, workFolderController.note),
+                    center = listOf(tools),
                     right = listOf(expertModeSwitch)
                 ),
                 size = ColumnSize.Full

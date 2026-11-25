@@ -585,6 +585,9 @@ object English: Locale {
         "Takes a JPEG picture of the simulation view at the end of the step (quality 0.92), for instance %0." -> "Takes a JPEG picture of the simulation view at the end of the step (quality 0.92), for instance %0."
         "The picture is named model__step.jpg: the model name is cleaned for the file system (no slash, backslash, colon, star, question mark, quotation mark, angle bracket or vertical bar; no surrounding space; bounded length) and becomes the sub-folder of the working folder; the number is the step of the picture, that is the counter displayed once the step has run, so a Capture() triggered by step == 5 writes model__6.jpg. Without a working folder, or on a browser without the File System Access API, the picture is downloaded." -> "The picture is named model__step.jpg: the model name is cleaned for the file system (no slash, backslash, colon, star, question mark, quotation mark, angle bracket or vertical bar; no surrounding space; bounded length) and becomes the sub-folder of the working folder; the number is the step of the picture, that is the counter displayed once the step has run, so a Capture() triggered by step == 5 writes model__6.jpg. Without a working folder, or on a browser without the File System Access API, the picture is downloaded."
         "Working folder and captures" -> "Working folder and captures"
+        "captures written in the folder" -> "captures written in the folder"
+        "captures downloaded" -> "captures downloaded"
+        "The browser remembers only the folder itself, in its own database: no picture is stored in the browser, a capture goes to the folder or to a download, nowhere else." -> "The browser remembers only the folder itself, in its own database: no picture is stored in the browser, a capture goes to the folder or to a download, nowhere else."
         else -> key
     }
 }

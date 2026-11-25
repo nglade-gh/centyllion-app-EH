@@ -5,32 +5,52 @@ import com.centyllion.client.page.BulmaPage
 import com.centyllion.client.page.notification
 
 /**
- * The "Working folder…" control of the top bar and its dialog.
+ * Red of the home button: the red the project already uses for its warnings
+ * (`ModifierEditController`), that is Bulma's danger red. The theme of the application paints
+ * [ElementColor.Danger] with a magenta (`#d24193`), too far from red for this control, so the red
+ * is applied on top of the danger class — the class keeps the hover, focus and disabled rules.
+ */
+private const val WORK_FOLDER_RED = "#f14668"
+
+/**
+ * The home button of the top bar and the working folder dialog.
  *
- * The button only exists where the browser offers the File System Access API: elsewhere it is
- * replaced by a short note that says the captures are downloaded, so that no visitor is offered a
- * folder they cannot get. The dialog shows the state of the folder — not defined, defined,
- * permission to renew — and offers the two gestures the browser requires: choosing a folder
- * (`showDirectoryPicker`) and giving the permission back (`requestPermission`, which only works
- * from a click).
+ * The button sits on the left of the bar, right beside the « NetBioDyn » title: an icon-only
+ * button carrying the FontAwesome `fa-home` icon, painted red ([WORK_FOLDER_RED], the danger red
+ * of the project palette). It is filled when the folder is defined and its permission granted,
+ * outlined and dimmed otherwise, so the state of the folder is readable at a glance. Its tooltip
+ * is the label "Working folder"; a grey note next to it says in which state the folder is and
+ * where the captures go.
+ *
+ * The button opens the dialog in every state, including a browser without the File System Access
+ * API: the dialog then says that the captures are downloaded. It offers the two gestures the
+ * browser requires: choosing a folder (`showDirectoryPicker`) and giving the permission back
+ * (`requestPermission`, which only works from a click).
  *
  * The state itself lives in [WorkFolder], so the run loop can save a capture without knowing this
  * controller.
  */
 class WorkFolderController(private val page: BulmaPage) {
 
-    /** "Dossier de travail…": opens the dialog. Hidden where the API is not available. */
-    private val openButton = Button(
-        page.i18n("Working folder…"), Icon("folder-open"), color = ElementColor.Primary
-    ) { showDialog() }
+    /** Home button: opens the dialog from the left of the top bar. */
+    private val homeButton = iconButton(
+        Icon("home"), ElementColor.Danger, outlined = true
+    ) { showDialog() }.apply {
+        // the icon-only button needs its own label: the tooltip and the accessible name are the
+        // label of the control
+        root.setAttribute("aria-label", page.i18n("Working folder"))
+        root.style.marginLeft = "0.6rem"
+    }
 
-    /** Replaces the button on a browser without directory access. */
-    private val statusLine = p(classes = "has-text-grey is-size-7")
+    /** Grey note beside the button: the state of the folder and where the captures go. */
+    private val statusLine = p(classes = "has-text-grey is-size-7").apply {
+        root.style.marginLeft = "0.75rem"
+    }
 
-    /** The element to put in the toolbar of the page: the button, or the note when unsupported. */
-    val control: Control = Control(openButton)
+    /** The element to put in the top bar, beside the title: the home button. */
+    val control: Control = Control(homeButton)
 
-    /** The note shown instead of the button (`hidden` while the button is shown). */
+    /** The note shown beside the button, in every state. */
     val note: BulmaElement get() = statusLine
 
     init {
@@ -52,19 +72,35 @@ class WorkFolderController(private val page: BulmaPage) {
         )
     }
 
-    /** Shows the button or the note, and keeps the tooltip of the button up to date. */
+    /**
+     * Sentence of the note: the state of the folder, then where the captures go — a sub-folder of
+     * the folder when it is usable, a download otherwise.
+     */
+    fun noteText(): String = when (WorkFolder.state) {
+        // already says that the captures are downloaded, and why
+        WorkFolderState.UNSUPPORTED -> stateText()
+        WorkFolderState.DEFINED -> stateText() + " — " + page.i18n("captures written in the folder")
+        else -> stateText() + " — " + page.i18n("captures downloaded")
+    }
+
+    /** Keeps the look of the button and the note up to date with the state of the folder. */
     fun refresh() {
-        val supported = WorkFolder.isSupported()
-        openButton.hidden = !supported
-        statusLine.hidden = supported
-        if (supported) {
-            statusLine.text = ""
-            openButton.root.setAttribute("title", stateText())
+        val usable = WorkFolder.state == WorkFolderState.DEFINED
+        // filled red when the folder is usable, red outline dimmed when it is not
+        homeButton.outlined = !usable
+        if (usable) {
+            homeButton.root.style.backgroundColor = WORK_FOLDER_RED
+            homeButton.root.style.borderColor = WORK_FOLDER_RED
+            homeButton.root.style.color = "white"
+            homeButton.root.style.opacity = "1"
         } else {
-            // no button at all: the note says what happens instead
-            statusLine.text = stateText()
-            statusLine.root.setAttribute("title", page.i18n("Working folder"))
+            homeButton.root.style.backgroundColor = "transparent"
+            homeButton.root.style.borderColor = WORK_FOLDER_RED
+            homeButton.root.style.color = WORK_FOLDER_RED
+            homeButton.root.style.opacity = "0.6"
         }
+        homeButton.root.setAttribute("title", page.i18n("Working folder"))
+        statusLine.text = noteText()
     }
 
     // ----------------------------------------------------------------- dialog
@@ -78,6 +114,12 @@ class WorkFolderController(private val page: BulmaPage) {
                 "A capture is a JPEG picture of the simulation view, taken at the end of the step that asks for it. " +
                     "It is written in a sub-folder of the working folder, named after the model, as %0.",
                 "model__step.jpg"
+            )
+        )
+        body += p(
+            page.i18n(
+                "The browser remembers only the folder itself, in its own database: no picture is stored in the " +
+                    "browser, a capture goes to the folder or to a download, nowhere else."
             )
         )
         if (!WorkFolder.isSupported()) {

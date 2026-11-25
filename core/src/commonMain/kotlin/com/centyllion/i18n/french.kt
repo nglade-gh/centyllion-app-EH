@@ -703,6 +703,10 @@ object French: Locale {
         "The picture is named model__step.jpg: the model name is cleaned for the file system (no slash, backslash, colon, star, question mark, quotation mark, angle bracket or vertical bar; no surrounding space; bounded length) and becomes the sub-folder of the working folder; the number is the step of the picture, that is the counter displayed once the step has run, so a Capture() triggered by step == 5 writes model__6.jpg. Without a working folder, or on a browser without the File System Access API, the picture is downloaded." ->
             "L'image s'appelle modele__pas.jpg : le nom du modèle est nettoyé pour le système de fichiers (ni barre oblique, ni barre inverse, ni deux-points, ni étoile, ni point d'interrogation, ni guillemet, ni chevron, ni barre verticale ; pas d'espace en début ou en fin ; longueur bornée) et devient le sous-dossier du dossier de travail ; le nombre est le pas de l'image, c'est-à-dire le compteur affiché une fois le pas exécuté : une Capture() déclenchée par step == 5 écrit donc modele__6.jpg. Sans dossier de travail, ou sur un navigateur sans File System Access, l'image est téléchargée."
         "Working folder and captures" -> "Dossier de travail et captures"
+        "captures written in the folder" -> "captures écrites dans le dossier"
+        "captures downloaded" -> "captures téléchargées"
+        "The browser remembers only the folder itself, in its own database: no picture is stored in the browser, a capture goes to the folder or to a download, nowhere else." ->
+            "Le navigateur ne retient que le dossier lui-même, dans sa propre base : aucune image n'est stockée dans le navigateur, une capture va dans le dossier ou en téléchargement, nulle part ailleurs."
         else -> null
     }
 }
