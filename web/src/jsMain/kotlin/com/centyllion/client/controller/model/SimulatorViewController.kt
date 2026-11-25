@@ -389,9 +389,11 @@ class SimulatorViewController(
      * Paints the grid of the current state into [ctx], the one renderer of the view: the display
      * calls it every frame, and the grid-sized capture calls it into an off-screen canvas.
      *
-     * [ratio] is the number of device pixels per CSS pixel (the backing store of the display, or
-     * the pixels per cell of a capture); [viewWidth] and [viewHeight] are the CSS size of the
-     * target; [cellPx] is the size of a cell there, and [offX]/[offY] its origin.
+     * Every drawing is done in the units of the target: [ratio] is the number of device pixels
+     * per unit (the backing store ratio of the display, 1 for a canvas measured in pixels),
+     * [viewWidth] and [viewHeight] are its size in those units, [cellPx] is the size of a cell
+     * there and [offX]/[offY] its origin. The grid is drawn `width * cellPx` units wide: [ratio]
+     * must therefore stay the only scale applied, or the picture is magnified by [cellPx].
      *
      * [aids] draws what only helps the editing — the grid lines, the selection rectangle, the
      * paste preview and the brush preview under the mouse. A picture written for the record is
@@ -1921,22 +1923,34 @@ class SimulatorViewController(
      * [pixelsPerCell] pixels wide: the picture then has exactly `width * pixelsPerCell` by
      * `height * pixelsPerCell` pixels, whatever the size of the window.
      *
+     * The canvas is measured in pixels, so [paint] gets a cell of [cellPx] pixels and no ratio at
+     * all: it draws the grid `width * cellPx` units wide, and handing it the cells as its units
+     * *and* the pixels per cell as its ratio used to scale the grid twice — the picture then only
+     * held the top-left `1 / cellPx` of the simulation, magnified (the "zoomed capture" bug).
+     *
      * The buffer and the field layers are the ones of the display, so a capture and the screen
-     * never disagree about a colour; only the editing aids are left out (see [paint]).
+     * never disagree about a colour; both are sized from the simulation, never from the target of
+     * a capture, so painting off screen leaves nothing behind for the display. Only the editing
+     * aids are left out (see [paint]).
      */
     private fun gridCanvas(pixelsPerCell: Int): HTMLCanvasElement? {
         val simulation = data.simulation
         val cellsW = simulation.width.coerceAtLeast(1)
         val cellsH = simulation.height.coerceAtLeast(1)
         val cellPx = clampPixelsPerCell(pixelsPerCell)
+        val pictureWidth = cellsW * cellPx
+        val pictureHeight = cellsH * cellPx
         val canvas = (document.createElement("canvas") as HTMLCanvasElement).apply {
-            width = cellsW * cellPx
-            height = cellsH * cellPx
+            width = pictureWidth
+            height = pictureHeight
         }
         val ctx = canvas.getContext("2d") as? CanvasRenderingContext2D ?: return null
         renderBuffer()
-        // the canvas is measured in cells and painted with cellPx device pixels per cell
-        paint(ctx, cellPx.toDouble(), cellsW.toDouble(), cellsH.toDouble(), cellPx.toDouble(), 0.0, 0.0, aids = false)
+        // one unit is one pixel of the picture: the cell size is the only scale (see paint)
+        paint(
+            ctx, 1.0, pictureWidth.toDouble(), pictureHeight.toDouble(),
+            cellPx.toDouble(), 0.0, 0.0, aids = false
+        )
         return canvas
     }
 }
