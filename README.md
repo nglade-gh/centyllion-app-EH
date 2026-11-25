@@ -107,13 +107,17 @@ de fichiers.
 
 La méta-action `Capture()` demande une image JPEG (qualité 0,92) de la vue de
 simulation ; le fichier s'appelle `NOM_MODELE__PAS.jpg` (ex. `GoL_Modifiers__12.jpg`).
-Le **bouton maison rouge** de la barre du haut — icône `fa-home`, à gauche de la
-barre, juste à côté du titre NetBioDyn, infobulle « Dossier de travail » — laisse
-choisir un dossier du disque, redonner la permission ou oublier le dossier : les
-images vont alors dans un sous-dossier portant le nom du modèle
-(`MonDossier/GoL_Modifiers/GoL_Modifiers__12.jpg`). Le bouton est rouge plein quand
-le dossier est défini et accessible, rouge en contour atténué sinon ; une note à
-côté du titre dit l'état et où vont les captures.
+Le **bouton maison** de la rangée du bouton « Informations sur le modèle »
+— icône `fa-home` pleine, infobulle et `aria-label` portant l'état (« Dossier de
+travail — Défini », « Dossier de travail — Non défini », « Dossier de travail —
+Permission à renouveler ») — laisse choisir un dossier du disque, redonner la
+permission ou oublier le dossier ; le sélecteur s'ouvre dans le dossier de travail
+courant. Les images vont alors dans `captures/NOM_MODELE/NOM_MODELE__PAS.jpg`
+(`MonDossier/captures/GoL_Modifiers/GoL_Modifiers__12.jpg`), les deux niveaux étant
+créés au besoin. Le bouton est **magenta plein** (`#d24193`, la couleur danger du
+thème) quand aucun dossier n'est défini, **bleu plein** (`#9595f8`, le bleu des
+boutons `+` du modèle) quand le dossier est défini et accessible, et **même bleu
+atténué** quand la permission doit être renouvelée.
 
 Le dossier est mémorisé **à part de tout le reste** : son `handle` vit dans sa
 propre base IndexedDB (`centyllion-home` v1, magasin `handles`, clé `home`), qui ne
@@ -126,7 +130,7 @@ Storage) : la capture est un `Blob` en mémoire, écrit dans le dossier ou tél�
 
 | Navigateur | Dossier de travail | Captures |
 |---|---|---|
-| Chrome, Chromium, Edge — HTTPS ou `localhost` | oui | écrites dans le sous-dossier du modèle |
+| Chrome, Chromium, Edge — HTTPS ou `localhost` | oui | écrites dans `captures/` puis le sous-dossier du modèle |
 | Chrome, Chromium, Edge — HTTP sur une IP | non (hors contexte sécurisé) | téléchargées |
 | Firefox, Safari | non | téléchargées |
 
@@ -326,9 +330,10 @@ noyau ne dessine rien : il incrémente un simple compteur (`Simulator.captureReq
 modèle de `modifierPauseCount`), que la vue consomme (`consumeCaptureRequest()`) pour encoder le
 canevas. Le fichier s'appelle `NOM_MODELE__PAS.jpg` (`GoL_Modifiers__12.jpg`), le nom du modèle
 étant nettoyé pour le système de fichiers (caractères interdits, espaces et points en début et en
-fin, longueur bornée à 64 ; repli explicite `model`). Il est écrit dans un sous-dossier du
-**dossier de travail** (bouton maison rouge de la barre du haut, icône `fa-home` à côté du titre,
-infobulle « Dossier de travail » : `showDirectoryPicker`, `handle` dans la base IndexedDB
+fin, longueur bornée à 64 ; repli explicite `model`). Il est écrit dans `captures/NOM_MODELE/` du
+**dossier de travail** (bouton maison de la rangée « Informations sur le modèle », icône `fa-home`
+pleine, infobulle portant l'état : `showDirectoryPicker` qui s'ouvre dans le dossier courant,
+`handle` dans la base IndexedDB
 `centyllion-home` — seule de son espèce, le magasin `handles`, clé `home` —, permission
 renouvelable d'un clic), ou **téléchargé** quand aucun dossier n'est défini — un message dit
 toujours laquelle des deux voies a été suivie. Aucun octet d'image n'est stocké par le navigateur :

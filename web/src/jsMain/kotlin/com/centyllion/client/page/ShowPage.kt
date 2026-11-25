@@ -163,10 +163,11 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     /**
      * Where the pictures of the `Capture()` meta-action go: a working folder chosen by the
-     * visitor, or the downloads. Its control is the red home button of the title bar (left of the
-     * bar, beside the title) and its note says in which state the folder is; the control keeps its
-     * own state (IndexedDB handle + two strings of localStorage), so the run loop can save a
-     * capture without going through this page.
+     * visitor, or the downloads. Its control is the home button placed beside the model
+     * information button; the tooltip of the button says in which state the folder is, and its
+     * colour (magenta when not set, blue when set) makes it readable at a glance. The control
+     * keeps its own state (IndexedDB handle + two strings of localStorage), so the run loop can
+     * save a capture without going through this page.
      */
     private val workFolderController = WorkFolderController(this)
 
@@ -206,11 +207,10 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         Columns(
             Column(
                 Level(
-                    // the home button and its note belong to the title, not to the tools
+                    // the home button of the working folder sits beside the model information
+                    // button, not in the title bar: its tooltip carries the state of the folder
                     left = listOf(
-                        Label("NetBioDyn", size = Size.Large),
-                        workFolderController.control,
-                        workFolderController.note
+                        Label("NetBioDyn", size = Size.Large)
                     ),
                     center = listOf(tools),
                     right = listOf(expertModeSwitch)
@@ -218,7 +218,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
                 size = ColumnSize.Full
             ),
             Column(
-                BField(Control(modelInfoButton)),
+                BField(Control(modelInfoButton), workFolderController.control),
                 Column(modelController, size = ColumnSize.Full),
                 size = ColumnSize.Full
             ),

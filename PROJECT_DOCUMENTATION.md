@@ -16,7 +16,7 @@
 | **Compteurs de voisins** | `agentCountPredicates` : conditions sur le nombre de voisins d'un type (`Agent_B > 3`) |
 | **Prédicats graphiques** | En mode normal : lignes « Âge de la simulation » (`agePredicates`), « Seuils des champs » (`fieldPredicates`) et « Nb voisins » (`agentCountPredicates`, avec choix du type), toutes combinées en **ET** ; chaque groupe a son bouton `Aide` (voir §8.3bis) |
 | **Actions de comportement** | `actions` : `Add`, `Remove`, `Move`, `SetField`, `AddField`, `ClearField`, exécutées après les réactions (voir §6.5) |
-| **Captures** | `Capture()` : image JPEG de la vue de simulation (`NOM_MODELE__PAS.jpg`), écrite dans le sous-dossier du modèle du **dossier de travail** ou téléchargée (voir §6.5bis) |
+| **Captures** | `Capture()` : image JPEG de la vue de simulation (`NOM_MODELE__PAS.jpg`), écrite dans `captures/NOM_MODELE/` du **dossier de travail** ou téléchargée (voir §6.5bis) |
 | **Formules de comportement** | `formula` avec `step` (étape courante), `age(n)` (âge du réactif n), `count`, `field`, `agent` (voir §6.4) |
 | **Expressions de condition** | `formula` : expressions logiques avec parenthèses et opérateurs (`count(1) > 2 && count(2) == 1`) |
 | **Mise à jour parallèle** | `Simulation.parallelUpdate` (défaut) : calculs depuis l'état initial du pas, adapté aux automates cellulaires |
@@ -447,10 +447,12 @@ est **synchrone** (`SimulatorViewController.captureJpeg()`, JPEG qualité 0,92 p
 `NOM_MODELE__PAS.jpg`, vient des fonctions pures `captureFileName()` / `sanitizeCaptureName()`
 (`core/.../model/capture.kt`) : caractères interdits (`/ \ : * ? " < > |`) remplacés par `_`,
 espaces et points de bord retirés, longueur bornée à `CAPTURE_NAME_MAX_LENGTH` (64), repli explicite
-`model`, préfixe `_` pour un nom de périphérique Windows. Le numéro est le compteur affiché pour
-l'image : une condition `step == 5` produit `modele__6.jpg`, puisque l'image montre l'état obtenu
-par ce pas. `WorkFolder` (`web/.../client/capture/`) écrit dans un sous-dossier du dossier de travail
-(`getDirectoryHandle(create: true)` → `getFileHandle(create: true)` → `createWritable()`), après
+`model`, préfixe `_` pour un nom de périphérique Windows. Le chemin relatif, `captures/NOM_MODELE/`,
+vient de `captureFolder()` / `captureRelativePath()` du même fichier. Le numéro est le compteur
+affiché pour l'image : une condition `step == 5` produit `modele__6.jpg`, puisque l'image montre
+l'état obtenu par ce pas. `WorkFolder` (`web/.../client/capture/`) écrit dans `captures/NOM_MODELE/`
+du dossier de travail (`getDirectoryHandle('captures', {create: true})`, puis celui du modèle,
+`getFileHandle(create: true)`, `createWritable()`), après
 `queryPermission({mode: 'readwrite'})` ; sans dossier, sans permission ou si l'écriture échoue,
 l'image est **téléchargée** (`Blob` + ancre `download`) et un message dit toujours laquelle des deux
 voies a été suivie. Le `handle` du dossier vit dans **sa propre base IndexedDB** (`centyllion-home`
@@ -460,13 +462,17 @@ image ne peut y entrer ; `localStorage` ne contient que deux chaînes (nom affic
 L'ancienne clé `workFolder` de `centyllion-files` n'est ni lue ni migrée : elle est supprimée une
 fois si elle existe. **Aucun octet d'image ne passe par le stockage du navigateur** : la capture est
 un `Blob` en mémoire, écrit dans le dossier ou téléchargé, jamais dans IndexedDB, `localStorage`,
-`sessionStorage` ni Cache Storage. Le contrôle est le **bouton maison rouge** (`fa-home`,
-`ElementColor.Danger`, `#f14668`) placé à gauche de la barre du haut, à côté du titre NetBioDyn :
-rouge plein quand le dossier est défini et sa permission accordée, rouge en contour atténué sinon ;
-une note grise à côté du bouton reprend l'état et dit où vont les captures. Tests :
-`core/src/commonTest/.../CaptureTest.kt` — nom et nettoyage du nom de modèle, refus
-dans une action de comportement, incrément/consommation du compteur, remise à zéro par un
-rembobinage ; aucun test ne dépend d'un navigateur.
+`sessionStorage` ni Cache Storage. Le contrôle est le **bouton maison** (`fa-home` plein) placé dans
+la rangée du bouton **Informations sur le modèle**, sous la barre du haut : **magenta plein**
+(`ElementColor.Danger`, `#d24193`) quand aucun dossier n'est défini, **bleu plein**
+(`ElementColor.Primary`, `#9595f8`, le bleu des boutons `+`) quand le dossier est défini et sa
+permission accordée, **même bleu atténué** (opacité réduite) quand la permission doit être
+renouvelée ; son infobulle (`title` et `aria-label`) porte l'état, aucune note adjacente ne
+subsiste. Le sélecteur s'ouvre dans le dossier courant (`showDirectoryPicker(..., startIn: handle)`),
+et l'option est ignorée proprement quand le handle manque ou que le navigateur la refuse. Tests :
+`core/src/commonTest/.../CaptureTest.kt` — nom et nettoyage du nom de modèle, chemin relatif
+`captures/NOM_MODELE/`, refus dans une action de comportement, incrément/consommation du compteur,
+remise à zéro par un rembobinage ; aucun test ne dépend d'un navigateur.
 
 `SimulationLoop` (commonMain, `simulationloop.kt`) porte la sémantique une seule fois, pour la vue
 web et pour les tests JVM : `canStep`, `start()`, `stop()`, `afterStep()` → `LoopUpdate(running,
@@ -629,12 +635,12 @@ Le code Kotlin/JS est compilé en **AMD modules** (`moduleKind = "amd"`), charge
 |---------|------|
 | `index.kt` | Point d'entrée ; instancie `Api`, `BrowserContext`, `ShowPage`, injecte le DOM. |
 | `Api.kt` | Client HTTP via `XMLHttpRequest` ; methods : `searchQuery`, `simulationGet`, `fetchVersion`. |
-| `ShowPage.kt` | Page principale : en-tête (nom, bouton maison du dossier de travail à côté du titre, boutons nouvelle/export/import/tutoriel, mode expert), contrôle du modèle, sauvegarde en localStorage, gestion des tutoriels. |
+| `ShowPage.kt` | Page principale : en-tête (nom, boutons nouvelle/export/import/tutoriel, mode expert), bouton maison du dossier de travail dans la rangée du bouton « Informations sur le modèle », contrôle du modèle, sauvegarde en localStorage, gestion des tutoriels. |
 | `ModelController.kt` | Contrôleur de la page modèle : liste grains/comportements/champs (chaque section se replie indépendamment via son chevron), recherche, édition, graphiques. |
 | `SimulationRunController.kt` | Contrôleur de la simulation : lecture complète, lecture, pas, settings, répercussion sur les charts. |
 | `PlotterController.kt` | Graphique via **data2viz** (LinePlotter) + Legende; `push(x, ys)`, `reset()`. |
 | `BulmaPage.kt` | Interface commune pour les écrans Bulma (modal, notification, erreur). |
-| `capture/WorkFolder.kt` / `capture/WorkFolderController.kt` | Dossier de travail des captures : base IndexedDB propre (`centyllion-home`/`handles`/`home`, ancienne clé `workFolder` de `centyllion-files` supprimée sans migration), picker, permission (`queryPermission`/`requestPermission`), écriture dans `<dossier>/<modèle>/` ou téléchargement ; bouton maison rouge (`fa-home`, `ElementColor.Danger`) à gauche de la barre du haut, à côté du titre, plein quand le dossier est défini et accessible, en contour atténué sinon ; note d'état et de destination à côté du bouton. Aucune image en stockage navigateur. |
+| `capture/WorkFolder.kt` / `capture/WorkFolderController.kt` | Dossier de travail des captures : base IndexedDB propre (`centyllion-home`/`handles`/`home`, ancienne clé `workFolder` de `centyllion-files` supprimée sans migration), picker (`startIn` sur le dossier courant), permission (`queryPermission`/`requestPermission`), écriture dans `<dossier>/captures/<modèle>/` ou téléchargement ; bouton maison plein (`fa-home`) dans la rangée du bouton « Informations sur le modèle » : magenta (`ElementColor.Danger`, `#d24193`) quand aucun dossier n'est défini, bleu (`ElementColor.Primary`, `#9595f8`) quand il l'est, même bleu atténué quand la permission doit être renouvelée ; infobulle `title`/`aria-label` portant l'état, aucune note adjacente. Aucune image en stockage navigateur. |
 | `TutorialLayer.kt` | Tour du tutorial (étapes, validation, navigation, conclusion) ; supprime ses widgets au redémarrage. |
 | `BacteriasTutorial.kt` / `FieldTutorial.kt` | Tutoriels débutants pas-à-pas (bactéries, champs). |
 | `GameOfLifeTutorial.kt` / `ActionsTutorial.kt` / `FieldFormulaTutorial.kt` | Tutoriels experts : `count(0)`, actions + `age(1)`, formule de champ animée. |

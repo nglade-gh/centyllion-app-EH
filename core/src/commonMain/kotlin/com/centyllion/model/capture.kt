@@ -8,7 +8,15 @@ package com.centyllion.model
  * characters become underscores, the surrounding spaces and dots are dropped and the length is
  * bounded. Both functions are pure — no canvas, no browser — so the rules the user relies on are
  * testable in `:core:jvmTest`.
+ *
+ * A capture is written in the working folder under `captures/model/`: [CAPTURE_FOLDER], then the
+ * cleaned model name, then the file (`captures/GoL_Modifiers/GoL_Modifiers__12.jpg`). Those two
+ * directory levels are built here too, by [captureFolder] and [captureRelativePath], so the path
+ * the interface announces is the one the writer creates.
  */
+
+/** Folder, directly inside the working folder, that holds every capture. */
+const val CAPTURE_FOLDER = "captures"
 
 /** Longest model part of a capture name, in characters: a file name has to stay usable. */
 const val CAPTURE_NAME_MAX_LENGTH = 64
@@ -79,3 +87,23 @@ fun sanitizeCaptureName(raw: String): String {
  * `n + 1` when the condition was `step == n`.
  */
 fun captureFileName(modelName: String, step: Int): String = "${sanitizeCaptureName(modelName)}__$step.jpg"
+
+/**
+ * Folder of the captures of [modelName], relative to the working folder: [CAPTURE_FOLDER] then the
+ * cleaned model name, for example `captures/GoL_Modifiers`.
+ *
+ * The two levels are created when the capture is written (`getDirectoryHandle(create: true)`); the
+ * model part is cleaned exactly like the beginning of the file name, so the directory and the
+ * picture always agree.
+ */
+fun captureFolder(modelName: String): String = "$CAPTURE_FOLDER/${sanitizeCaptureName(modelName)}"
+
+/**
+ * Path of the capture of [step] relative to the working folder:
+ * `captures/GoL_Modifiers/GoL_Modifiers__12.jpg` for a model named `GoL_Modifiers`.
+ *
+ * It is the path the confirmation message announces; the writer creates the two directory levels
+ * before writing the file.
+ */
+fun captureRelativePath(modelName: String, step: Int): String =
+    "${captureFolder(modelName)}/${captureFileName(modelName, step)}"

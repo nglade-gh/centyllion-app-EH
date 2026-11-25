@@ -25,9 +25,23 @@ class CaptureTest {
 
     @Test
     fun testTheModelNameIsTheSubDirectoryNameToo() {
-        // the same cleaning gives the sub-directory of the working folder and the file name
+        // the same cleaning gives the model folder under captures and the file name
         assertEquals("GoL_Modifiers", sanitizeCaptureName("GoL_Modifiers"))
         assertEquals(sanitizeCaptureName("a/b"), captureFileName("a/b", 1).substringBefore("__1.jpg"))
+    }
+
+    @Test
+    fun testTheCaptureLandsUnderTheCapturesFolder() {
+        // working folder, then `captures`, then the model folder, then the file
+        assertEquals("captures", CAPTURE_FOLDER)
+        assertEquals("captures/GoL_Modifiers", captureFolder("GoL_Modifiers"))
+        assertEquals(
+            "captures/GoL_Modifiers/GoL_Modifiers__12.jpg",
+            captureRelativePath("GoL_Modifiers", 12)
+        )
+        // the model part is cleaned once and used by both the directory and the file
+        assertEquals("captures/a_b/a_b__1.jpg", captureRelativePath("a/b", 1))
+        assertEquals("captures/model/model__4.jpg", captureRelativePath("  ..  ", 4))
     }
 
     @Test

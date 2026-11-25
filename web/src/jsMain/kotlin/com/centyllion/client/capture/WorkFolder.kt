@@ -2,7 +2,9 @@ package com.centyllion.client.capture
 
 import com.centyllion.client.blobHref
 import com.centyllion.client.download
+import com.centyllion.model.CAPTURE_FOLDER
 import com.centyllion.model.captureFileName
+import com.centyllion.model.captureRelativePath
 import com.centyllion.model.sanitizeCaptureName
 import kotlinx.browser.window
 import kotlin.js.Promise
@@ -121,7 +123,7 @@ enum class CaptureFallback {
 data class CaptureResult(
     val destination: CaptureDestination,
     val fileName: String,
-    /** Folder and sub-directory of a written capture (`MyFolder/model`), null for a download. */
+    /** Folder and sub-directory of a written capture (`MyFolder/captures/model`), null for a download. */
     val path: String? = null,
     val fallback: CaptureFallback = CaptureFallback.NONE
 )
@@ -228,6 +230,11 @@ object WorkFolder {
      * Opens the directory picker (`showDirectoryPicker({mode: 'readwrite'})`) and remembers the
      * chosen folder. Must be called from a user gesture. [onDone] tells what happened: a cancelled
      * picker leaves everything as it was.
+     *
+     * The picker opens inside the current working folder when one is remembered (`startIn`), so a
+     * change of folder starts from where the captures are written instead of the home directory of
+     * the system. The option is only a hint: a browser that refuses it, or a session whose handle
+     * is gone, opens the picker without it and the capture keeps working.
      */
     fun chooseFolder(onDone: (FolderChoice) -> Unit) {
         if (!isSupported()) {
@@ -235,7 +242,7 @@ object WorkFolder {
             return
         }
         try {
-            val promise = directoryAccess.pick() as Promise<dynamic>
+            val promise = directoryAccess.pick(handle) as Promise<dynamic>
             promise.then { picked: dynamic ->
                 handle = picked
                 // the picker itself grants the read/write permission
@@ -325,8 +332,8 @@ object WorkFolder {
     }
 
     /**
-     * Saves the picture of [step] of the model named [modelName]: written in the sub-directory of
-     * the working folder that carries the model name (created when needed), or downloaded when
+     * Saves the picture of [step] of the model named [modelName]: written in `captures/model` of
+     * the working folder, the two directory levels being created when needed, or downloaded when
      * there is no folder, when the permission is gone or when the write fails.
      *
      * [onDone] always says what happened, so the interface can tell the visitor which of the two
@@ -334,7 +341,6 @@ object WorkFolder {
      */
     fun saveCapture(modelName: String, step: Int, payload: Blob, onDone: (CaptureResult) -> Unit) {
         val fileName = captureFileName(modelName, step)
-        val subFolder = sanitizeCaptureName(modelName)
         val current = handle
         if (!isSupported()) {
             downloadCapture(fileName, payload)
@@ -353,29 +359,33 @@ object WorkFolder {
                 onDone(CaptureResult(CaptureDestination.DOWNLOAD, fileName, fallback = CaptureFallback.PERMISSION))
                 return@queryPermission
             }
-            writeInFolder(current, subFolder, fileName, payload, onDone)
+            writeInFolder(current, modelName, step, fileName, payload, onDone)
         }
     }
 
     // ---------------------------------------------------------------- internals
 
     private fun writeInFolder(
-        folder: dynamic, subFolder: String, fileName: String, payload: Blob, onDone: (CaptureResult) -> Unit
+        folder: dynamic, modelName: String, step: Int, fileName: String, payload: Blob,
+        onDone: (CaptureResult) -> Unit
     ) {
+        val modelFolder = sanitizeCaptureName(modelName)
+        val relativePath = captureRelativePath(modelName, step)
         try {
-            val promise = directoryAccess.writeIn(folder, subFolder, fileName, payload) as Promise<dynamic>
-            promise.then { written: dynamic ->
-                val name = written as? String ?: subFolder
+            val promise = directoryAccess.writeIn(
+                folder, CAPTURE_FOLDER, modelFolder, fileName, payload
+            ) as Promise<dynamic>
+            promise.then { _: dynamic ->
                 val parent = folderName ?: ""
-                val path = if (parent.isEmpty()) "$name/$fileName" else "$parent/$name/$fileName"
+                val path = if (parent.isEmpty()) relativePath else "$parent/$relativePath"
                 onDone(CaptureResult(CaptureDestination.FOLDER, fileName, path))
             }.catch { error: dynamic ->
-                console.warn("Working folder: cannot write $subFolder/$fileName, downloading it.", error)
+                console.warn("Working folder: cannot write $relativePath, downloading it.", error)
                 downloadCapture(fileName, payload)
                 onDone(CaptureResult(CaptureDestination.DOWNLOAD, fileName, fallback = CaptureFallback.WRITE_ERROR))
             }
         } catch (t: Throwable) {
-            console.warn("Working folder: cannot write $subFolder/$fileName, downloading it.", t)
+            console.warn("Working folder: cannot write $relativePath, downloading it.", t)
             downloadCapture(fileName, payload)
             onDone(CaptureResult(CaptureDestination.DOWNLOAD, fileName, fallback = CaptureFallback.WRITE_ERROR))
         }
@@ -595,11 +605,12 @@ private val workFolderDatabase: dynamic = js("""
 
 /**
  * Directory access of the File System Access API, in ES5 JavaScript: the picker, the permission
- * calls and the write of one picture in the sub-directory of the model.
+ * calls and the write of one picture in `captures/model` of the working folder.
  *
- * `writeIn` creates the sub-directory when needed (`getDirectoryHandle` with `create: true`), then
- * the file (`getFileHandle` with `create: true`) and its writable stream, so an existing picture
- * of the same step is replaced instead of duplicated.
+ * `writeIn` creates the two directory levels when needed (`getDirectoryHandle` with `create: true`:
+ * the folder of the captures, then the one of the model), then the file (`getFileHandle` with
+ * `create: true`) and its writable stream, so an existing picture of the same step is replaced
+ * instead of duplicated.
  */
 private val directoryAccess: dynamic = js("""
 (function () {
@@ -607,8 +618,25 @@ private val directoryAccess: dynamic = js("""
         return typeof window.showDirectoryPicker === 'function';
     }
 
-    function pick() {
+    function pickWithoutOption() {
         return window.showDirectoryPicker({ mode: 'readwrite' });
+    }
+
+    function pick(startIn) {
+        if (!startIn) return pickWithoutOption();
+        var promise;
+        try {
+            promise = window.showDirectoryPicker({ mode: 'readwrite', startIn: startIn });
+        } catch (e) {
+            // some browsers throw as soon as the option is not understood
+            return pickWithoutOption();
+        }
+        return promise.catch(function (error) {
+            // a browser that rejects the startIn option (TypeError) still opens the picker
+            // without it: the option is a hint, never a condition for choosing a folder
+            if (error && error.name === 'TypeError') return pickWithoutOption();
+            throw error;
+        });
     }
 
     function query(handle) {
@@ -619,8 +647,10 @@ private val directoryAccess: dynamic = js("""
         return handle.requestPermission({ mode: 'readwrite' });
     }
 
-    function writeIn(folder, subFolder, fileName, payload) {
-        return folder.getDirectoryHandle(subFolder, { create: true }).then(function (directory) {
+    function writeIn(folder, capturesFolder, modelFolder, fileName, payload) {
+        return folder.getDirectoryHandle(capturesFolder, { create: true }).then(function (captures) {
+            return captures.getDirectoryHandle(modelFolder, { create: true });
+        }).then(function (directory) {
             return directory.getFileHandle(fileName, { create: true });
         }).then(function (file) {
             return file.createWritable();
@@ -629,7 +659,7 @@ private val directoryAccess: dynamic = js("""
                 return writable.close();
             });
         }).then(function () {
-            return subFolder;
+            return capturesFolder + '/' + modelFolder;
         });
     }
 

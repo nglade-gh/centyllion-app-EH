@@ -730,12 +730,13 @@ Actions   : Capture()
   <p>Le numéro est celui du pas de l'image, c'est-à-dire le <b>compteur affiché</b> une fois le pas exécuté : une condition <code>step == 5</code> déclenche la capture à la fin de ce pas, et l'image — qui montre l'état obtenu par ce pas — porte le numéro <b>6</b>.</p>
 
   <h3>9.3 Dossier de travail</h3>
-  <p>Le <b>bouton maison rouge</b> de la barre du haut — l'icône <code>fa-home</code>, à gauche de la barre, juste à côté du titre <b>NetBioDyn</b> — ouvre le contrôle <b>Dossier de travail</b> (son infobulle porte ce libellé). Il laisse choisir un dossier du disque en lecture-écriture, redonner la permission ou oublier le dossier. Son apparence dit l'état : <b>rouge pleine</b> quand le dossier est défini et accessible, <b>rouge en contour, atténuée</b> quand il ne l'est pas. Une note grise à côté du bouton reprend l'état et dit où vont les captures.</p>
-  <p>Les captures sont alors écrites dans un <b>sous-dossier portant le nom du modèle</b>, créé au besoin :</p>
+  <p>Le <b>bouton maison</b> — l'icône <code>fa-home</code> pleine, dans la rangée du bouton <b>Informations sur le modèle</b>, sous la barre du haut — ouvre le contrôle <b>Dossier de travail</b>. Son infobulle (attribut <code>title</code> et <code>aria-label</code>) porte l'état : « Dossier de travail — Défini », « Dossier de travail — Non défini » ou « Dossier de travail — Permission à renouveler ». Il laisse choisir un dossier du disque en lecture-écriture, redonner la permission ou oublier le dossier ; le sélecteur s'ouvre dans le dossier de travail courant. Son apparence dit l'état : <b>magenta plein</b> (<code>#d24193</code>, la couleur danger du thème) quand aucun dossier n'est défini, <b>bleu plein</b> (<code>#9595f8</code>, la couleur primaire des boutons <b>+</b> du modèle) quand le dossier est défini et accessible, <b>même bleu atténué</b> quand la permission doit être renouvelée.</p>
+  <p>Les captures sont alors écrites dans un dossier <code>captures</code>, puis dans un <b>sous-dossier portant le nom du modèle</b>, les deux créés au besoin :</p>
   <pre><code>Mes simulations/
-  └── GoL_Modifiers/
-        ├── GoL_Modifiers__12.jpg
-        └── GoL_Modifiers__13.jpg</code></pre>
+  └── captures/
+        └── GoL_Modifiers/
+              ├── GoL_Modifiers__12.jpg
+              └── GoL_Modifiers__13.jpg</code></pre>
   <p>Le dossier est mémorisé à part de tout le reste : son <em>handle</em> vit dans <b>sa propre base IndexedDB</b> — <code>centyllion-home</code>, version 1, magasin <code>handles</code>, clé <code>home</code> — qui ne partage rien avec la galerie (<code>centyllion-gallery</code>) ni avec les handles du dialogue d'enregistrement (<code>centyllion-files</code>). <code>localStorage</code> ne garde que <b>deux chaînes</b> : le nom à afficher et le mode de repli. L'ancienne clé <code>workFolder</code> de <code>centyllion-files</code> n'est <b>ni lue ni migrée</b> : elle est simplement supprimée si elle existe, et le dossier est choisi à nouveau.</p>
   <p><b>Aucune image ne passe par le stockage du navigateur</b> : rien dans IndexedDB, <code>localStorage</code>, <code>sessionStorage</code> ni Cache Storage. La capture est encodée en mémoire (un <code>Blob</code>), puis écrite dans le dossier ou téléchargée — elle n'a pas d'autre destination. La base <code>centyllion-home</code> refuse d'ailleurs tout ce qui n'est pas un handle de dossier.</p>
   <p>La boîte de dialogue donne l'état du dossier : <b>non défini</b>, <b>défini</b> ou <b>permission à renouveler</b>. Un navigateur redemande parfois la permission après un redémarrage : le bouton <b>Reconnecter</b> la rend d'un clic (<code>queryPermission</code> puis <code>requestPermission</code>), sans choisir le dossier une seconde fois.</p>
@@ -744,11 +745,11 @@ Actions   : Capture()
   <h3>9.4 Limites par navigateur</h3>
   <table>
     <tr><th>Navigateur</th><th>Dossier de travail</th><th>Captures</th></tr>
-    <tr><td>Chrome, Chromium, Edge — HTTPS ou <code>localhost</code></td><td>oui (<code>showDirectoryPicker</code>)</td><td>écrites dans le sous-dossier du modèle</td></tr>
+    <tr><td>Chrome, Chromium, Edge — HTTPS ou <code>localhost</code></td><td>oui (<code>showDirectoryPicker</code>)</td><td>écrites dans <code>captures/</code> puis le sous-dossier du modèle</td></tr>
     <tr><td>Chrome, Chromium, Edge — HTTP sur une IP (page non sécurisée)</td><td>non : l'API n'existe pas hors contexte sécurisé</td><td>téléchargées</td></tr>
     <tr><td>Firefox, Safari</td><td>non</td><td>téléchargées</td></tr>
   </table>
-  <p>Sur un navigateur sans File System Access, le bouton maison reste présent mais <b>en contour atténué</b> : la note à côté du titre explique que les captures partiront en téléchargement, un fichier par pas, et le bouton ouvre la même boîte de dialogue, qui donne cette explication. Aucune fonctionnalité de capture n'est réservée à Chrome ou à Edge.</p>
+  <p>Sur un navigateur sans File System Access, le bouton maison reste présent, en <b>magenta plein</b> : son infobulle dit « Dossier de travail — Non défini » et il ouvre la même boîte de dialogue, qui explique que les captures partiront en téléchargement, un fichier par pas. Aucune fonctionnalité de capture n'est réservée à Chrome ou à Edge.</p>
   <p><b>Débit</b> : chaque capture encode le canevas en JPEG et écrit un fichier. À 50 pas par seconde, un <code>Capture()</code> sans condition produit 50 fichiers par seconde : préférez un déclencheur rare (<code>step % 10 == 0</code>, un comptage de voisins, une valeur de champ), ou une pause avant la capture.</p>
   </section>
 

@@ -3,24 +3,27 @@ package com.centyllion.client.capture
 import bulma.*
 import com.centyllion.client.page.BulmaPage
 import com.centyllion.client.page.notification
+import com.centyllion.model.CAPTURE_FOLDER
 
 /**
- * Red of the home button: the red the project already uses for its warnings
- * (`ModifierEditController`), that is Bulma's danger red. The theme of the application paints
- * [ElementColor.Danger] with a magenta (`#d24193`), too far from red for this control, so the red
- * is applied on top of the danger class — the class keeps the hover, focus and disabled rules.
- */
-private const val WORK_FOLDER_RED = "#f14668"
-
-/**
- * The home button of the top bar and the working folder dialog.
+ * The home button of the model bar and the working folder dialog.
  *
- * The button sits on the left of the bar, right beside the « NetBioDyn » title: an icon-only
- * button carrying the FontAwesome `fa-home` icon, painted red ([WORK_FOLDER_RED], the danger red
- * of the project palette). It is filled when the folder is defined and its permission granted,
- * outlined and dimmed otherwise, so the state of the folder is readable at a glance. Its tooltip
- * is the label "Working folder"; a grey note next to it says in which state the folder is and
- * where the captures go.
+ * The button sits in the same row as the « Model information » button, under the title bar: an
+ * icon-only button carrying the FontAwesome `fa-home` icon ([IconStyle.Solid], a full house, never
+ * an outline). It is always filled, and its colour tells the state of the folder:
+ *
+ * - **not defined** (or no directory access at all): the magenta of the danger colour of the theme,
+ *   `#d24193`, which `ElementColor.Danger` already paints on a filled button;
+ * - **defined and granted**: the blue of the project, `#9595f8`, the primary colour of the `+`
+ *   buttons of the model (`ElementColor.Primary`);
+ * - **permission to renew**: the same blue, dimmed by a reduced opacity, so a click that reconnects
+ *   the folder is expected.
+ *
+ * The colours come from the classes of the theme (no inline colour, so the hover and focus rules
+ * keep working); only the opacity of the third state is set inline. The information that the
+ * removed status note used to carry is in the tooltip of the button — both `title` and
+ * `aria-label`, so it is read by every visitor: « Working folder — Set », « Working folder — Not
+ * set » or « Working folder — Permission to renew ». The dialog keeps the detailed explanations.
  *
  * The button opens the dialog in every state, including a browser without the File System Access
  * API: the dialog then says that the captures are downloaded. It offers the two gestures the
@@ -32,26 +35,18 @@ private const val WORK_FOLDER_RED = "#f14668"
  */
 class WorkFolderController(private val page: BulmaPage) {
 
-    /** Home button: opens the dialog from the left of the top bar. */
+    /** Home button: opens the dialog, beside the model information button. */
     private val homeButton = iconButton(
-        Icon("home"), ElementColor.Danger, outlined = true
+        Icon("home", style = IconStyle.Solid), ElementColor.Danger, outlined = false
     ) { showDialog() }.apply {
         // the icon-only button needs its own label: the tooltip and the accessible name are the
         // label of the control
-        root.setAttribute("aria-label", page.i18n("Working folder"))
-        root.style.marginLeft = "0.6rem"
+        root.setAttribute("aria-label", page.i18n("Working folder — Not set"))
+        root.style.marginLeft = "0.5rem"
     }
 
-    /** Grey note beside the button: the state of the folder and where the captures go. */
-    private val statusLine = p(classes = "has-text-grey is-size-7").apply {
-        root.style.marginLeft = "0.75rem"
-    }
-
-    /** The element to put in the top bar, beside the title: the home button. */
+    /** The element to put beside the model information button: the home button alone. */
     val control: Control = Control(homeButton)
-
-    /** The note shown beside the button, in every state. */
-    val note: BulmaElement get() = statusLine
 
     init {
         refresh()
@@ -60,7 +55,7 @@ class WorkFolderController(private val page: BulmaPage) {
 
     // ------------------------------------------------------------------ state
 
-    /** Sentence describing where the captures go, in the current language. */
+    /** Sentence describing where the captures go, in the current language (dialog only). */
     fun stateText(): String = when (WorkFolder.state) {
         WorkFolderState.UNSUPPORTED -> page.i18n("Captures are downloaded: this browser has no access to a folder.")
         WorkFolderState.NOT_DEFINED -> page.i18n("Working folder: %0", page.i18n("not defined"))
@@ -73,34 +68,43 @@ class WorkFolderController(private val page: BulmaPage) {
     }
 
     /**
-     * Sentence of the note: the state of the folder, then where the captures go — a sub-folder of
-     * the folder when it is usable, a download otherwise.
+     * Tooltip of the button: the state of the folder, then where the captures go. It replaces the
+     * grey note that used to sit beside the button, so it is the only text shown by the bar.
      */
-    fun noteText(): String = when (WorkFolder.state) {
-        // already says that the captures are downloaded, and why
-        WorkFolderState.UNSUPPORTED -> stateText()
-        WorkFolderState.DEFINED -> stateText() + " — " + page.i18n("captures written in the folder")
-        else -> stateText() + " — " + page.i18n("captures downloaded")
+    fun tooltipText(): String = when (WorkFolder.state) {
+        WorkFolderState.DEFINED -> page.i18n("Working folder — Set")
+        WorkFolderState.PERMISSION_TO_RENEW -> page.i18n("Working folder — Permission to renew")
+        else -> page.i18n("Working folder — Not set")
     }
 
-    /** Keeps the look of the button and the note up to date with the state of the folder. */
+    /** Keeps the look and the tooltip of the button up to date with the state of the folder. */
     fun refresh() {
-        val usable = WorkFolder.state == WorkFolderState.DEFINED
-        // filled red when the folder is usable, red outline dimmed when it is not
-        homeButton.outlined = !usable
-        if (usable) {
-            homeButton.root.style.backgroundColor = WORK_FOLDER_RED
-            homeButton.root.style.borderColor = WORK_FOLDER_RED
-            homeButton.root.style.color = "white"
-            homeButton.root.style.opacity = "1"
+        val state = WorkFolder.state
+        val set = state == WorkFolderState.DEFINED
+        val renew = state == WorkFolderState.PERMISSION_TO_RENEW
+        // a full house in both states: the colour alone tells them apart
+        homeButton.outlined = false
+        homeButton.color = if (set || renew) {
+            // the blue of the `+` buttons of the model (#9595f8)
+            ElementColor.Primary
         } else {
-            homeButton.root.style.backgroundColor = "transparent"
-            homeButton.root.style.borderColor = WORK_FOLDER_RED
-            homeButton.root.style.color = WORK_FOLDER_RED
-            homeButton.root.style.opacity = "0.6"
+            // the magenta of the danger colour of the theme (#d24193)
+            ElementColor.Danger
         }
-        homeButton.root.setAttribute("title", page.i18n("Working folder"))
-        statusLine.text = noteText()
+        // a folder whose permission must be renewed keeps the blue, but dimmed
+        homeButton.root.style.opacity = if (renew) "0.55" else "1"
+        val label = tooltipText()
+        homeButton.root.setAttribute("title", label)
+        homeButton.root.setAttribute("aria-label", label)
+    }
+
+    /**
+     * Destination announced to the visitor: the working folder, then its `captures` folder, where
+     * the model folders and the pictures are written.
+     */
+    private fun capturesDestination(): String {
+        val folder = WorkFolder.folderName ?: ""
+        return if (folder.isEmpty()) CAPTURE_FOLDER else "$folder/$CAPTURE_FOLDER"
     }
 
     // ----------------------------------------------------------------- dialog
@@ -112,8 +116,9 @@ class WorkFolderController(private val page: BulmaPage) {
         body += p(
             page.i18n(
                 "A capture is a JPEG picture of the simulation view, taken at the end of the step that asks for it. " +
-                    "It is written in a sub-folder of the working folder, named after the model, as %0.",
-                "model__step.jpg"
+                    "It is written in the folder captures of the working folder, then in a sub-folder named after " +
+                    "the model, as %0; both folders are created when needed.",
+                "captures/GoL_Modifiers/GoL_Modifiers__12.jpg"
             )
         )
         body += p(
@@ -166,14 +171,14 @@ class WorkFolderController(private val page: BulmaPage) {
             refresh()
             when (choice) {
                 FolderChoice.CHOSEN -> notification(
-                    page.i18n("The folder is now the working folder: the captures are written in %0.", WorkFolder.folderName ?: ""),
+                    page.i18n("The folder is now the working folder: the captures are written in %0.", capturesDestination()),
                     ElementColor.Success, 7000
                 )
                 FolderChoice.UNSAVED -> notification(
                     page.i18n(
                         "The folder is used until the page is reloaded: this browser could not remember it, " +
                             "so the captures are written in %0 now and downloaded after a restart.",
-                        WorkFolder.folderName ?: ""
+                        capturesDestination()
                     ),
                     ElementColor.Warning, 8000
                 )
@@ -193,7 +198,7 @@ class WorkFolderController(private val page: BulmaPage) {
             refresh()
             if (granted) {
                 notification(
-                    page.i18n("The permission is granted again: the captures are written in %0.", WorkFolder.folderName ?: ""),
+                    page.i18n("The permission is granted again: the captures are written in %0.", capturesDestination()),
                     ElementColor.Success, 7000
                 )
             } else {
