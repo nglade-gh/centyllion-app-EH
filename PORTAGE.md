@@ -13,7 +13,7 @@ Endless Bloom seulement.
 
 | | Endless Bloom | NetBioDyn Forever |
 |---|---|---|
-| Tests du noyau | 317 | 304 |
+| Tests du noyau | 346 | 333 |
 | Build web | vert | vert |
 
 L'écart de 13 tests est entièrement dû à `ExecutionBlockTest.kt`, propre à Endless
@@ -56,6 +56,18 @@ se voyait qu'à l'exécution d'une fonctionnalité précise.
   reference » trompeuse.
 - `core/src/commonTest/.../gallery/GalleryDiskTest.kt` — test présent d'un seul côté
   alors que le code testé existait des deux.
+
+## Porter par diff, pas par copie
+
+La méthode qui a échoué quatre fois : partir de la liste des fichiers qu'un sous-agent
+dit avoir touchés, et les copier. Elle échoue parce qu'un fichier copié peut manquer
+une déclaration ajoutée ailleurs, et parce que `ShowPage.kt` n'est jamais copiable.
+
+La méthode qui a fonctionné : lire `git diff <commit~1> <commit>` côté source, et
+appliquer les **hunks** un par un sur le fichier cible, à l'emplacement de ses propres
+déclarations. Ensuite comparer `git diff --stat` de la cible à celui du commit source :
+les mêmes fichiers, les mêmes volumes. Une différence signale un hunk oublié, avant
+même de compiler.
 
 ## Procédure de portage
 
