@@ -7,8 +7,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The control meta-actions drive the run loop (pause, resume, one step, N steps, rewind,
- * restart) through flags of the [Simulator], never through the grid command queue.
+ * The control meta-actions drive the run loop (pause, one step, N steps, rewind, restart)
+ * through flags of the [Simulator], never through the grid command queue. A pause can only be
+ * lifted from the interface: `Continue()` does not exist any more.
  *
  * The loop is driven here exactly as the web client does it: one step, then
  * [SimulationLoop.afterStep].
@@ -83,16 +84,8 @@ class SimulationLoopTest {
     }
 
     @Test
-    fun testPauseStopsTheRunAndContinueResumesIt() {
-        val model = GrainModel(
-            name = "loop",
-            grains = listOf(Grain(id = 0, name = "a", color = "Lime", movementProbability = 0.0)),
-            modifiers = listOf(
-                SimulationModifier(name = "stop", id = 0, formula = "step == 1", actions = "Pause()"),
-                SimulationModifier(name = "go", id = 1, formula = "step == 3", actions = "Continue()")
-            )
-        )
-        val simulator = Simulator(model, simulation())
+    fun testPauseStopsTheRunAndIsReportedAsAskedByTheModel() {
+        val simulator = Simulator(model("step == 1", "Pause()"), simulation())
         val loop = SimulationLoop(simulator)
         loop.start()
 
@@ -105,16 +98,34 @@ class SimulationLoopTest {
         }
         assertEquals(2, simulator.step)
         assertFalse(loop.running, "Pause() stops the run")
+        // the loop stopped because a modifier asked it: the view must be able to say so
+        assertEquals(1, simulator.modifierPauseCount, "one pause asked by a modifier")
 
-        // the step button of the view: the loop is paused, a step is asked by hand
+        // the view reads the flag once, and the counter goes back to zero
+        assertEquals(1, simulator.consumeModifierPauseRequest(), "the view consumes the warning")
+        assertEquals(0, simulator.modifierPauseCount, "the consumption clears the counter")
+        assertEquals(0, simulator.consumeModifierPauseRequest(), "a warning is shown once")
+
+        // nothing resumes the run by itself: a pause is lifted only from the interface
         simulator.oneStep()
         loop.afterStep()
         assertFalse(loop.running, "a manual step does not restart the run")
+        assertEquals(0, simulator.modifierPauseCount, "no modifier asked a pause again")
+    }
 
-        simulator.oneStep()
-        loop.afterStep()
-        assertEquals(4, simulator.step)
-        assertTrue(loop.running, "Continue() resumes the run")
+    @Test
+    fun testARunStoppedByItselfIsNotReportedAsAModifierPause() {
+        // RunNStep stops the loop without Pause(): no warning must be shown
+        val simulator = Simulator(model("step == 0", "RunNStep(2)"), simulation())
+        val loop = SimulationLoop(simulator, running = true)
+        var steps = 0
+        while (loop.canStep && steps < 10) {
+            simulator.oneStep()
+            loop.afterStep()
+            steps += 1
+        }
+        assertFalse(loop.running)
+        assertEquals(0, simulator.modifierPauseCount, "RunNStep is not a pause asked by the model")
     }
 
     @Test
@@ -153,12 +164,15 @@ class SimulationLoopTest {
     @Test
     fun testTheControlActionsAreMetaActions() {
         // no control action may be parsed as a cell action of a behaviour
-        for (actions in listOf("Pause()", "Continue()", "RunOneStep()", "RunNStep(2)", "Rewind()", "Restart()")) {
+        for (actions in listOf("Pause()", "RunOneStep()", "RunNStep(2)", "Rewind()", "Restart()")) {
             assertTrue(
                 validateActionFormula(actions)!!.contains("meta-action"),
                 "$actions must be refused in a behaviour"
             )
             assertNull(validateModifierActions(actions), "$actions is accepted in a modifier")
         }
+        // Continue() was removed and is refused everywhere, with its own message
+        assertTrue(validateActionFormula("Continue()")!!.contains("n'existe plus"))
+        assertTrue(validateModifierActions("Continue()")!!.contains("n'existe plus"))
     }
 }

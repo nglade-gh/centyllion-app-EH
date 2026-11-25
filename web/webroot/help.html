@@ -659,16 +659,12 @@ Actions   : Hide(0), AllowOverwriting(true)</code></pre>
 
   <section id="boucle">
   <h2>8. Méta-actions de la boucle de simulation</h2>
-  <p>Dans la formule d'actions d'un modificateur — le seul endroit où les méta-actions sont admises — six actions pilotent la <b>boucle de course</b> et non la grille : elles arrêtent la course, la reprennent, exécutent un nombre de pas donné ou rembobinent la simulation à son état initial. Comme les autres méta-actions, une demande est appliquée <b>à la fin du pas</b> qui l'émet : le pas en cours est terminé, puis la boucle obéit.</p>
+  <p>Dans la formule d'actions d'un modificateur — le seul endroit où les méta-actions sont admises — cinq actions pilotent la <b>boucle de course</b> et non la grille : elles arrêtent la course, exécutent un nombre de pas donné ou rembobinent la simulation à son état initial. Comme les autres méta-actions, une demande est appliquée <b>à la fin du pas</b> qui l'émet : le pas en cours est terminé, puis la boucle obéit.</p>
   <table>
     <tr><th>Action</th><th>Effet sur la boucle</th></tr>
     <tr>
       <td><code>Pause()</code></td>
-      <td>Arrête la course à la fin du pas courant. C'est le bouton Stop, écrit dans une formule.</td>
-    </tr>
-    <tr>
-      <td><code>Continue()</code></td>
-      <td>Reprend la course si elle est en pause. Sans effet si elle tourne déjà. C'est le bouton Run.</td>
+      <td>Arrête la course à la fin du pas courant. C'est le bouton Stop, écrit dans une formule. Un bandeau d'avertissement apparaît alors au-dessus de la simulation : la course ne repart que par le bouton Run ou le pas à pas.</td>
     </tr>
     <tr>
       <td><code>RunOneStep()</code></td>
@@ -695,10 +691,11 @@ Actions   : RunNStep(5)
 Condition : step == 100
 Actions   : Rewind()
 # au pas 100, la simulation revient à son état initial et reste en pause</code></pre>
-  <p>Si plusieurs demandes tombent dans le même pas, l'ordre d'application est <code>Restart</code>, <code>Rewind</code>, <code>Pause</code>, <code>Continue</code>, <code>RunOneStep</code>/<code>RunNStep</code> : la dernière de cette liste l'emporte. Les pas demandés par deux formules s'additionnent, et un <code>Pause()</code> annule ceux qui restent à exécuter.</p>
+  <p>Si plusieurs demandes tombent dans le même pas, l'ordre d'application est <code>Restart</code>, <code>Rewind</code>, <code>Pause</code>, <code>RunOneStep</code>/<code>RunNStep</code> : la dernière de cette liste l'emporte. Les pas demandés par deux formules s'additionnent, et un <code>Pause()</code> annule ceux qui restent à exécuter.</p>
+  <p><code>Continue()</code> <b>n'existe plus</b> : une formule qui l'écrit est refusée avec le message « Continue() n'existe plus : la pause ne peut être levée que depuis l'interface ». Seul l'utilisateur relance la course, avec le bouton Run ou le pas à pas.</p>
 
   <h3>8.1 Règle de casse des noms</h3>
-  <p>Les <b>méta-fonctions</b> (actions d'un modificateur) et les <b>méta-tests</b> (tests d'état de la condition) commencent par une <b>majuscule</b> : <code>Pause</code>, <code>Continue</code>, <code>RunOneStep</code>, <code>RunNStep</code>, <code>Rewind</code>, <code>Restart</code>, <code>AddRect</code>, <code>IsVisible</code>… Les fonctions de formule et les prédicats restent en <b>minuscules</b> : <code>abs</code>, <code>min</code>, <code>max</code>, <code>sin</code>, <code>cos</code>, <code>count</code>, <code>field</code>, <code>age</code>, <code>agent</code>, ainsi que les variables <code>step</code>, <code>x</code>, <code>y</code>, <code>z</code> et <code>current</code>. Un nom de formule est sensible à la casse : <code>isvisible(0)</code> n'existe pas et la formule est refusée.</p>
+  <p>Les <b>méta-fonctions</b> (actions d'un modificateur) et les <b>méta-tests</b> (tests d'état de la condition) commencent par une <b>majuscule</b> : <code>Pause</code>, <code>RunOneStep</code>, <code>RunNStep</code>, <code>Rewind</code>, <code>Restart</code>, <code>AddRect</code>, <code>IsVisible</code>… Les fonctions de formule et les prédicats restent en <b>minuscules</b> : <code>abs</code>, <code>min</code>, <code>max</code>, <code>sin</code>, <code>cos</code>, <code>count</code>, <code>field</code>, <code>age</code>, <code>agent</code>, ainsi que les variables <code>step</code>, <code>x</code>, <code>y</code>, <code>z</code> et <code>current</code>. Un nom de formule est sensible à la casse : <code>isvisible(0)</code> n'existe pas et la formule est refusée.</p>
 
   <h3>8.2 <code>pause()</code> est obsolète</h3>
   <p>La méta-action <code>pause()</code>, écrite en minuscules, reste <b>acceptée</b> pour les modèles déjà enregistrés : ils continuent de se charger et de se comporter à l'identique. Elle est en revanche <b>obsolète</b>, et c'est la seule méta-fonction qui ne respectait pas la règle de casse. Écrivez <code>Pause()</code> : c'est ce nom qu'affiche l'aide contextuelle, et <code>pause()</code> n'est conservé que pour la compatibilité.</p>

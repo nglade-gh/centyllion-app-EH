@@ -37,11 +37,13 @@ sealed class Action {
 
     // --- meta-actions: they act on the simulation itself, not on the current cell ---
 
-    /** Pauses the simulation at the end of the current step (the run loop stops). */
+    /**
+     * Pauses the simulation at the end of the current step (the run loop stops).
+     *
+     * A modifier that pauses the simulation makes the view show a warning: the run can be
+     * resumed only by the reader, with the Run button or step by step.
+     */
     object Pause : Action()
-
-    /** Resumes the simulation when it is paused (no effect while it is running). */
-    object Continue : Action()
 
     /** Runs exactly one more step, then pauses the simulation. */
     object RunOneStep : Action()
@@ -123,7 +125,7 @@ sealed class Action {
 
 /** True for the actions that act on the simulation as a whole rather than on one cell. */
 fun isMetaAction(action: Action): Boolean = when (action) {
-    Action.Pause, Action.Continue, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
+    Action.Pause, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
     is Action.AddMany, is Action.AddRect, is Action.AddDisc,
     is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
     is Action.EraseAll, is Action.Activate, is Action.Inactivate, is Action.Use, is Action.Unuse,
@@ -150,7 +152,6 @@ private val actionArities = mapOf(
     "AddField" to intArrayOf(4),
     "ClearField" to intArrayOf(3),
     "Pause" to intArrayOf(0),
-    "Continue" to intArrayOf(0),
     "RunOneStep" to intArrayOf(0),
     "RunNStep" to intArrayOf(1),
     "Rewind" to intArrayOf(0),
@@ -168,8 +169,19 @@ private val actionArities = mapOf(
 )
 
 private const val availableActions =
-    "Add, Remove, Move, SetField, AddField, ClearField, Pause, Continue, RunOneStep, RunNStep, Rewind, Restart, " +
+    "Add, Remove, Move, SetField, AddField, ClearField, Pause, RunOneStep, RunNStep, Rewind, Restart, " +
         "AddRect, AddDisc, EraseRect, EraseDisc, Erase, Activate, Inactivate, Use, Unuse, DrawLine"
+
+/**
+ * Names that were removed from the language: they are refused with an explicit message rather
+ * than reported as unknown, so that an old model says what happened to them.
+ *
+ * `Continue()` was removed with the run loop rework: a pause can only be lifted from the
+ * interface, never by the model itself.
+ */
+private val removedActionNames: Map<String, String> = mapOf(
+    "Continue" to "Continue() n'existe plus : la pause ne peut être levée que depuis l'interface"
+)
 
 /** Grid commands of the meta-actions: they are parsed by [parseGridCommandCall]. */
 private const val availableGridCommands =
@@ -201,6 +213,8 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
         // an old formula parses exactly like the new one
         val name = deprecatedActionNames[writtenName] ?: writtenName
         val argsText = match.groupValues[2].trim()
+        // names removed from the language say why instead of looking like a typo
+        removedActionNames[name]?.let { message -> throw IllegalArgumentException(message) }
         // a state test is a condition, not an action: say it instead of "unknown action"
         if (name in stateTestFunctions) {
             throw IllegalArgumentException(misplacedStateTest(name, "an action formula"))
@@ -247,7 +261,6 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
             "AddField" -> Action.AddField(args[0], args[1], args[2], args[3])
             "ClearField" -> Action.ClearField(args[0], args[1], args[2])
             "Pause" -> Action.Pause
-            "Continue" -> Action.Continue
             "RunOneStep" -> Action.RunOneStep
             "RunNStep" -> Action.RunNStep(args[0])
             "Rewind" -> Action.Rewind

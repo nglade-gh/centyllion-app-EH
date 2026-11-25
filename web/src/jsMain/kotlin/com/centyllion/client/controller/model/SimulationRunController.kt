@@ -31,6 +31,7 @@ class SimulationRunController(
             currentSimulator = Simulator(context, new)
             loop = SimulationLoop(currentSimulator)
             simulationViewController.data = currentSimulator
+            hideModifierPauseNotification()
             running = false
             onUpdate(old, new, this@SimulationRunController)
             refresh()
@@ -43,6 +44,7 @@ class SimulationRunController(
             currentSimulator = Simulator(new, data)
             loop = SimulationLoop(currentSimulator)
             simulationViewController.data = currentSimulator
+            hideModifierPauseNotification()
             running = false
             refresh()
         }
@@ -57,8 +59,9 @@ class SimulationRunController(
     private var currentSimulator = Simulator(context, data)
 
     /**
-     * Run/pause state of the loop: the control meta-actions (Pause, Continue, RunOneStep,
-     * RunNStep, Rewind, Restart) change it at the end of the step that emitted them.
+     * Run/pause state of the loop: the control meta-actions (Pause, RunOneStep, RunNStep,
+     * Rewind, Restart) change it at the end of the step that emitted them. A pause is lifted
+     * only from the interface: there is no `Continue()`.
      */
     private var loop = SimulationLoop(currentSimulator)
 
@@ -140,6 +143,17 @@ class SimulationRunController(
         size = ColumnSize.Full
     )
 
+    /**
+     * Warning shown when a simulation modifier pauses the run.
+     *
+     * A `Pause()` written in a modifier stops the simulation behind the reader's back: the
+     * warning says who stopped it and how to go on. It is a plain Bulma `notification is-warning`
+     * (non blocking, closable with its cross) placed at the top of the simulation zone, and it
+     * is removed as soon as the simulation starts again.
+     */
+    private var modifierPauseNotification: Notification? by
+        bulma(null, simulationView.root, Position.AfterBegin)
+
     val simulationColumns: Columns = Columns(
         Column(
             Level(
@@ -188,6 +202,8 @@ class SimulationRunController(
     }
 
     fun run() {
+        // the reader takes over: the warning about a pause asked by the model is obsolete
+        hideModifierPauseNotification()
         running = true
     }
 
@@ -218,6 +234,7 @@ class SimulationRunController(
 
     fun step() {
         if (!running) {
+            hideModifierPauseNotification()
             executeStep()
             simulationViewController.render()
             refreshButtons()
@@ -248,6 +265,7 @@ class SimulationRunController(
     fun reset() {
         if (!running) {
             loop.stop()
+            hideModifierPauseNotification()
             currentSimulator.reset()
             // a rewind restores the activation state of the beginning of the run
             syncActivationRadios(currentSimulator)
@@ -259,11 +277,13 @@ class SimulationRunController(
 
     /**
      * Applies the control requests emitted by the meta-actions during the step that has just
-     * run: Pause, Continue, RunOneStep, RunNStep, Rewind, Restart. They drive the loop, never
-     * the grid.
+     * run: Pause, RunOneStep, RunNStep, Rewind, Restart. They drive the loop, never the grid.
      */
     private fun applyControlRequests() {
         val update = loop.afterStep()
+        // a modifier can ask the pause: the reader must see it, the Run button is the only way
+        // back (there is no Continue() any more)
+        if (simulator.consumeModifierPauseRequest() > 0) showModifierPauseNotification()
         if (update.rewound) {
             // the simulation is back to its initial state: the radios follow the restored state
             syncActivationRadios(currentSimulator)
@@ -272,6 +292,25 @@ class SimulationRunController(
             stepLabel.text = "${currentSimulator.step}"
         }
         if (running != update.running) running = update.running
+    }
+
+    /**
+     * Shows the warning that says the run was paused by a simulation modifier. The notification
+     * is created once and kept until the run starts again: showing it twice would stack two
+     * boxes in the simulation zone.
+     */
+    private fun showModifierPauseNotification() {
+        if (modifierPauseNotification != null) return
+        modifierPauseNotification = Notification(
+            Content { +page.i18n("The model paused the simulation (modifier). Resume it with the Run button or step by step.") },
+            color = ElementColor.Warning,
+            onDelete = { hideModifierPauseNotification() }
+        )
+    }
+
+    /** Removes the warning about a pause asked by the model (the reader took over). */
+    private fun hideModifierPauseNotification() {
+        modifierPauseNotification = null
     }
 
     private fun executeStep() {

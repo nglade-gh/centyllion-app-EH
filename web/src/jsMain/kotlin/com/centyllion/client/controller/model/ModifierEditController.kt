@@ -121,14 +121,13 @@ class ModifierEditController(
     private val modifierActionsHelp = Section(
         p(page.i18n("The actions are executed once per step, after the behaviours, when the condition is true.")),
         p(page.i18n("Only meta-actions are allowed here: they act on the simulation as a whole, not on one cell.")),
-        p(page.i18n("Meta-functions and meta-tests start with a capital letter (Pause, Continue, RunNStep, IsVisible); the functions used in the conditions and in the arguments stay in lower case (abs, min, max, sin, cos, count, field, age, agent).")),
+        p(page.i18n("Meta-functions and meta-tests start with a capital letter (Pause, RunNStep, IsVisible); the functions used in the conditions and in the arguments stay in lower case (abs, min, max, sin, cos, count, field, age, agent).")),
         p(page.i18n("pause() in lower case is still accepted for the models already recorded, but it is obsolete: write Pause().")),
         SubTitle(page.i18n("The simulation loop")),
-        p(page.i18n("These meta-actions drive the run loop, not the grid: they stop it, resume it, run a given number of steps, or rewind the simulation to its initial state. A request is applied at the end of the step that emits it.")),
+        p(page.i18n("These meta-actions drive the run loop, not the grid: they stop it, run a given number of steps, or rewind the simulation to its initial state. A request is applied at the end of the step that emits it.")),
         Table(
             body = listOf(
                 helpLine("Pause()", "Pauses the simulation at the end of the current step, for instance %0.", "Pause()"),
-                helpLine("Continue()", "Resumes the run if it is paused; no effect while it runs, for instance %0.", "Continue()"),
                 helpLine("RunOneStep()", "Runs exactly one more step, then pauses the run, for instance %0.", "RunOneStep()"),
                 helpLine("RunNStep(N)", "Runs N more steps (N >= 1, rounded), then pauses the run; N <= 0 is ignored, for instance %0.", "RunNStep(10)"),
                 helpLine("Rewind()", "Goes back to the initial state and pauses the run, like the rewind button, for instance %0.", "Rewind()"),

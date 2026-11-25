@@ -14,7 +14,7 @@ data class LoopUpdate(
 
 /**
  * Run/pause state of the simulation loop, driven by the control meta-actions
- * (`Pause`, `Continue`, `RunOneStep`, `RunNStep`, `Rewind`, `Restart`).
+ * (`Pause`, `RunOneStep`, `RunNStep`, `Rewind`, `Restart`).
  *
  * The meta-actions only set flags on the [Simulator]; this class turns them into the next state
  * of the loop at the end of the step that emitted them. The web client drives it from its
@@ -22,8 +22,11 @@ data class LoopUpdate(
  * pause, N steps then pause, rewind without restart — are the same on both sides and are
  * tested in the core rather than in the DOM code.
  *
+ * A pause can never be lifted by the model: `Continue()` does not exist, only the reader
+ * starts the run again (`start()`), which is why the arbitration below has no resume branch.
+ *
  * Requests of a single step are applied in this order, the last one winning:
- * `Restart`, `Rewind`, `Pause`, `Continue`, `RunOneStep`/`RunNStep`.
+ * `Restart`, `Rewind`, `Pause`, `RunOneStep`/`RunNStep`.
  */
 class SimulationLoop(val simulator: Simulator, running: Boolean = false) {
 
@@ -41,7 +44,7 @@ class SimulationLoop(val simulator: Simulator, running: Boolean = false) {
     /** True when a step may be executed now. */
     val canStep: Boolean get() = running || remainingSteps > 0
 
-    /** Starts the loop (run button, `Continue`, `Restart`). */
+    /** Starts the loop (run button, `Restart`). */
     fun start() {
         running = true
         cancelBurst()
@@ -96,8 +99,6 @@ class SimulationLoop(val simulator: Simulator, running: Boolean = false) {
                     running = false
                     cancelBurst()
                 }
-                // Continue() has no effect while the loop is running
-                if (requests.resume) running = true
                 if (requests.steps > 0) {
                     // RunOneStep is RunNStep(1): run them, then pause
                     running = true

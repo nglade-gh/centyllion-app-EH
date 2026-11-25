@@ -20,7 +20,7 @@ class MetaActionsTutorial(
 
     override val introduction: List<BulmaElement> = listOf(
         p(i18n("Actions such as Add, Move or SetField act around the cell where a behaviour applies. Meta-actions act on the simulation itself: they add or erase agents in a zone, draw a line, or switch a behaviour or another modifier on and off.")),
-        p(i18n("A second family drives the run loop instead of the grid: Pause() stops the run, Continue() resumes it, RunOneStep() and RunNStep(N) run one or N steps then pause, Rewind() goes back to the initial state without restarting and Restart() goes back and starts again. The loop meta-actions and the state tests start with a capital letter; the functions of the formulas stay in lower case (abs, min, count, field, agent).")),
+        p(i18n("A second family drives the run loop instead of the grid: Pause() stops the run, RunOneStep() and RunNStep(N) run one or N steps then pause, Rewind() goes back to the initial state without restarting and Restart() goes back and starts again. A pause is lifted only from the interface, with the Run button: there is no Continue() any more, and a modifier that writes it is refused. The loop meta-actions and the state tests start with a capital letter; the functions of the formulas stay in lower case (abs, min, count, field, agent).")),
         p(i18n("They are no longer written in a behaviour: the behaviour editor refuses them. They belong to a simulation modifier, in the section « Simulation modifiers », which only appears in expert mode. This tutorial puts you in expert mode and builds a small model to work on."))
     )
 

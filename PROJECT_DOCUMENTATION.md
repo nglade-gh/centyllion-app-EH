@@ -415,7 +415,7 @@ une fois par pas, hors de toute case, après les comportements.
 
 | Catégorie | Noms |
 |---|---|
-| Boucle de course | `Pause()`, `Continue()`, `RunOneStep()`, `RunNStep(N)`, `Rewind()`, `Restart()` |
+| Boucle de course | `Pause()`, `RunOneStep()`, `RunNStep(N)`, `Rewind()`, `Restart()` |
 | Population / activation | `Add(id, N)`, `AddRect(id, N, x1, y1, x2, y2)`, `AddDisc(id, N, x, y, radius)`, `DrawLine(id, x1, y1, x2, y2)`, `EraseRect(x1, y1, x2, y2)`, `EraseRect(id, x1, y1, x2, y2)`, `EraseDisc(x, y, radius)`, `EraseDisc(id, x, y, radius)`, `Erase(id)`, `Activate(id)`, `Inactivate(id)`, `Use(id)`, `Unuse(id)` |
 | Commandes de grille | `Show(id)`, `Hide(id)`, `Select(x1, y1, x2, y2)`, `Cut()`, `Copy()`, `EraseSelection()`, `Paste(x, y, overwrite)`, `FlushSelection()`, `Unselect()`, `PasteAndFlush(x, y, overwrite)`, `Rotate(N)`, `FlipX()`, `FlipY()`, `AllowToricSelection(enabled)`, `AllowOverwriting(enabled)` |
 | Tests d'état (condition seulement) | `IsBehaviourActive(id)`, `IsModifierActive(id)`, `IsToricSelectionOn()`, `IsOverwritingOn()`, `IsVisible(id)` |
@@ -431,7 +431,7 @@ continuent de se charger et de se comporter à l'identique. `Pause()` est le nom
   par la vue en fin de pas (`drainGridCommands()`) : le noyau ne connaît ni la sélection ni le
   presse-papiers ;
 - les **actions de boucle** passent par des **drapeaux** du `Simulator` —
-  `pauseRequested`, `resumeRequested`, `stepsRequested`, `rewindRequested`, `restartRequested` —
+  `pauseRequested`, `stepsRequested`, `rewindRequested`, `restartRequested` —
   regroupés par `consumeControlRequests()` en un `SimulationControlRequests`, et transformés en
   état de boucle par `SimulationLoop.afterStep()`. Elles ne touchent jamais la grille.
 
@@ -439,10 +439,22 @@ continuent de se charger et de se comporter à l'identique. `Pause()` est le nom
 web et pour les tests JVM : `canStep`, `start()`, `stop()`, `afterStep()` → `LoopUpdate(running,
 remainingSteps, rewound)`. `RunOneStep()` est `RunNStep(1)` : la boucle exécute les pas demandés
 puis se met en pause d'elle-même ; `N <= 0` n'ajoute aucun pas et n'arrête pas la course. Dans un
-même pas, l'ordre d'application est `Restart`, `Rewind`, `Pause`, `Continue`,
+même pas, l'ordre d'application est `Restart`, `Rewind`, `Pause`,
 `RunOneStep`/`RunNStep` (le dernier l'emporte) ; les pas de deux demandes s'additionnent et un
 `Pause()` annule ceux qui restent. `Rewind()` et `Restart()` appellent `Simulator.reset()`, qui
 restaure l'état d'activation du début de course et efface les demandes en attente.
+
+`Continue()` **n'existe plus** : elle a été retirée de `Action`, du parseur, de `isMetaAction` et
+de l'arbitrage de `SimulationLoop`. Une formule qui l'écrit est **refusée** avec le message
+« Continue() n'existe plus : la pause ne peut être levée que depuis l'interface » (table
+`removedActionNames` d'`actions.kt`, consultée avant la recherche d'arité) : la pause ne se lève
+que depuis l'interface.
+
+Un `Pause()` émis par un modificateur est **signalé à l'utilisateur** : `Simulator.modifierPauseCount`
+compte les pauses demandées par un modificateur (remis à zéro par `consumeModifierPauseRequest()`,
+appelé par la vue, et par `reset()`), et `SimulationRunController` affiche alors une notification
+Bulma `notification is-warning` non bloquante et refermable, insérée en haut de la zone de
+simulation, retirée au prochain démarrage de la course.
 
 Côté web, `SimulationRunController.applyControlRequests()` applique le `LoopUpdate` : il resynchronise
 les radios d'activation et rappelle `onReset` après un rembobinage, et il suit `running`. Les pas
@@ -450,9 +462,10 @@ demandés s'enchaînent sans attendre la limite de fps (`loop.remainingSteps > 0
 de cadence dans `animationCallback`).
 
 Tests : `core/src/commonTest/.../SimulationLoopTest.kt` (un pas puis pause, N pas puis arrêt,
-`N <= 0` ignoré, pause puis continue, rewind sans relance, restart avec relance, aucune commande
-de grille en file) et `ActionTest.testTheLoopControlActionsParse` / 
-`testPauseIsCapitalisedAndTheLowercaseFormIsAnAlias` pour le parseur.
+`N <= 0` ignoré, pause signalée par `modifierPauseCount` puis consommée, rewind sans relance,
+restart avec relance, aucune commande de grille en file) et `ActionTest.testTheLoopControlActionsParse` /
+`testContinueIsRefusedWithAnExplicitMessage` / `testPauseIsCapitalisedAndTheLowercaseFormIsAnAlias`
+pour le parseur.
 
 ---
 

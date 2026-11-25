@@ -7,6 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 
 class ActionTest {
 
@@ -532,12 +533,11 @@ class SimulationModifierTest {
     fun testTheLoopControlActionsParse() {
         // the five actions that drive the run loop, all written with a capital letter
         assertNull(validateModifierActions("Pause()"))
-        assertNull(validateModifierActions("Continue()"))
         assertNull(validateModifierActions("RunOneStep()"))
         assertNull(validateModifierActions("RunNStep(3)"))
         assertNull(validateModifierActions("Rewind()"))
         assertNull(validateModifierActions("Restart()"))
-        assertNull(validateModifierActions("Continue(), RunOneStep(), RunNStep(2 + 1), Rewind(), Restart()"))
+        assertNull(validateModifierActions("Pause(), RunOneStep(), RunNStep(2 + 1), Rewind(), Restart()"))
         // arity of N
         assertTrue(validateModifierActions("RunNStep()")!!.contains("expects 1 argument"))
         assertTrue(validateModifierActions("RunNStep(1, 2)")!!.contains("expects 1 argument"))
@@ -546,10 +546,27 @@ class SimulationModifierTest {
         assertTrue(validateModifierActions("RunOneStep(1)")!!.contains("expects 0 arguments"))
         // parsed as their own action
         assertTrue("RunNStep(3)".parseModifierActions().single() is Action.RunNStep)
-        assertEquals(Action.Continue, "Continue()".parseModifierActions().single())
         assertEquals(Action.RunOneStep, "RunOneStep()".parseModifierActions().single())
         assertEquals(Action.Rewind, "Rewind()".parseModifierActions().single())
         assertEquals(Action.Restart, "Restart()".parseModifierActions().single())
+    }
+
+    @Test
+    fun testContinueIsRefusedWithAnExplicitMessage() {
+        // Continue() was removed: a pause is lifted only from the interface, never by the model.
+        // The formula is refused with a message that says so, not ignored and not reported as
+        // an unknown action (which would look like a typo).
+        val message = validateModifierActions("Continue()")
+        assertNotNull(message)
+        assertTrue(message!!.contains("Continue() n'existe plus"), "explicit removal message: $message")
+        assertTrue(message.contains("interface"), "the message points at the interface: $message")
+        assertFalse(message.contains("Unknown action"), "not reported as a typo: $message")
+        // refused too where it used to be refused as a meta-action, and in a list
+        assertTrue(validateActionFormula("Continue()")!!.contains("n'existe plus"))
+        assertTrue(validateModifierActions("Pause(), Continue()")!!.contains("n'existe plus"))
+        // it is not an action of the language any more
+        assertTrue(runCatching { "Continue()".parseModifierActions() }.isFailure)
+        assertTrue(runCatching { "Continue()".parseActionFormula() }.isFailure)
     }
 
     @Test

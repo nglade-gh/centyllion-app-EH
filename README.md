@@ -281,12 +281,16 @@ fonctions de formule et les prédicats restent en **minuscules** (`abs`, `min`, 
 
 | Action | Effet |
 |---|---|
-| `Pause()` | arrête la course à la fin du pas courant |
-| `Continue()` | reprend la course si elle est en pause (sans effet si elle tourne) |
+| `Pause()` | arrête la course à la fin du pas courant (un bandeau d'avertissement le signale, la course ne repart que par le bouton Run ou le pas à pas) |
 | `RunOneStep()` | exécute exactement un pas de plus, puis se met en pause |
 | `RunNStep(N)` | exécute N pas de plus (N >= 1, arrondi) puis se met en pause ; `N <= 0` est ignoré |
 | `Rewind()` | revient à l'état initial **sans relancer** (même effet que le bouton de rembobinage) |
 | `Restart()` | revient à l'état initial **et relance** la course |
+
+`Continue()` **n'existe plus** : une formule qui l'écrit est refusée (« Continue() n'existe plus :
+la pause ne peut être levée que depuis l'interface »). Seul l'utilisateur relance la course, avec
+le bouton Run ou le pas à pas ; un `Pause()` émis par un modificateur affiche un bandeau
+d'avertissement au-dessus de la vue de simulation.
 
 **Population et activation** : `Add(id, N)`, `AddRect(id, N, x1, y1, x2, y2)`,
 `AddDisc(id, N, x, y, radius)`, `DrawLine(id, x1, y1, x2, y2)`, `EraseRect(x1, y1, x2, y2)` /

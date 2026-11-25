@@ -19,18 +19,17 @@ class Agent(val index: Int, val direction: Direction, val reactiveId: Int, val a
 
 /**
  * Control requests emitted by the meta-actions of a step: the run loop consumes them once per
- * step (see [SimulationLoop]). They drive the **loop** (pause, resume, one step, N steps,
+ * step (see [SimulationLoop]). They drive the **loop** (pause, one step, N steps,
  * rewind, restart) and never the grid, which is why they are flags carried by the [Simulator]
  * and not entries of [Simulator.pendingGridCommands].
  */
 data class SimulationControlRequests(
     val pause: Boolean = false,
-    val resume: Boolean = false,
     val steps: Int = 0,
     val rewind: Boolean = false,
     val restart: Boolean = false
 ) {
-    val isEmpty: Boolean get() = !pause && !resume && steps == 0 && !rewind && !restart
+    val isEmpty: Boolean get() = !pause && steps == 0 && !rewind && !restart
 }
 
 
@@ -140,9 +139,26 @@ class Simulator(
     var pauseRequested: Boolean = false
         private set
 
-    /** Set by the Continue() meta-action: the run loop resumes if it was stopped. */
-    var resumeRequested: Boolean = false
+    /**
+     * Number of Pause() meta-actions executed by a simulation modifier and not shown yet.
+     *
+     * A modifier pauses the simulation behind the reader's back: the view reads this counter
+     * (and [consumeModifierPauseRequest]) to display a warning that the pause came from the
+     * model, not from the Stop button. It is not a control request: it says *who* paused the
+     * simulation, the loop only needs [pauseRequested].
+     */
+    var modifierPauseCount: Int = 0
         private set
+
+    /**
+     * Returns the number of pauses asked by a modifier and resets the counter: called by the
+     * view once it has warned the reader, so that a single pause is shown once.
+     */
+    fun consumeModifierPauseRequest(): Int {
+        val count = modifierPauseCount
+        modifierPauseCount = 0
+        return count
+    }
 
     /** Extra steps asked by RunOneStep() / RunNStep(N); 0 when none (the loop then pauses). */
     var stepsRequested: Int = 0
@@ -164,7 +180,6 @@ class Simulator(
     /** Drops every pending control request: a rewind cancels what the step had asked for. */
     private fun clearControlRequests() {
         pauseRequested = false
-        resumeRequested = false
         stepsRequested = 0
         rewindRequested = false
         restartRequested = false
@@ -176,7 +191,7 @@ class Simulator(
      */
     fun consumeControlRequests(): SimulationControlRequests {
         val requests = SimulationControlRequests(
-            pause = pauseRequested, resume = resumeRequested, steps = stepsRequested,
+            pause = pauseRequested, steps = stepsRequested,
             rewind = rewindRequested, restart = restartRequested
         )
         clearControlRequests()
@@ -284,7 +299,7 @@ class Simulator(
 
     /** True for the actions that act on the simulation as a whole rather than on a cell. */
     private fun isMetaAction(action: Action): Boolean = when (action) {
-        Action.Pause, Action.Continue, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
+        Action.Pause, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
         is Action.AddMany, is Action.AddRect, is Action.AddDisc,
         is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
         is Action.EraseAll, is Action.Activate, is Action.Inactivate -> true
@@ -887,6 +902,8 @@ class Simulator(
         modifierSnapshot().copyInto(runtimeModifierEnabled)
         activationChanged = true
         clearControlRequests()
+        // a rewind or a restart discards the pauses that were not shown yet
+        modifierPauseCount = 0
         // commands queued by a step that is now rewound are meaningless
         gridCommands.clear()
         initialAgents.copyInto(agents)
@@ -1021,8 +1038,11 @@ class Simulator(
         for (action in actions) {
             try {
                 when (action) {
-                    Action.Pause -> pauseRequested = true
-                    Action.Continue -> resumeRequested = true
+                    // a pause asked by the model is flagged for the view: it shows a warning
+                    Action.Pause -> {
+                        pauseRequested = true
+                        modifierPauseCount += 1
+                    }
                     Action.RunOneStep -> stepsRequested += 1
                     is Action.RunNStep -> {
                         // N <= 0 is ignored: it asks for no step at all
@@ -1305,7 +1325,6 @@ class Simulator(
                     }
 
                     Action.Pause -> pauseRequested = true
-                    Action.Continue -> resumeRequested = true
                     Action.RunOneStep -> stepsRequested += 1
                     is Action.RunNStep -> {
                         // N <= 0 is ignored: it asks for no step at all
