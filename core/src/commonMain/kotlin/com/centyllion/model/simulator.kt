@@ -4,6 +4,8 @@ import com.centyllion.expression.parseExpression
 
 import com.centyllion.expression.Expression
 import com.centyllion.expression.v
+import com.centyllion.i18n.Locale
+import com.centyllion.i18n.Locales
 import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.max
@@ -77,8 +79,22 @@ class ApplicableBehavior(
 
 class Simulator(
     val model: GrainModel,
-    val simulation: Simulation
+    val simulation: Simulation,
+    /**
+     * Language of the journal entries the core writes by itself (the meta-actions it executes).
+     * The view passes the language of the page; the default is English, like every core message.
+     */
+    val locale: Locale = Locales.default
 ) {
+    /**
+     * What the simulation did on its own, bounded to [JOURNAL_CAPACITY] entries.
+     *
+     * Fed by [executeMetaActions] as each meta-action runs, and by the view for the events it
+     * is the only one to know (a capture written, a pause asked by a modifier, a gallery
+     * message). It is not a part of the simulation state: [reset] leaves it alone.
+     */
+    val journal = JournalBuffer()
+
     /** Deterministic engine: every cell owns a stream derived from [Simulation.seed]. */
     val random = SimulationRandom(simulation.seed, simulation.dataSize)
 
@@ -158,16 +174,16 @@ class Simulator(
      * Number of Pause() meta-actions executed by a simulation modifier and not shown yet.
      *
      * A modifier pauses the simulation behind the reader's back: the view reads this counter
-     * (and [consumeModifierPauseRequest]) to display a warning that the pause came from the
-     * model, not from the Stop button. It is not a control request: it says *who* paused the
-     * simulation, the loop only needs [pauseRequested].
+     * (and [consumeModifierPauseRequest]) to add a WARNING line to the journal saying that the
+     * pause came from the model, not from the Stop button. It is not a control request: it says
+     * *who* paused the simulation, the loop only needs [pauseRequested].
      */
     var modifierPauseCount: Int = 0
         private set
 
     /**
      * Returns the number of pauses asked by a modifier and resets the counter: called by the
-     * view once it has warned the reader, so that a single pause is shown once.
+     * view once it has written the journal line, so that a single pause is reported once.
      */
     fun consumeModifierPauseRequest(): Int {
         val count = modifierPauseCount
@@ -1058,6 +1074,66 @@ class Simulator(
         }
     }
 
+    /**
+     * Text of [action] with its arguments evaluated at run time, for the journal: `Pause(2)`,
+     * `AddRect(0, 10, 2, 2, 8, 8)`. It only reads the state; an argument that cannot be
+     * evaluated throws, exactly like the action itself would, and the entry is then skipped.
+     */
+    private fun describeMetaAction(action: Action, evaluator: NetbioDynEvaluator): String {
+        fun int(expression: Expression): String = expression.evalInt(evaluator).toString()
+        fun shape(name: String, arguments: List<String>, fill: Boolean): String =
+            metaActionCall(name, if (fill) arguments else arguments + "false")
+        return when (action) {
+            Action.Pause -> metaActionCall("Pause")
+            is Action.TimedPause ->
+                metaActionCall("Pause", listOf(formatPauseSeconds(action.seconds.evalDouble(evaluator))))
+            Action.RunOneStep -> metaActionCall("RunOneStep")
+            is Action.RunNStep -> metaActionCall("RunNStep", listOf(int(action.count)))
+            Action.Rewind -> metaActionCall("Rewind")
+            Action.Restart -> metaActionCall("Restart")
+            Action.Capture -> metaActionCall("Capture")
+            is Action.AddMany -> metaActionCall("Add", listOf(int(action.grain), int(action.count)))
+            is Action.AddRect -> shape(
+                "AddRect",
+                listOf(int(action.grain), int(action.count), int(action.x1), int(action.y1), int(action.x2), int(action.y2)),
+                action.fill
+            )
+            is Action.AddCircle -> shape(
+                "AddCircle",
+                listOf(int(action.grain), int(action.count), int(action.x), int(action.y), int(action.radius)),
+                action.fill
+            )
+            is Action.EraseRectAll -> shape(
+                "EraseRect",
+                listOf(int(action.x1), int(action.y1), int(action.x2), int(action.y2)), action.fill
+            )
+            is Action.EraseCircleAll -> shape(
+                "EraseCircle", listOf(int(action.x), int(action.y), int(action.radius)), action.fill
+            )
+            is Action.EraseRect -> shape(
+                "EraseRect",
+                listOf(int(action.grain), int(action.x1), int(action.y1), int(action.x2), int(action.y2)),
+                action.fill
+            )
+            is Action.EraseCircle -> shape(
+                "EraseCircle",
+                listOf(int(action.grain), int(action.x), int(action.y), int(action.radius)), action.fill
+            )
+            is Action.EraseAll -> metaActionCall("Erase", listOf(int(action.grain)))
+            is Action.DrawLine -> metaActionCall(
+                "DrawLine",
+                listOf(int(action.grain), int(action.x1), int(action.y1), int(action.x2), int(action.y2))
+            )
+            is Action.Activate -> metaActionCall("Activate", listOf(int(action.behaviourId)))
+            is Action.Inactivate -> metaActionCall("Inactivate", listOf(int(action.behaviourId)))
+            is Action.Use -> metaActionCall("Use", listOf(int(action.modifierId)))
+            is Action.Unuse -> metaActionCall("Unuse", listOf(int(action.modifierId)))
+            // the call keeps its arguments as written (they are literals and numbers)
+            is Action.Grid -> action.call.toString()
+            else -> ""
+        }
+    }
+
     /** Executes the meta-actions of a modifier, directly on the current state (no cell). */
     private fun executeMetaActions(actions: List<Action>, evaluator: NetbioDynEvaluator) {
         // the view must redraw even when no behaviour was applied
@@ -1072,9 +1148,13 @@ class Simulator(
             }
         ) modifiersChanged = true
         for (action in actions) {
+            // a meta-action that really runs leaves one line in the journal; the ones that are
+            // ignored (unknown grain, non-positive count…) skip it with a `continue`
+            var executed: String? = null
             try {
+                val call = describeMetaAction(action, evaluator)
                 when (action) {
-                    // a pause asked by the model is flagged for the view: it shows a warning
+                    // a pause asked by the model is flagged for the view: it writes a WARNING line
                     Action.Pause -> {
                         pauseRequested = true
                         modifierPauseCount += 1
@@ -1083,18 +1163,18 @@ class Simulator(
                         // Pause(t): same pause, but the loop resumes by itself at the deadline.
                         // A duration <= 0 asks for no pause at all, like RunNStep(N <= 0).
                         val seconds = action.seconds.evalDouble(evaluator)
-                        if (seconds > 0.0) {
-                            pauseRequested = true
-                            modifierPauseCount += 1
-                            // two timed pauses in the same step: the longest one wins
-                            pauseDurationSeconds = max(pauseDurationSeconds, seconds)
-                        }
+                        if (seconds <= 0.0) continue
+                        pauseRequested = true
+                        modifierPauseCount += 1
+                        // two timed pauses in the same step: the longest one wins
+                        pauseDurationSeconds = max(pauseDurationSeconds, seconds)
                     }
                     Action.RunOneStep -> stepsRequested += 1
                     is Action.RunNStep -> {
                         // N <= 0 is ignored: it asks for no step at all
                         val count = action.count.evalInt(evaluator)
-                        if (count > 0) stepsRequested += count
+                        if (count <= 0) continue
+                        stepsRequested += count
                     }
                     Action.Rewind -> rewindRequested = true
                     Action.Restart -> restartRequested = true
@@ -1248,10 +1328,17 @@ class Simulator(
                         gridCommands.add(command)
                     }
 
-                    else -> { /* cell actions are not allowed in a modifier */ }
+                    // a cell action cannot appear in a modifier: nothing ran, nothing is logged
+                    else -> continue
                 }
+                executed = call
             } catch (_: Exception) {
                 // invalid argument at run time: ignore the action
+            }
+            if (executed != null) {
+                // the step counter is incremented after the modifiers, so the entry carries the
+                // number the interface displays once the step is over (same rule as a capture name)
+                journal.add(step + 1, JournalLevel.META, journalMetaAction(locale, executed))
             }
         }
     }

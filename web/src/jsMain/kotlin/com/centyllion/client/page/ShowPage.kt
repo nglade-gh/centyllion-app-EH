@@ -8,6 +8,7 @@ import com.centyllion.client.controller.model.ModelController
 import com.centyllion.client.controller.utils.EditableStringController
 import com.centyllion.client.controller.utils.UndoRedoSupport
 import com.centyllion.client.gallery.GalleryController
+import com.centyllion.model.JournalLevel
 import com.centyllion.client.tutorial.ActionsTutorial
 import com.centyllion.client.tutorial.BacteriasTutorial
 import com.centyllion.client.tutorial.DisplayTutorial
@@ -251,6 +252,14 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         controller.open()
     }
 
+    /**
+     * Routes a message to the journal of the simulation view, under the grid: the gallery, the
+     * import and the working folder no longer cover the simulation with a floating notice.
+     */
+    override fun journal(level: JournalLevel, content: String, vararg parameters: Any) {
+        simulationController.appendJournal(level, appContext.locale.i18n(content, *parameters))
+    }
+
     /** Shows the About dialog: distribution name, build date and time, authors and repository. */
     fun showAbout() {
         fun row(name: String, value: BulmaElement) = TableRow(
@@ -385,6 +394,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
                 // a loaded project must not be quick-saved into the previous file
                 saveHandle = null
                 setModel(decodeModelAndSimulation(text))
+                journal(JournalLevel.INFO, "Model imported: %0.", selectedFile.name)
             }
             reader.readAsText(selectedFile)
         }
@@ -499,7 +509,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
             appContext.api.fetch("GET", modelUrl)
                 .then(
                     onFulfilled = { setModel(decodeModelAndSimulation(it)) },
-                    onRejected = { notification("Can't load model at $modelUrl", ElementColor.Danger) },
+                    onRejected = { journal(JournalLevel.ERROR, "Can't load model at %0", modelUrl) },
                 )
         } else {
             val storage = loadFromStorage()

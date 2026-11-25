@@ -7,6 +7,7 @@ import com.centyllion.client.capture.WorkFolderState
 import com.centyllion.client.decodeModelAndSimulation
 import com.centyllion.client.download
 import com.centyllion.client.page.ShowPage
+import com.centyllion.model.JournalLevel
 import com.centyllion.model.gallery.GALLERY_DISK_FOLDER
 import com.centyllion.model.gallery.GALLERY_DISK_INDEX
 import com.centyllion.model.gallery.GALLERY_IMAGE_EXTENSION
@@ -180,12 +181,16 @@ class GalleryController(private val page: ShowPage) {
                     overlay = emptyList()
                     render()
                     if (disk.backupName != null) {
-                        page.warning(
+                        page.journal(
+                            JournalLevel.WARNING,
                             "%0 could not be read: it was kept as %1 and a new file was created.",
                             GALLERY_DISK_INDEX, disk.backupName
                         )
                     } else {
-                        page.warning("%0 could not be read: nothing was changed on the disk.", GALLERY_DISK_INDEX)
+                        page.journal(
+                            JournalLevel.WARNING,
+                            "%0 could not be read: nothing was changed on the disk.", GALLERY_DISK_INDEX
+                        )
                     }
                     seedFromBrowser()
                 }
@@ -210,7 +215,8 @@ class GalleryController(private val page: ShowPage) {
                 if (written != null) {
                     // what the folder holds: dates filled at the write, pictures as data URLs again
                     overlay = written.entries
-                    page.message(
+                    page.journal(
+                        JournalLevel.INFO,
                         "Gallery copied to %0: %1 entries of the browser are now on the disk; the browser copy is kept.",
                         disk.path, written.entries.size
                     )
@@ -218,7 +224,8 @@ class GalleryController(private val page: ShowPage) {
                     overlay = entries
                     location = GalleryLocation.Browser
                     renderLocation()
-                    page.warning(
+                    page.journal(
+                        JournalLevel.WARNING,
                         "The gallery of this browser could not be copied to %0: it stays in the browser.",
                         disk.path
                     )
@@ -350,7 +357,10 @@ class GalleryController(private val page: ShowPage) {
     /** Asks for a confirmation before replacing the current project. */
     private fun confirmOpen(entry: GalleryEntry) {
         if (entry.model.isNullOrBlank() && entry.file.isNullOrBlank()) {
-            page.error("This model cannot be opened: it has neither a file nor a model text.")
+            page.journal(
+                JournalLevel.ERROR,
+                "This model cannot be opened: it has neither a file nor a model text."
+            )
             return
         }
         page.modalDialog(
@@ -374,7 +384,7 @@ class GalleryController(private val page: ShowPage) {
             response.text().then { content: dynamic -> loadModel(content as String) }
         }.catch { error: dynamic ->
             console.error("Gallery: cannot load $file", error)
-            page.error("The model file could not be loaded.")
+            page.journal(JournalLevel.ERROR, "The model file could not be loaded.")
         }
     }
 
@@ -383,7 +393,7 @@ class GalleryController(private val page: ShowPage) {
             decodeModelAndSimulation(text).migrated()
         } catch (t: Throwable) {
             console.error("Gallery: cannot decode the model", t)
-            page.error("The model could not be decoded.")
+            page.journal(JournalLevel.ERROR, "The model could not be decoded.")
             return
         }
         page.setModel(project)
@@ -391,7 +401,7 @@ class GalleryController(private val page: ShowPage) {
         // propose to overwrite it
         page.currentFileName = null
         modal?.active = false
-        page.message("Model loaded from the gallery.")
+        page.journal(JournalLevel.INFO, "Model loaded from the gallery.")
     }
 
     // ------------------------------------------------------------------ delete
@@ -419,7 +429,7 @@ class GalleryController(private val page: ShowPage) {
                 val entries = if (isStatic) GalleryStore.hide(overlay, entry) else GalleryStore.remove(overlay, entry.id)
                 // only a personal entry has a picture of its own on the disk
                 val removed = if (isStatic) emptyList() else listOf(entry)
-                store(entries, removed) { saved -> if (saved) page.message("Model removed from the gallery.") }
+                store(entries, removed) { saved -> if (saved) page.journal(JournalLevel.INFO, "Model removed from the gallery.") }
             },
             Button(page.i18n("Cancel")) {}
         )
@@ -449,7 +459,8 @@ class GalleryController(private val page: ShowPage) {
                         onStored(true)
                     }
                     DiskSaveOutcome.FAILED -> {
-                        page.error(
+                        page.journal(
+                            JournalLevel.ERROR,
                             "The gallery could not be written in %0: nothing was changed. Check the permission of the folder, or forget it to use the gallery of this browser.",
                             disk.path
                         )
@@ -465,7 +476,7 @@ class GalleryController(private val page: ShowPage) {
                 render()
                 onStored(true)
             } else {
-                page.error("The gallery could not be saved in the browser storage.")
+                page.journal(JournalLevel.ERROR, "The gallery could not be saved in the browser storage.")
                 onStored(false)
             }
         }
@@ -478,7 +489,8 @@ class GalleryController(private val page: ShowPage) {
         val text = GalleryStore.exportPersonal(overlay)
         val size = text.encodeToByteArray().size
         if (size > GALLERY_EXPORT_WARNING_BYTES) {
-            page.warning(
+            page.journal(
+                JournalLevel.WARNING,
                 "The export is large (%0 MB): the download may take a while.",
                 size / (1024 * 1024)
             )
@@ -514,7 +526,7 @@ class GalleryController(private val page: ShowPage) {
         readText(file) { text ->
             val imported = GalleryStore.decodeExport(text)
             if (imported == null) {
-                page.error("This file is not a gallery export: nothing was imported.")
+                page.journal(JournalLevel.ERROR, "This file is not a gallery export: nothing was imported.")
                 return@readText
             }
             // an id appearing twice in the file is imported once
@@ -524,7 +536,7 @@ class GalleryController(private val page: ShowPage) {
             val added = incoming.count { entry -> overlay.none { it.id == entry.id } }
             val replaced = incoming.size - added
             store(entries) { saved ->
-                if (saved) page.message("Import done: %0 added, %1 replaced.", added, replaced)
+                if (saved) page.journal(JournalLevel.INFO, "Import done: %0 added, %1 replaced.", added, replaced)
             }
         }
     }
@@ -642,10 +654,9 @@ class GalleryController(private val page: ShowPage) {
                     store(GalleryStore.upsert(overlay, entry)) { saved ->
                         if (saved) {
                             dialog?.active = false
-                            page.message(
-                                if (existing == null) "Model added to the gallery."
-                                else "Model updated in the gallery."
-                            )
+                            val key = if (existing == null) "Model added to the gallery."
+                            else "Model updated in the gallery."
+                            page.journal(JournalLevel.INFO, key)
                         } else {
                             errorLine.text = page.i18n("The gallery could not be saved in the browser storage.")
                         }
@@ -681,11 +692,11 @@ class GalleryController(private val page: ShowPage) {
         reader.onload = {
             when (val result = reader.result) {
                 is String -> onText(result)
-                else -> page.error("The selected file could not be read.")
+                else -> page.journal(JournalLevel.ERROR, "The selected file could not be read.")
             }
         }
         reader.onerror = {
-            page.error("The selected file could not be read.")
+            page.journal(JournalLevel.ERROR, "The selected file could not be read.")
         }
         reader.readAsText(file)
     }
@@ -695,11 +706,11 @@ class GalleryController(private val page: ShowPage) {
         reader.onload = {
             when (val result = reader.result) {
                 is String -> shrinkImage(result, onData)
-                else -> page.error("The selected file could not be read.")
+                else -> page.journal(JournalLevel.ERROR, "The selected file could not be read.")
             }
         }
         reader.onerror = {
-            page.error("The selected file could not be read.")
+            page.journal(JournalLevel.ERROR, "The selected file could not be read.")
         }
         reader.readAsDataURL(file)
     }

@@ -2,8 +2,8 @@ package com.centyllion.client.capture
 
 import bulma.*
 import com.centyllion.client.page.BulmaPage
-import com.centyllion.client.page.notification
 import com.centyllion.model.CAPTURE_FOLDER
+import com.centyllion.model.JournalLevel
 import org.w3c.dom.HTMLElement
 
 /**
@@ -177,23 +177,22 @@ class WorkFolderController(private val page: BulmaPage) {
         WorkFolder.chooseFolder { choice ->
             refresh()
             when (choice) {
-                FolderChoice.CHOSEN -> notification(
-                    page.i18n("The folder is now the working folder: the captures are written in %0.", capturesDestination()),
-                    ElementColor.Success, 7000
+                FolderChoice.CHOSEN -> page.journal(
+                    JournalLevel.INFO,
+                    "The folder is now the working folder: the captures are written in %0.",
+                    capturesDestination()
                 )
-                FolderChoice.UNSAVED -> notification(
-                    page.i18n(
-                        "The folder is used until the page is reloaded: this browser could not remember it, " +
-                            "so the captures are written in %0 now and downloaded after a restart.",
-                        capturesDestination()
-                    ),
-                    ElementColor.Warning, 8000
+                FolderChoice.UNSAVED -> page.journal(
+                    JournalLevel.WARNING,
+                    "The folder is used until the page is reloaded: this browser could not remember it, " +
+                        "so the captures are written in %0 now and downloaded after a restart.",
+                    capturesDestination()
                 )
                 // the visitor closed the picker: nothing changed, nothing to say
                 FolderChoice.CANCELLED -> {}
-                FolderChoice.FAILED -> notification(
-                    page.i18n("The folder could not be opened: the captures are downloaded."),
-                    ElementColor.Warning, 7000
+                FolderChoice.FAILED -> page.journal(
+                    JournalLevel.WARNING,
+                    "The folder could not be opened: the captures are downloaded."
                 )
             }
         }
@@ -204,14 +203,15 @@ class WorkFolderController(private val page: BulmaPage) {
         WorkFolder.reconnect { granted ->
             refresh()
             if (granted) {
-                notification(
-                    page.i18n("The permission is granted again: the captures are written in %0.", capturesDestination()),
-                    ElementColor.Success, 7000
+                page.journal(
+                    JournalLevel.INFO,
+                    "The permission is granted again: the captures are written in %0.",
+                    capturesDestination()
                 )
             } else {
-                notification(
-                    page.i18n("The permission was not granted: the captures are downloaded."),
-                    ElementColor.Warning, 7000
+                page.journal(
+                    JournalLevel.WARNING,
+                    "The permission was not granted: the captures are downloaded."
                 )
             }
         }
@@ -221,9 +221,6 @@ class WorkFolderController(private val page: BulmaPage) {
     private fun forgetFolder() {
         WorkFolder.forget()
         refresh()
-        notification(
-            page.i18n("The folder is forgotten: the captures are downloaded."),
-            ElementColor.Info, 5000
-        )
+        page.journal(JournalLevel.INFO, "The folder is forgotten: the captures are downloaded.")
     }
 }

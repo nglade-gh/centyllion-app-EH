@@ -704,6 +704,35 @@ object English: Locale {
         "Erase the selection (Ctrl+Delete)" -> "Erase the selection (Ctrl+Delete)"
         "Ctrl+Delete, or the red Erase button, empties the visible agents of the selection and drops the selection. The clipboard is not touched: what was copied or cut can still be pasted." -> "Ctrl+Delete, or the red Erase button, empties the visible agents of the selection and drops the selection. The clipboard is not touched: what was copied or cut can still be pasted."
         "The whole edition rests on one rectangle: Shift + drag to select it, Copy or Cut to fill the clipboard, a left click to anchor the paste, a right click to release it, Ctrl+R and Ctrl+F to turn it, Ctrl+V to write it, Ctrl+Delete to empty it. Before a paste, check the Toric and Overwrite switches: they decide what happens at the borders and over the agents already there." -> "The whole edition rests on one rectangle: Shift + drag to select it, Copy or Cut to fill the clipboard, a left click to anchor the paste, a right click to release it, Ctrl+R and Ctrl+F to turn it, Ctrl+V to write it, Ctrl+Delete to empty it. Before a paste, check the Toric and Overwrite switches: they decide what happens at the borders and over the agents already there."
+        "%0 executed" -> "%0 executed"
+        "Journal" -> "Journal"
+        "Journal (%0)" -> "Journal (%0)"
+        "%0 warning(s)" -> "%0 warning(s)"
+        "The journal is empty." -> "The journal is empty."
+        "Journal of the simulation" -> "Journal of the simulation"
+        "Export the journal" -> "Export the journal"
+        "Journal help" -> "Journal help"
+        "Meta" -> "Meta"
+        "Info" -> "Info"
+        "Warn." -> "Warn."
+        "Error" -> "Error"
+        "Journal exported to %0." -> "Journal exported to %0."
+        "Model imported: %0." -> "Model imported: %0."
+        "Can't load model at %0" -> "Can't load model at %0"
+        "Journal downloaded: %0 (this browser has no access to a folder)." ->
+            "Journal downloaded: %0 (this browser has no access to a folder)."
+        "Journal downloaded: %0 (the permission of the working folder must be renewed)." ->
+            "Journal downloaded: %0 (the permission of the working folder must be renewed)."
+        "Journal downloaded: %0 (the working folder could not be written)." ->
+            "Journal downloaded: %0 (the working folder could not be written)."
+        "Journal downloaded: %0 (no working folder)." ->
+            "Journal downloaded: %0 (no working folder)."
+        "The journal lists what the simulation does by itself: the meta-actions it executes, the captures it takes, the pauses it asks for, and what happens to the files it writes. It replaces the notices that used to cover the top of the grid." ->
+            "The journal lists what the simulation does by itself: the meta-actions it executes, the captures it takes, the pauses it asks for, and what happens to the files it writes. It replaces the notices that used to cover the top of the grid."
+        "Four levels: META (blue) for an executed meta-action, INFO (green) for a normal event, WARNING (orange) for something to check, ERROR (red) for a failure. The level is written at the beginning of every line, so the colour is never the only signal." ->
+            "Four levels: META (blue) for an executed meta-action, INFO (green) for a normal event, WARNING (orange) for something to check, ERROR (red) for a failure. The level is written at the beginning of every line, so the colour is never the only signal."
+        "The header folds the panel. Folded, it keeps the number of warnings in view; the state is remembered in this browser. The export button writes journal/MODEL__journal.txt in the working folder, or downloads the same text: one line per entry, level, step and message separated by tabulations. The export never empties the journal." ->
+            "The header folds the panel. Folded, it keeps the number of warnings in view; the state is remembered in this browser. The export button writes journal/MODEL__journal.txt in the working folder, or downloads the same text: one line per entry, level, step and message separated by tabulations. The export never empties the journal."
         else -> key
     }
 }

@@ -3,12 +3,16 @@ package com.centyllion.client.capture
 import com.centyllion.client.blobHref
 import com.centyllion.client.download
 import com.centyllion.model.CAPTURE_FOLDER
+import com.centyllion.model.JOURNAL_FOLDER
 import com.centyllion.model.captureFileName
 import com.centyllion.model.captureRelativePath
+import com.centyllion.model.journalFileName
+import com.centyllion.model.journalRelativePath
 import com.centyllion.model.sanitizeCaptureName
 import kotlinx.browser.window
 import kotlin.js.Promise
 import org.w3c.files.Blob
+import org.w3c.files.BlobPropertyBag
 
 /**
  * The working folder of the captures: a directory chosen by the visitor, remembered in the
@@ -124,6 +128,15 @@ data class CaptureResult(
     val destination: CaptureDestination,
     val fileName: String,
     /** Folder and sub-directory of a written capture (`MyFolder/captures/model`), null for a download. */
+    val path: String? = null,
+    val fallback: CaptureFallback = CaptureFallback.NONE
+)
+
+/** What the export of the journal did: written in the folder, or downloaded, and the file name. */
+data class JournalExportResult(
+    val destination: CaptureDestination,
+    val fileName: String,
+    /** Folder and sub-directory of a written journal (`MyFolder/journal`), null for a download. */
     val path: String? = null,
     val fallback: CaptureFallback = CaptureFallback.NONE
 )
@@ -412,7 +425,65 @@ object WorkFolder {
         }
     }
 
+    /**
+     * Exports the text of the journal of [modelName]: written as `<model>__journal.txt` in the
+     * `journal` sub-directory of the working folder (created when needed), or downloaded when
+     * there is no folder, when the permission is gone or when the write fails.
+     *
+     * It reuses the writer of the captures ([directoryAccess]) and the same explicit fallback:
+     * [onDone] always says which of the two paths was taken and why, so the journal line that
+     * reports the export never lies about where the file is. The journal itself is not touched.
+     */
+    fun saveJournal(modelName: String, text: String, onDone: (JournalExportResult) -> Unit) {
+        val fileName = journalFileName(modelName)
+        val payload = Blob(arrayOf<dynamic>(text), BlobPropertyBag(type = "text/plain;charset=utf-8"))
+        val current = handle
+        if (!isSupported()) {
+            downloadCapture(fileName, payload)
+            onDone(JournalExportResult(CaptureDestination.DOWNLOAD, fileName, fallback = CaptureFallback.UNSUPPORTED))
+            return
+        }
+        if (current == null) {
+            downloadCapture(fileName, payload)
+            onDone(JournalExportResult(CaptureDestination.DOWNLOAD, fileName, fallback = CaptureFallback.NO_FOLDER))
+            return
+        }
+        queryPermission { state ->
+            permission = state
+            if (state != PERMISSION_GRANTED) {
+                downloadCapture(fileName, payload)
+                onDone(JournalExportResult(CaptureDestination.DOWNLOAD, fileName, fallback = CaptureFallback.PERMISSION))
+                return@queryPermission
+            }
+            writeJournalInFolder(current, modelName, fileName, payload, onDone)
+        }
+    }
+
     // ---------------------------------------------------------------- internals
+
+    /** Writes the journal file in `journal/` of [folder], or downloads it when the write fails. */
+    private fun writeJournalInFolder(
+        folder: dynamic, modelName: String, fileName: String, payload: Blob,
+        onDone: (JournalExportResult) -> Unit
+    ) {
+        val relativePath = journalRelativePath(modelName)
+        try {
+            val promise = directoryAccess.writeFileIn(folder, JOURNAL_FOLDER, fileName, payload) as Promise<dynamic>
+            promise.then { _: dynamic ->
+                val parent = folderName ?: ""
+                val path = if (parent.isEmpty()) relativePath else "$parent/$relativePath"
+                onDone(JournalExportResult(CaptureDestination.FOLDER, fileName, path))
+            }.catch { error: dynamic ->
+                console.warn("Working folder: cannot write $relativePath, downloading it.", error)
+                downloadCapture(fileName, payload)
+                onDone(JournalExportResult(CaptureDestination.DOWNLOAD, fileName, fallback = CaptureFallback.WRITE_ERROR))
+            }
+        } catch (t: Throwable) {
+            console.warn("Working folder: cannot write $relativePath, downloading it.", t)
+            downloadCapture(fileName, payload)
+            onDone(JournalExportResult(CaptureDestination.DOWNLOAD, fileName, fallback = CaptureFallback.WRITE_ERROR))
+        }
+    }
 
     private fun writeInFolder(
         folder: dynamic, modelName: String, step: Int, fileName: String, payload: Blob,
@@ -712,6 +783,21 @@ private val directoryAccess: dynamic = js("""
         });
     }
 
-    return { supported: supported, pick: pick, query: query, request: request, writeIn: writeIn };
+    // one file in one sub-folder: the export of the journal (journal/model__journal.txt)
+    function writeFileIn(folder, subFolder, fileName, payload) {
+        return folder.getDirectoryHandle(subFolder, { create: true }).then(function (directory) {
+            return directory.getFileHandle(fileName, { create: true });
+        }).then(function (file) {
+            return file.createWritable();
+        }).then(function (writable) {
+            return writable.write(payload).then(function () {
+                return writable.close();
+            });
+        }).then(function () {
+            return subFolder + '/' + fileName;
+        });
+    }
+
+    return { supported: supported, pick: pick, query: query, request: request, writeIn: writeIn, writeFileIn: writeFileIn };
 })()
 """)

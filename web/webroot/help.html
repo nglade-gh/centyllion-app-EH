@@ -161,6 +161,7 @@ tr:hover td { background: var(--panel-2); }
   <a href="#dessin" class="sub">7.4 La barre de dessin</a>
   <a href="#boucle">8. Méta-actions de la boucle</a>
   <a href="#captures">9. Captures et dossier de travail</a>
+  <a href="#journal">10. Le journal de la simulation</a>
 </nav>
 
 <main>
@@ -836,6 +837,86 @@ Actions   : Capture()
   <p>Dans tous les autres cas — aucun dossier, dossier oublié, permission non renouvelée, navigateur sans accès aux dossiers — la galerie reste dans le <b>stockage du navigateur</b> (IndexedDB), comme avant. Les deux emplacements ne sont jamais actifs en même temps, et la galerie dit toujours lequel elle utilise.</p>
   <p>Ce partage ne change rien aux captures : leur handle et la galerie restent dans deux bases distinctes (<code>centyllion-home</code> et <code>centyllion-gallery</code>). Les images de la galerie, elles, suivent la galerie : fichiers JPEG dans <code>galerie/</code> sur le disque, data URLs dans IndexedDB quand le repli du navigateur est actif — jamais de base64 dans <code>galerie.json</code>.</p>
   <p>Le dossier se partage par simple copie : <code>galerie/</code> copié dans le dossier de travail d'un autre poste restitue les modèles et leurs images, et son <code>galerie.json</code> peut aussi être importé par <b>Importer ma galerie</b>.</p>
+  </section>
+
+<section id="journal">
+  <h2>10. Le journal de la simulation</h2>
+  <p>
+    Le <b>journal</b> est le panneau placé <b>sous l'écran de simulation</b>, sous la barre de dessin
+    et la barre d'édition. Il remplace les messages flottants qui recouvraient le haut de la grille :
+    une capture demandée par un modèle, une pause décidée par un modificateur ou une erreur d'écriture
+    y laissent désormais une <b>ligne</b>, au lieu d'un bandeau qui disparaît.
+  </p>
+  <p>
+    Chaque ligne porte son <b>niveau écrit en toutes lettres</b> — la couleur ne sert jamais de seul
+    signal — puis le <b>numéro de pas</b> et le message. Le numéro est celui du compteur affiché une
+    fois le pas terminé, comme pour le nom d'une capture : une condition <code>step == 2</code>
+    produit une ligne au pas <b>3</b>.
+  </p>
+  <table>
+    <tr><th>Niveau</th><th>Couleur</th><th>Ce qu'il signale</th></tr>
+    <tr><td><b>META</b></td><td>bleu</td><td>une méta-action exécutée par un modificateur, par exemple <code>Pause(2) executed</code> ou <code>Capture() executed</code></td></tr>
+    <tr><td><b>INFO</b></td><td>vert</td><td>un événement normal : capture écrite ou téléchargée, journal exporté, modèle de la galerie chargé ou importé</td></tr>
+    <tr><td><b>WARN.</b></td><td>orange</td><td>un point à vérifier : pause demandée par un modificateur (avec sa durée), permission du dossier de travail à renouveler, galerie ou fichier illisible</td></tr>
+    <tr><td><b>ERREUR</b></td><td>rouge</td><td>un échec : capture impossible, écriture refusée, fichier non décodable, import invalide</td></tr>
+  </table>
+  <p>
+    Le panneau garde les <b>200 dernières entrées</b> : au-delà, la plus ancienne sort du tampon. Un
+    rembobinage ne l'efface pas — il raconte la session, pas l'état de la simulation — et un nouveau
+    projet repart d'un journal vide.
+  </p>
+  <h3>10.1 Replier le panneau</h3>
+  <p>
+    Un clic sur l'<b>en-tête</b> replie ou déplie la liste ; le clavier fait de même (Tab puis Entrée
+    ou Espace). Replié, l'en-tête affiche le <b>nombre d'avertissements</b> et le nombre d'entrées.
+    L'état est mémorisé dans <code>localStorage</code> (clé <code>centyllion-journal-collapsed</code>) :
+    un rechargement conserve le choix du lecteur.
+  </p>
+  <h3>10.2 Exporter le journal</h3>
+  <p>
+    L'<b>icône de téléchargement</b>, à droite de l'en-tête, exporte le journal en texte brut. Elle est
+    <b>désactivée tant que le journal est vide</b>, et l'export <b>ne vide jamais</b> le journal.
+  </p>
+  <p>
+    Avec un dossier de travail défini et autorisé, le fichier est écrit dans un sous-dossier
+    <code>journal</code>, créé au besoin :
+  </p>
+  <pre><code>Mes simulations/
+  └── journal/
+        └── GoL_Modifiers__journal.txt</code></pre>
+  <p>
+    Sinon — aucun dossier, permission non accordée, navigateur sans accès aux dossiers ou écriture
+    refusée — le <b>même fichier est téléchargé</b>. Le journal ajoute alors une ligne qui dit où le
+    fichier est allé et pourquoi. Le nom du modèle est nettoyé avec les mêmes règles que celui d'une
+    capture (séparateurs remplacés, espaces et points de bord retirés, longueur bornée), et un nom
+    inutilisable donne <code>model__journal.txt</code>.
+  </p>
+  <p>Le fichier contient une <b>ligne d'en-tête</b> (date et nom du modèle), puis <b>une ligne par entrée</b> :</p>
+  <pre><code>Journal — GoL_Modifiers — 25/11/2026 13:31:58
+meta	3	Capture() exécutée
+info	3	Capture téléchargée : GoL_Modifiers__3.jpg (aucun dossier de travail).
+meta	5	Pause(2) exécutée
+avert	5	Le modèle a mis la simulation en pause pendant 2 s (modificateur). La course reprend seule à la fin de la pause.
+</code></pre>
+  <p>
+    Les messages suivent la langue de l'interface (ici le français) ; seuls les quatre mots de niveau
+    restent fixes.
+  </p>
+  <p>
+    Le niveau est écrit en clair et <b>indépendant de la langue de l'interface</b> : <code>meta</code>,
+    <code>info</code>, <code>avert</code> (avertissement) et <code>erreur</code>. Le niveau, le pas et
+    le message sont séparés par des <b>tabulations</b>, ce qui rend le fichier lisible dans un tableur
+    ou par un script. Un message qui contiendrait un saut de ligne ou une tabulation est ramené sur une
+    seule ligne.
+  </p>
+  <div class="card tip">
+    <h4>Le journal ne remplace pas une question</h4>
+    <p>
+      Les messages d'information passent par le journal, mais les <b>dialogues de confirmation</b>
+      restent des dialogues : remplacer le projet courant, supprimer une entrée de la galerie ou
+      vider un prédicat demandent toujours une réponse explicite.
+    </p>
+  </div>
   </section>
 
 </body>

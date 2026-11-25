@@ -41,8 +41,8 @@ sealed class Action {
     /**
      * Pauses the simulation at the end of the current step, for good (the run loop stops).
      *
-     * A modifier that pauses the simulation makes the view show a warning: the run can be
-     * resumed only by the reader, with the Run button or step by step.
+     * A modifier that pauses the simulation leaves a WARNING line in the journal of the view:
+     * the run can be resumed only by the reader, with the Run button or step by step.
      */
     object Pause : Action()
 

@@ -8,10 +8,11 @@ import com.centyllion.client.capture.CaptureDestination
 import com.centyllion.client.capture.CaptureFallback
 import com.centyllion.client.capture.CaptureResult
 import com.centyllion.client.capture.WorkFolder
+import com.centyllion.client.journal.JournalPanel
 import com.centyllion.client.page.BulmaPage
-import com.centyllion.client.page.notification
 import com.centyllion.client.toggleElementToFullScreen
 import com.centyllion.model.GrainModel
+import com.centyllion.model.JournalLevel
 import com.centyllion.model.PARALLEL_UPDATE_PLAN
 import com.centyllion.model.SEQUENTIAL_UPDATE_PLAN
 import com.centyllion.model.Simulation
@@ -34,10 +35,9 @@ class SimulationRunController(
 
     override var data: Simulation by observable(simulation) { _, old, new ->
         if (old != new) {
-            currentSimulator = Simulator(context, new)
+            currentSimulator = Simulator(context, new, page.appContext.locale)
             loop = SimulationLoop(currentSimulator)
             simulationViewController.data = currentSimulator
-            hideModifierPauseNotification()
             running = false
             onUpdate(old, new, this@SimulationRunController)
             refresh()
@@ -47,10 +47,9 @@ class SimulationRunController(
     override var context: GrainModel by observable(model) { _, old, new ->
         if (old != new) {
             data = data.cleaned(new)
-            currentSimulator = Simulator(new, data)
+            currentSimulator = Simulator(new, data, page.appContext.locale)
             loop = SimulationLoop(currentSimulator)
             simulationViewController.data = currentSimulator
-            hideModifierPauseNotification()
             running = false
             refresh()
         }
@@ -62,7 +61,7 @@ class SimulationRunController(
         }
     }
 
-    private var currentSimulator = Simulator(context, data)
+    private var currentSimulator = Simulator(context, data, page.appContext.locale)
 
     /**
      * Run/pause state of the loop: the control meta-actions (Pause, Pause(t), RunOneStep,
@@ -147,23 +146,25 @@ class SimulationRunController(
         onUpdate = { ended, new, _ -> updatedSimulatorFromView(ended, new) }
     )
 
-    // the edit bar (copy / cut / paste / deselect) sits right under the drawing tools
+    /**
+     * The journal of the simulation, under the drawing and edition bars.
+     *
+     * It replaces the notices that used to float over the grid: a capture written or downloaded,
+     * a pause asked by a modifier, a working folder whose permission must be renewed, a failed
+     * write and the messages of the gallery now leave a line here instead of a banner. The panel
+     * follows the [currentSimulator] (the journal lives in the core) and repaints itself when
+     * its revision changes.
+     */
+    val journalPanel = JournalPanel(page) { currentSimulator }
+
+    // the edit bar (copy / cut / paste / deselect) sits right under the drawing tools, and the
+    // journal comes last: it must never cover the grid
     val simulationView = Column(
         simulationViewController.container,
         simulationViewController.editToolbar,
+        journalPanel.container,
         size = ColumnSize.Full
     )
-
-    /**
-     * Warning shown when a simulation modifier pauses the run.
-     *
-     * A `Pause()` written in a modifier stops the simulation behind the reader's back: the
-     * warning says who stopped it and how to go on. It is a plain Bulma `notification is-warning`
-     * (non blocking, closable with its cross) placed at the top of the simulation zone, and it
-     * is removed as soon as the simulation starts again.
-     */
-    private var modifierPauseNotification: Notification? by
-        bulma(null, simulationView.root, Position.AfterBegin)
 
     /**
      * The run bar above the grid: Rewind, Run, Step, Stop, the speed and the step counter. A
@@ -219,8 +220,6 @@ class SimulationRunController(
     }
 
     fun run() {
-        // the reader takes over: the warning about a pause asked by the model is obsolete
-        hideModifierPauseNotification()
         running = true
     }
 
@@ -231,8 +230,7 @@ class SimulationRunController(
             // SimulationLoop.resumeIfDue), which is why the frames must keep coming
             if (loop.isTimedPaused) {
                 if (loop.resumeIfDue()) {
-                    // the run starts again by itself: the warning is obsolete
-                    hideModifierPauseNotification()
+                    // the run starts again by itself: the step counter restarts its cadence
                     lastStepTimestamp = 0.0
                 }
             }
@@ -258,12 +256,15 @@ class SimulationRunController(
             }
         }
 
+        // the journal also changes outside a step (a capture written, a gallery message): one
+        // integer comparison per frame repaints it only when something was added
+        journalPanel.refresh()
+
         if (!disposed) window.requestAnimationFrame(this::animationCallback)
     }
 
     fun step() {
         if (!running) {
-            hideModifierPauseNotification()
             executeStep()
             simulationViewController.render()
             refreshButtons()
@@ -271,8 +272,6 @@ class SimulationRunController(
     }
 
     fun stop() {
-        // the reader takes over: the warning about a pause asked by the model is obsolete
-        hideModifierPauseNotification()
         // creates thumbnail with last stop click for better thumbnails.
         running = false
     }
@@ -296,7 +295,6 @@ class SimulationRunController(
     fun reset() {
         if (!running) {
             loop.stop()
-            hideModifierPauseNotification()
             currentSimulator.reset()
             // a rewind restores the activation state of the beginning of the run
             syncActivationRadios(currentSimulator)
@@ -313,10 +311,11 @@ class SimulationRunController(
      */
     private fun applyControlRequests() {
         val update = loop.afterStep()
-        // a modifier can ask the pause: the reader must see it. An indefinite pause is lifted
-        // only by the reader; a timed pause resumes by itself and the warning then disappears.
+        // a modifier can pause the run: the journal says who did it and for how long. Nothing is
+        // removed when the run starts again: the journal is the history of the session, not a
+        // banner that has to disappear.
         if (simulator.consumeModifierPauseRequest() > 0) {
-            showModifierPauseNotification(update.pauseSeconds ?: 0.0)
+            logModifierPause(update.pauseSeconds ?: 0.0)
         }
         if (update.rewound) {
             // the simulation is back to its initial state: the radios follow the restored state
@@ -329,15 +328,12 @@ class SimulationRunController(
     }
 
     /**
-     * Shows the warning that says the run was paused by a simulation modifier. The notification
-     * is created once and kept until the run starts again: showing it twice would stack two
-     * boxes in the simulation zone.
+     * Adds the WARNING line that says the run was paused by a simulation modifier.
      *
      * [seconds] is the duration of a timed pause (`Pause(t)`), 0 for the indefinite `Pause()`:
      * the message then says how long the run stays frozen, and that it starts again by itself.
      */
-    private fun showModifierPauseNotification(seconds: Double = 0.0) {
-        if (modifierPauseNotification != null) return
+    private fun logModifierPause(seconds: Double = 0.0) {
         val text = if (seconds > 0.0) {
             page.i18n(
                 "The model paused the simulation for %0 s (modifier). The run resumes by itself at the end of the pause.",
@@ -346,17 +342,14 @@ class SimulationRunController(
         } else {
             page.i18n("The model paused the simulation (modifier). Resume it with the Run button or step by step.")
         }
-        modifierPauseNotification = Notification(
-            Content { +text },
-            color = ElementColor.Warning,
-            onDelete = { hideModifierPauseNotification() }
-        )
+        journalPanel.append(JournalLevel.WARNING, text)
     }
 
-    /** Removes the warning about a pause asked by the model (the reader took over). */
-    private fun hideModifierPauseNotification() {
-        modifierPauseNotification = null
-    }
+    /**
+     * Appends a line to the journal of the run: the page routes here the messages of the gallery
+     * and of the import, which used to be floating notices.
+     */
+    fun appendJournal(level: JournalLevel, message: String) = journalPanel.append(level, message)
 
     private fun executeStep() {
         val (applied, dead) = simulator.oneStep()
@@ -402,25 +395,33 @@ class SimulationRunController(
         repeat(count) {
             val picture = simulationViewController.captureJpeg()
             if (picture == null) {
-                page.error("The simulation view could not be captured.")
+                journalPanel.append(
+                    JournalLevel.ERROR, page.i18n("The simulation view could not be captured.")
+                )
             } else {
                 WorkFolder.saveCapture(modelName, step, picture) { result -> reportCapture(result) }
             }
         }
     }
 
-    /** Tells the reader where the capture went: the working folder, or a download and why. */
+    /** Tells the reader where the capture went, as a journal line: the folder, or a download. */
     private fun reportCapture(result: CaptureResult) {
         when (result.destination) {
-            CaptureDestination.FOLDER -> notification(
-                page.i18n("Capture saved in %0.", result.path ?: result.fileName),
-                ElementColor.Success, 6000
+            CaptureDestination.FOLDER -> journalPanel.append(
+                JournalLevel.INFO, page.i18n("Capture saved in %0.", result.path ?: result.fileName)
             )
-            CaptureDestination.DOWNLOAD -> notification(
-                page.i18n(captureFallbackMessage(result.fallback), result.fileName),
-                ElementColor.Warning, 7000
+            CaptureDestination.DOWNLOAD -> journalPanel.append(
+                fallbackLevel(result.fallback),
+                page.i18n(captureFallbackMessage(result.fallback), result.fileName)
             )
         }
+    }
+
+    /** A download is a normal event without a folder, a warning when it replaces a refused folder. */
+    private fun fallbackLevel(fallback: CaptureFallback): JournalLevel = when (fallback) {
+        CaptureFallback.PERMISSION -> JournalLevel.WARNING
+        CaptureFallback.WRITE_ERROR -> JournalLevel.ERROR
+        else -> JournalLevel.INFO
     }
 
     /** Message of a downloaded capture: the reason is part of the sentence, never silent. */
@@ -456,6 +457,8 @@ class SimulationRunController(
     override fun refresh() {
         refreshButtons()
         simulationViewController.refresh()
+        // a new project gets a new Simulator, hence a new (empty) journal: the panel follows it
+        journalPanel.refresh(force = true)
     }
 
     fun resize() {

@@ -859,6 +859,35 @@ object French: Locale {
             "Ctrl+Suppr, ou le bouton rouge Suppr, vide les agents visibles de la sélection et abandonne la sélection. Le presse-papiers n'est pas touché : ce qui a été copié ou coupé peut encore être collé."
         "The whole edition rests on one rectangle: Shift + drag to select it, Copy or Cut to fill the clipboard, a left click to anchor the paste, a right click to release it, Ctrl+R and Ctrl+F to turn it, Ctrl+V to write it, Ctrl+Delete to empty it. Before a paste, check the Toric and Overwrite switches: they decide what happens at the borders and over the agents already there." ->
             "Toute l'édition repose sur un rectangle : Maj + glissé pour le sélectionner, Copier ou Couper pour remplir le presse-papiers, un clic gauche pour ancrer le collage, un clic droit pour le libérer, Ctrl+R pour la tourner et Ctrl+F pour la retourner, Ctrl+V pour l'écrire, Ctrl+Suppr pour le vider. Avant de coller, vérifiez les interrupteurs Torique et Écraser : ils décident de ce qui se passe aux bords et sur les agents déjà présents."
+        "%0 executed" -> "%0 exécutée"
+        "Journal" -> "Journal"
+        "Journal (%0)" -> "Journal (%0)"
+        "%0 warning(s)" -> "%0 avertissement(s)"
+        "The journal is empty." -> "Le journal est vide."
+        "Journal of the simulation" -> "Journal de la simulation"
+        "Export the journal" -> "Exporter le journal"
+        "Journal help" -> "Aide du journal"
+        "Meta" -> "Méta"
+        "Info" -> "Info"
+        "Warn." -> "Avert."
+        "Error" -> "Erreur"
+        "Journal exported to %0." -> "Journal exporté dans %0."
+        "Model imported: %0." -> "Modèle importé : %0."
+        "Can't load model at %0" -> "Impossible de charger le modèle à l'adresse %0"
+        "Journal downloaded: %0 (this browser has no access to a folder)." ->
+            "Journal téléchargé : %0 (ce navigateur n'a pas accès à un dossier)."
+        "Journal downloaded: %0 (the permission of the working folder must be renewed)." ->
+            "Journal téléchargé : %0 (l'autorisation du dossier de travail doit être renouvelée)."
+        "Journal downloaded: %0 (the working folder could not be written)." ->
+            "Journal téléchargé : %0 (le dossier de travail n'a pas pu être écrit)."
+        "Journal downloaded: %0 (no working folder)." ->
+            "Journal téléchargé : %0 (aucun dossier de travail)."
+        "The journal lists what the simulation does by itself: the meta-actions it executes, the captures it takes, the pauses it asks for, and what happens to the files it writes. It replaces the notices that used to cover the top of the grid." ->
+            "Le journal liste ce que la simulation fait d'elle-même : les méta-actions qu'elle exécute, les captures qu'elle prend, les pauses qu'elle demande et ce qui arrive aux fichiers qu'elle écrit. Il remplace les messages qui recouvraient le haut de la grille."
+        "Four levels: META (blue) for an executed meta-action, INFO (green) for a normal event, WARNING (orange) for something to check, ERROR (red) for a failure. The level is written at the beginning of every line, so the colour is never the only signal." ->
+            "Quatre niveaux : META (bleu) pour une méta-action exécutée, INFO (vert) pour un événement normal, WARNING (orange) pour un point à vérifier, ERROR (rouge) pour un échec. Le niveau est écrit au début de chaque ligne : la couleur n'est jamais le seul signal."
+        "The header folds the panel. Folded, it keeps the number of warnings in view; the state is remembered in this browser. The export button writes journal/MODEL__journal.txt in the working folder, or downloads the same text: one line per entry, level, step and message separated by tabulations. The export never empties the journal." ->
+            "L'en-tête replie le panneau. Replié, il garde le nombre d'avertissements visible ; l'état est mémorisé dans ce navigateur. Le bouton d'export écrit journal/MODELE__journal.txt dans le dossier de travail, ou télécharge le même texte : une ligne par entrée, niveau, pas et message séparés par des tabulations. L'export ne vide jamais le journal."
         else -> null
     }
 }

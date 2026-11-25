@@ -7,6 +7,7 @@ import bulma.ModalCard
 import bulma.extension.ToastOptions
 import bulma.extension.bulmaToast
 import com.centyllion.client.AppContext
+import com.centyllion.model.JournalLevel
 import kotlin.js.Promise
 import kotlin.js.json
 
@@ -16,6 +17,16 @@ interface BulmaPage : BulmaElement {
     fun onExit() = Promise.resolve(true)
 
     fun i18n(key: String, vararg parameters: Any) = appContext.locale.i18n(key, *parameters)
+
+    /**
+     * Appends a line to the journal of the simulation view: the only log the reader sees.
+     *
+     * The messages that used to be floating notices (a capture written or downloaded, a working
+     * folder whose permission must be renewed, a write failure, a gallery or import message)
+     * come through here. A dialog that asks a question is not a message: confirmations stay
+     * modal dialogs.
+     */
+    fun journal(level: JournalLevel, content: String, vararg parameters: Any)
 
     fun error(throwable: Throwable) {
         fun findCause(throwable: Throwable): Throwable = throwable.cause?.let { findCause(it) } ?: throwable

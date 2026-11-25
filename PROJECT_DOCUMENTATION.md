@@ -17,6 +17,7 @@
 | **Prédicats graphiques** | En mode normal : lignes « Âge de la simulation » (`agePredicates`), « Seuils des champs » (`fieldPredicates`) et « Nb voisins » (`agentCountPredicates`, avec choix du type), toutes combinées en **ET** ; chaque groupe a son bouton `Aide` (voir §8.3bis) |
 | **Actions de comportement** | `actions` : `Add`, `Remove`, `Move`, `SetField`, `AddField`, `ClearField`, exécutées après les réactions (voir §6.5) |
 | **Captures** | `Capture()` : image JPEG de la vue de simulation (`NOM_MODELE__PAS.jpg`), écrite dans `captures/NOM_MODELE/` du **dossier de travail** ou téléchargée (voir §6.5bis) |
+| **Journal de la simulation** | Panneau sous la grille (niveaux META/INFO/WARNING/ERROR, repliable, mémorisé), alimenté par le noyau ; export `journal/NOM_MODELE__journal.txt` ou téléchargement (voir §8.4bis) |
 | **Formules de comportement** | `formula` avec `step` (étape courante), `age(n)` (âge du réactif n), `count`, `field`, `agent` (voir §6.4) |
 | **Expressions de condition** | `formula` : expressions logiques avec parenthèses et opérateurs (`count(1) > 2 && count(2) == 1`) |
 | **Mise à jour parallèle** | `Simulation.parallelUpdate` (défaut) : calculs depuis l'état initial du pas, adapté aux automates cellulaires |
@@ -734,6 +735,59 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 - **data2viz** (`plotter/`) : tracé des courbes (nombre de grains, quantité de champs) dans `Plotter` (Canvas Skia) avec axes, ticks et courbes coloriées.
 - **Vue de simulation** (`controller/model/SimulatorViewController.kt`) : vue de dessus en canvas 2D, **sans 3D ni éclairage**. Un buffer hors écran de la taille de la grille (1 pixel = 1 cellule) reçoit les agents (couleur du grain, aplats stricts) puis la couche des champs (alpha identique à l'ancienne texture 3D) ; il est ensuite agrandi en `imageSmoothingEnabled = false` dans le canvas affiché (backing store en pixels de périphérique, `devicePixelRatio`), sur lequel sont tracés la grille et l'aperçu du pinceau. Outils : stylo, ligne, **rectangle**, **cercle**, spray, gomme, déplacement (panoramique) ; le rectangle et le cercle sont ancrés sur la cellule d'appui et tracés au relâchement, le rayon du cercle étant la distance au point d'appui. L'interrupteur **« Fill ? » / « Remplir ? »**, à côté des outils et dans le style de « Torique ? » et « Écraser ? », décide pour les deux formes entre plein et contour ; leurs cellules viennent des fonctions pures du noyau (`rectangleRows`, `circleRows`, `shapes.kt`), et non d'un tracé propre à la vue, avec repli torique des cellules qui débordent quand « Torique ? » est actif. Zoom molette ×0,25 à ×16 ; bouton plein écran ; vignettes/captures par `canvas.toDataURL` / `toBlob`. `captureJpeg()` fournit l'image de la méta-action `Capture()` (JPEG 0,92, `toDataURL` synchrone décodé en `Blob`, pour lire le canevas avant le pas suivant). Les grains masqués (case à cocher) et les champs masqués sont rendus en couleur de fond. Les clés `simulation.assets` et `settings.gridTextureUrl` restent dans le modèle (compatibilité) mais ne sont plus rendues.
 - Coût mesuré sur `coeur` (8 694 agents, grille 100×100) : ~0,5 ms par repeint, contre ~31 ms par rendu de scène Babylon et 17 404 maillages ; débit en lecture ≈ 7 pas/s contre ≈ 1,8 pas/s (même modèle, même machine). Bundle JS : 806 Ko contre 3,5 Mo.
+
+### 8.4bis Journal de la simulation
+
+Les messages que la simulation produit d'elle-même ne sont plus des notifications flottantes :
+ils atterrissent dans un **journal** affiché sous l'écran de simulation, sous la barre de dessin
+et la barre d'édition.
+
+**Noyau** (`core/src/commonMain/kotlin/com/centyllion/model/journal.kt`) :
+
+- `JournalLevel` : `META` (bleu, méta-action exécutée), `INFO` (vert, événement normal),
+  `WARNING` (orange, point à vérifier), `ERROR` (rouge, échec).
+- `JournalEntry(step, level, message)` et `JournalBuffer(capacity = JOURNAL_CAPACITY)` : tampon
+  **borné à 200 entrées**, les plus anciennes sortent ; `entries` (plus ancienne d'abord),
+  `warningCount`, et `revision`, incrémenté à chaque `add`/`clear`, pour que la vue ne repeigne
+  que sur changement.
+- `Simulator` porte `journal` et un `locale` (anglais par défaut, la langue de la page côté vue).
+  `executeMetaActions()` ajoute une ligne `META` **après l'exécution réussie** de chaque
+  méta-action, avec le numéro de pas **affiché** (`step + 1`, car les modificateurs tournent avant
+  l'incrément du compteur, même règle que le nom d'une capture) et le libellé évalué
+  (`describeMetaAction` : `Pause(2)`, `AddRect(0, 10, 2, 2, 8, 8)`…). Une action ignorée
+  (`RunNStep(0)`, grain inconnu) ne laisse aucune ligne ; un rembobinage ne vide pas le journal.
+- Fonctions pures, testées en `:core:jvmTest` : `formatJournal(entries, modelName, date)` (en-tête
+  « Journal — modèle — date », puis une ligne par entrée `niveau\tpas\tmessage`),
+  `journalLevelToken` (`meta`, `info`, `avert`, `erreur`, fixes quelle que soit la langue),
+  `sanitizeJournalText` (tabulations et sauts de ligne ramenés sur une ligne),
+  `journalFileName` / `journalRelativePath` (`journal/NOM__journal.txt`, nom nettoyé par
+  `sanitizeCaptureName`). Tests : `core/src/commonTest/.../JournalTest.kt` (bornage, ordre, en-tête
+  et tabulations, noms assainis, alimentation par le noyau, locale).
+
+**Vue** (`web/src/jsMain/kotlin/com/centyllion/client/journal/JournalPanel.kt`) : en-tête
+repliable (clic ou Entrée/Espace, `aria-expanded`) qui affiche « Journal (N) » et, replié, le
+nombre d'avertissements ; état mémorisé dans `localStorage` (`centyllion-journal-collapsed`).
+Chaque ligne montre un préfixe de niveau (`• META`, `• INFO`, `• AVERT.`, `• ERREUR`), le pas
+`#N` et le message en `textContent` (jamais `innerHTML`), avec la couleur du niveau (classes
+`.is-meta`, `.is-info`, `.is-warning`, `.is-error` de `webroot/css/centyllion.css`) : la couleur
+n'est jamais le seul signal. La liste est bornée en hauteur (`max-height: 160px`, défilement) et
+suit la dernière ligne si le lecteur est déjà en bas. `refresh()` ne repeint que si la révision du
+tampon a changé ; le contrôleur de course l'appelle à chaque image.
+
+**Routage** : `BulmaPage.journal(level, key, …)` (implémenté par `ShowPage`, qui délègue à
+`SimulationRunController.appendJournal`) est le point d'entrée. Passent par lui : le résultat d'une
+capture (dossier → `INFO`, téléchargement → `INFO`, permission → `WARNING`, échec d'écriture →
+`ERROR`), la pause demandée par un modificateur avec sa durée (`WARNING`), les messages du dossier
+de travail (choix, permission, oubli), les erreurs et informations de la galerie et de l'import,
+et le chargement d'un modèle par URL. Les **dialogues de confirmation restent des dialogues** :
+suppression d'une entrée, remplacement du projet, choix de dossier, etc.
+
+**Export** : l'icône de téléchargement de l'en-tête appelle `JournalPanel.exportJournal()`, qui
+construit le texte avec `formatJournal` puis `WorkFolder.saveJournal(...)`. `saveJournal` réutilise
+l'écriture de fichiers de `WorkFolder` (`directoryAccess.writeFileIn`, ajouté à côté de `writeIn`
+des captures) : `journal/NOM__journal.txt` créé dans le dossier de travail quand il est défini et
+autorisé, sinon téléchargement du même texte ; le résultat est lui-même une ligne du journal. Le
+bouton est désactivé tant que le journal est vide et l'export ne le vide jamais.
 
 ### 8.5 Galerie personnelle : disque et repli navigateur
 
