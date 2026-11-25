@@ -281,16 +281,20 @@ fonctions de formule et les prédicats restent en **minuscules** (`abs`, `min`, 
 
 | Action | Effet |
 |---|---|
-| `Pause()` | arrête la course à la fin du pas courant (un bandeau d'avertissement le signale, la course ne repart que par le bouton Run ou le pas à pas) |
+| `Pause()` | arrête la course à la fin du pas courant, **définitivement** (un bandeau d'avertissement le signale, la course ne repart que par le bouton Run ou le pas à pas) |
+| `Pause(t)` | **pause minutée** : gèle la course pendant `t` secondes **réelles** (`t` > 0, littéral ou expression, ex. `2.5`) puis la relance seule ; aucun pas n'est exécuté et le bandeau indique la durée |
 | `RunOneStep()` | exécute exactement un pas de plus, puis se met en pause |
 | `RunNStep(N)` | exécute N pas de plus (N >= 1, arrondi) puis se met en pause ; `N <= 0` est ignoré |
 | `Rewind()` | revient à l'état initial **sans relancer** (même effet que le bouton de rembobinage) |
 | `Restart()` | revient à l'état initial **et relance** la course |
 
-`Continue()` **n'existe plus** : une formule qui l'écrit est refusée (« Continue() n'existe plus :
-la pause ne peut être levée que depuis l'interface »). Seul l'utilisateur relance la course, avec
-le bouton Run ou le pas à pas ; un `Pause()` émis par un modificateur affiche un bandeau
-d'avertissement au-dessus de la vue de simulation.
+`Pause(t)` est une **pause de confort** (démonstration), pas une horloge de modèle : elle
+n'exécute aucun pas, donc la grille et la trajectoire des états ne dépendent pas du temps et
+restent **reproductibles** dès que le déclencheur l'est (`step == 10`, un comptage, une valeur de
+champ). Seule sa **durée** vient de l'horloge de la machine : au moins `t` secondes, davantage dans
+un onglet d'arrière-plan. Un `Pause()` ou un `Pause(t)` émis par un modificateur affiche un bandeau
+`notification is-warning` au-dessus de la vue de simulation ; celui d'une pause minutée disparaît à
+la reprise automatique.
 
 **Population et activation** : `Add(id, N)`, `AddRect(id, N, x1, y1, x2, y2)`,
 `AddDisc(id, N, x, y, radius)`, `DrawLine(id, x1, y1, x2, y2)`, `EraseRect(x1, y1, x2, y2)` /

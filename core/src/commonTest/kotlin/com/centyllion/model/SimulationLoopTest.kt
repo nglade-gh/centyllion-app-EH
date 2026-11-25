@@ -8,13 +8,19 @@ import kotlin.test.assertTrue
 
 /**
  * The control meta-actions drive the run loop (pause, one step, N steps, rewind, restart)
- * through flags of the [Simulator], never through the grid command queue. A pause can only be
- * lifted from the interface: `Continue()` does not exist any more.
+ * through flags of the [Simulator], never through the grid command queue. An indefinite pause
+ * can only be lifted from the interface; a timed pause (`Pause(t)`) resumes by itself.
  *
  * The loop is driven here exactly as the web client does it: one step, then
- * [SimulationLoop.afterStep].
+ * [SimulationLoop.afterStep]. The timed pauses use a [SimulatedClock]: nothing sleeps, the
+ * tests advance time by hand.
  */
 class SimulationLoopTest {
+
+    /** Clock of the tests: time only moves when the test says so. */
+    private class SimulatedClock(var time: Long = 0L) : Clock {
+        override fun nowMillis(): Long = time
+    }
 
     private fun model(formula: String, actions: String) = GrainModel(
         name = "loop",
@@ -171,8 +177,128 @@ class SimulationLoopTest {
             )
             assertNull(validateModifierActions(actions), "$actions is accepted in a modifier")
         }
-        // Continue() was removed and is refused everywhere, with its own message
-        assertTrue(validateActionFormula("Continue()")!!.contains("n'existe plus"))
-        assertTrue(validateModifierActions("Continue()")!!.contains("n'existe plus"))
+        // Continue() does not exist: it is refused like any other unknown action
+        assertTrue(validateActionFormula("Continue()")!!.contains("Unknown action"))
+        assertTrue(validateModifierActions("Continue()")!!.contains("Unknown action"))
+    }
+
+    @Test
+    fun testAPauseOfTwoSecondsFreezesTheLoopWithoutAStepThenResumesByItself() {
+        val clock = SimulatedClock()
+        val simulator = Simulator(model("step == 2", "Pause(2)"), simulation())
+        val loop = SimulationLoop(simulator, clock = clock)
+        loop.start()
+
+        // the run goes on until the step numbered 2, which asks the pause
+        var steps = 0
+        while (loop.canStep && steps < 10) {
+            simulator.oneStep()
+            loop.afterStep()
+            steps += 1
+        }
+        assertEquals(3, simulator.step, "the pause is applied at the end of the step that asked it")
+        assertTrue(loop.isTimedPaused, "the loop is in a timed pause")
+        assertEquals(2000L, loop.pausedUntilMillis, "the deadline is two seconds of the clock away")
+        assertEquals(2.0, loop.pauseSeconds)
+        assertTrue(loop.running, "a timed pause keeps the loop alive")
+        assertFalse(loop.canStep, "no step is executed while the pause lasts")
+
+        // the grid does not move during the pause: the state sequence does not depend on time
+        val frozenAgents = simulator.agents.copyOf()
+        val frozenStep = simulator.step
+
+        // 1999 ms later, still nothing: no frame executes a step, and the pause holds
+        clock.time = 1999L
+        assertFalse(loop.resumeIfDue(), "the deadline is not reached")
+        assertFalse(loop.canStep)
+        assertEquals(frozenStep, simulator.step, "no step during the pause")
+        assertTrue(frozenAgents.contentEquals(simulator.agents), "the grid is unchanged")
+
+        // 2000 ms: the loop resumes by itself and the following steps run again
+        clock.time = 2000L
+        assertTrue(loop.resumeIfDue(), "the loop lifts its own pause")
+        assertFalse(loop.isTimedPaused)
+        assertEquals(0.0, loop.pauseSeconds)
+        assertTrue(loop.running)
+        assertTrue(loop.canStep, "the run can go on")
+        simulator.oneStep()
+        loop.afterStep()
+        assertEquals(frozenStep + 1, simulator.step, "the steps follow the pause")
+    }
+
+    @Test
+    fun testTheTimedPauseIsReportedWithItsDuration() {
+        val clock = SimulatedClock()
+        val simulator = Simulator(model("step == 0", "Pause(2.5)"), simulation())
+        val loop = SimulationLoop(simulator, clock = clock)
+        loop.start()
+        simulator.oneStep()
+        val update = loop.afterStep()
+        assertEquals(2.5, update.pauseSeconds, "the view can say how long the pause lasts")
+        assertTrue(update.running, "the loop stays alive")
+        assertEquals(2500L, loop.pausedUntilMillis)
+        assertEquals("2.5", formatPauseSeconds(update.pauseSeconds!!))
+    }
+
+    @Test
+    fun testTheReaderCanInterruptATimedPause() {
+        val clock = SimulatedClock()
+        val simulator = Simulator(model("step == 0", "Pause(60)"), simulation())
+        val loop = SimulationLoop(simulator, clock = clock)
+        loop.start()
+        simulator.oneStep()
+        loop.afterStep()
+        assertTrue(loop.isTimedPaused)
+        // the Stop button (or the Run button) drops the pause: the deadline is forgotten
+        loop.stop()
+        assertFalse(loop.isTimedPaused)
+        assertFalse(loop.canStep)
+        clock.time = 120_000L
+        assertFalse(loop.resumeIfDue(), "a stopped loop does not resume")
+        assertFalse(loop.running)
+        // the Run button starts it again immediately
+        loop.start()
+        assertTrue(loop.canStep)
+    }
+
+    @Test
+    fun testTheIndefinitePauseNeverResumesByItself() {
+        val clock = SimulatedClock()
+        val simulator = Simulator(model("step == 1", "Pause()"), simulation())
+        val loop = SimulationLoop(simulator, clock = clock)
+        loop.start()
+
+        var steps = 0
+        while (loop.canStep && steps < 10) {
+            simulator.oneStep()
+            loop.afterStep()
+            steps += 1
+        }
+        assertEquals(2, simulator.step)
+        assertFalse(loop.isTimedPaused, "Pause() is not a timed pause")
+        assertNull(loop.pausedUntilMillis)
+        assertFalse(loop.running)
+
+        // however far the clock goes, nothing resumes the run
+        clock.time = 3_600_000L
+        assertFalse(loop.resumeIfDue())
+        assertFalse(loop.canStep)
+        assertFalse(loop.running, "only the reader starts the run again")
+    }
+
+    @Test
+    fun testADurationOfZeroAtRunTimeAsksForNoPause() {
+        // the duration depends on the state, so the parser cannot refuse it: at run time a
+        // duration <= 0 is ignored, like RunNStep(N <= 0), and the run is not interrupted
+        val clock = SimulatedClock()
+        val simulator = Simulator(model("step == 0", "Pause(step - 5)"), simulation())
+        val loop = SimulationLoop(simulator, clock = clock)
+        loop.start()
+        simulator.oneStep()
+        val update = loop.afterStep()
+        assertFalse(loop.isTimedPaused, "a negative duration asks for no pause")
+        assertTrue(update.running, "the run is not interrupted")
+        assertNull(update.pauseSeconds)
+        assertEquals(0, simulator.modifierPauseCount, "no warning for a duration that asks nothing")
     }
 }

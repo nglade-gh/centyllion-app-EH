@@ -2,6 +2,7 @@ package com.centyllion.model
 
 import com.centyllion.expression.ExprType
 import com.centyllion.expression.Expression
+import com.centyllion.expression.constantNumberOrNull
 import com.centyllion.expression.inferType
 import com.centyllion.expression.parseExpression
 
@@ -38,12 +39,24 @@ sealed class Action {
     // --- meta-actions: they act on the simulation itself, not on the current cell ---
 
     /**
-     * Pauses the simulation at the end of the current step (the run loop stops).
+     * Pauses the simulation at the end of the current step, for good (the run loop stops).
      *
      * A modifier that pauses the simulation makes the view show a warning: the run can be
      * resumed only by the reader, with the Run button or step by step.
      */
     object Pause : Action()
+
+    /**
+     * Pauses the simulation for `seconds` of **real** time, then resumes it by itself.
+     *
+     * The loop stays alive but executes no step during the pause, so the sequence of states does
+     * not depend on the clock: this is a comfort pause for a demonstration, not a model clock.
+     * The duration is a number strictly greater than 0, written as a literal or an expression
+     * (`2.5`, `step / 10`…); a value <= 0 is ignored at run time, like `RunNStep(N)` ignores
+     * `N <= 0`. `Pause()` without argument remains the indefinite pause, lifted only by the
+     * reader.
+     */
+    data class TimedPause(val seconds: Expression) : Action()
 
     /** Runs exactly one more step, then pauses the simulation. */
     object RunOneStep : Action()
@@ -125,7 +138,7 @@ sealed class Action {
 
 /** True for the actions that act on the simulation as a whole rather than on one cell. */
 fun isMetaAction(action: Action): Boolean = when (action) {
-    Action.Pause, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
+    Action.Pause, is Action.TimedPause, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
     is Action.AddMany, is Action.AddRect, is Action.AddDisc,
     is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
     is Action.EraseAll, is Action.Activate, is Action.Inactivate, is Action.Use, is Action.Unuse,
@@ -151,7 +164,7 @@ private val actionArities = mapOf(
     "SetField" to intArrayOf(4),
     "AddField" to intArrayOf(4),
     "ClearField" to intArrayOf(3),
-    "Pause" to intArrayOf(0),
+    "Pause" to intArrayOf(0, 1),
     "RunOneStep" to intArrayOf(0),
     "RunNStep" to intArrayOf(1),
     "Rewind" to intArrayOf(0),
@@ -171,17 +184,6 @@ private val actionArities = mapOf(
 private const val availableActions =
     "Add, Remove, Move, SetField, AddField, ClearField, Pause, RunOneStep, RunNStep, Rewind, Restart, " +
         "AddRect, AddDisc, EraseRect, EraseDisc, Erase, Activate, Inactivate, Use, Unuse, DrawLine"
-
-/**
- * Names that were removed from the language: they are refused with an explicit message rather
- * than reported as unknown, so that an old model says what happened to them.
- *
- * `Continue()` was removed with the run loop rework: a pause can only be lifted from the
- * interface, never by the model itself.
- */
-private val removedActionNames: Map<String, String> = mapOf(
-    "Continue" to "Continue() n'existe plus : la pause ne peut être levée que depuis l'interface"
-)
 
 /** Grid commands of the meta-actions: they are parsed by [parseGridCommandCall]. */
 private const val availableGridCommands =
@@ -213,8 +215,6 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
         // an old formula parses exactly like the new one
         val name = deprecatedActionNames[writtenName] ?: writtenName
         val argsText = match.groupValues[2].trim()
-        // names removed from the language say why instead of looking like a typo
-        removedActionNames[name]?.let { message -> throw IllegalArgumentException(message) }
         // a state test is a condition, not an action: say it instead of "unknown action"
         if (name in stateTestFunctions) {
             throw IllegalArgumentException(misplacedStateTest(name, "an action formula"))
@@ -242,7 +242,22 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
             expr.stateTestName()?.let {
                 throw IllegalArgumentException(misplacedStateTest(it, "an action formula"))
             }
-            if (expr.inferType() != ExprType.Number) {
+            if (name == "Pause") {
+                // Pause(t): t is a duration in seconds, strictly positive; Pause() stays the
+                // indefinite pause. A duration that depends on the state is checked at run time.
+                if (expr.inferType() != ExprType.Number) {
+                    throw IllegalArgumentException(
+                        "Pause expects a duration in seconds greater than 0 (a number, for instance " +
+                            "Pause(2.5)), got '$arg'"
+                    )
+                }
+                val constant = expr.constantNumberOrNull()
+                if (constant != null && constant <= 0.0) {
+                    throw IllegalArgumentException(
+                        "Pause expects a duration in seconds greater than 0, got '$arg'"
+                    )
+                }
+            } else if (expr.inferType() != ExprType.Number) {
                 throw IllegalArgumentException("Argument '$arg' of $name must be a number")
             }
             expr
@@ -260,7 +275,7 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
             "SetField" -> Action.SetField(args[0], args[1], args[2], args[3])
             "AddField" -> Action.AddField(args[0], args[1], args[2], args[3])
             "ClearField" -> Action.ClearField(args[0], args[1], args[2])
-            "Pause" -> Action.Pause
+            "Pause" -> if (args.isEmpty()) Action.Pause else Action.TimedPause(args[0])
             "RunOneStep" -> Action.RunOneStep
             "RunNStep" -> Action.RunNStep(args[0])
             "Rewind" -> Action.Rewind

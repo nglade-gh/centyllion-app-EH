@@ -12,6 +12,7 @@ import com.centyllion.model.SEQUENTIAL_UPDATE_PLAN
 import com.centyllion.model.Simulation
 import com.centyllion.model.SimulationLoop
 import com.centyllion.model.Simulator
+import com.centyllion.model.formatPauseSeconds
 import kotlinx.browser.window
 import org.w3c.dom.MutationObserver
 import org.w3c.dom.MutationObserverInit
@@ -59,9 +60,9 @@ class SimulationRunController(
     private var currentSimulator = Simulator(context, data)
 
     /**
-     * Run/pause state of the loop: the control meta-actions (Pause, RunOneStep, RunNStep,
-     * Rewind, Restart) change it at the end of the step that emitted them. A pause is lifted
-     * only from the interface: there is no `Continue()`.
+     * Run/pause state of the loop: the control meta-actions (Pause, Pause(t), RunOneStep,
+     * RunNStep, Rewind, Restart) change it at the end of the step that emitted them. An
+     * indefinite pause is lifted only from the interface; a timed pause resumes by itself.
      */
     private var loop = SimulationLoop(currentSimulator)
 
@@ -69,13 +70,18 @@ class SimulationRunController(
 
     private var running: Boolean by observable(false) { _, old, new ->
         if (old != new) {
-            if (new) loop.start() else loop.stop()
+            if (new) {
+                // the loop is started only when it does not already run: mirroring the state of
+                // the loop (a timed pause keeps `running` true) must not lift its own pause
+                if (!loop.running) loop.start()
+            } else {
+                loop.stop()
+                lastStepTimestamp = 0.0
+                refresh()
+            }
             simulationViewController.running = new
             if (new) {
                 refreshButtons()
-            } else {
-                lastStepTimestamp = 0.0
-                refresh()
             }
         }
     }
@@ -209,24 +215,36 @@ class SimulationRunController(
 
     fun animationCallback(timestamp: Double) {
         if (running) {
-            val time = 1000 / fps
-            val delta = timestamp - lastStepTimestamp
-
-            lastFpsColorRefresh += 1
-            if (lastFpsColorRefresh > fps) {
-                setFpsColor(delta > time && lastRequestSkipped)
+            // a timed pause (Pause(t)) keeps the loop alive without executing any step: the
+            // deadline is polled on every frame and the loop lifts the pause by itself (see
+            // SimulationLoop.resumeIfDue), which is why the frames must keep coming
+            if (loop.isTimedPaused) {
+                if (loop.resumeIfDue()) {
+                    // the run starts again by itself: the warning is obsolete
+                    hideModifierPauseNotification()
+                    lastStepTimestamp = 0.0
+                }
             }
+            if (loop.canStep) {
+                val time = 1000 / fps
+                val delta = timestamp - lastStepTimestamp
 
-            val refresh = fps >= 200 || lastStepTimestamp == 0.0 || delta >= time ||
-                // the steps asked by RunOneStep/RunNStep run without waiting for the fps limit
-                loop.remainingSteps > 0
+                lastFpsColorRefresh += 1
+                if (lastFpsColorRefresh > fps) {
+                    setFpsColor(delta > time && lastRequestSkipped)
+                }
 
-            if (refresh) {
-                lastStepTimestamp = timestamp
-                executeStep()
+                val refresh = fps >= 200 || lastStepTimestamp == 0.0 || delta >= time ||
+                    // the steps asked by RunOneStep/RunNStep run without waiting for the fps limit
+                    loop.remainingSteps > 0
+
+                if (refresh) {
+                    lastStepTimestamp = timestamp
+                    executeStep()
+                }
+
+                lastRequestSkipped = refresh
             }
-
-            lastRequestSkipped = refresh
         }
 
         if (!disposed) window.requestAnimationFrame(this::animationCallback)
@@ -242,6 +260,8 @@ class SimulationRunController(
     }
 
     fun stop() {
+        // the reader takes over: the warning about a pause asked by the model is obsolete
+        hideModifierPauseNotification()
         // creates thumbnail with last stop click for better thumbnails.
         running = false
     }
@@ -277,13 +297,16 @@ class SimulationRunController(
 
     /**
      * Applies the control requests emitted by the meta-actions during the step that has just
-     * run: Pause, RunOneStep, RunNStep, Rewind, Restart. They drive the loop, never the grid.
+     * run: Pause, Pause(t), RunOneStep, RunNStep, Rewind, Restart. They drive the loop, never
+     * the grid.
      */
     private fun applyControlRequests() {
         val update = loop.afterStep()
-        // a modifier can ask the pause: the reader must see it, the Run button is the only way
-        // back (there is no Continue() any more)
-        if (simulator.consumeModifierPauseRequest() > 0) showModifierPauseNotification()
+        // a modifier can ask the pause: the reader must see it. An indefinite pause is lifted
+        // only by the reader; a timed pause resumes by itself and the warning then disappears.
+        if (simulator.consumeModifierPauseRequest() > 0) {
+            showModifierPauseNotification(update.pauseSeconds ?: 0.0)
+        }
         if (update.rewound) {
             // the simulation is back to its initial state: the radios follow the restored state
             syncActivationRadios(currentSimulator)
@@ -298,11 +321,22 @@ class SimulationRunController(
      * Shows the warning that says the run was paused by a simulation modifier. The notification
      * is created once and kept until the run starts again: showing it twice would stack two
      * boxes in the simulation zone.
+     *
+     * [seconds] is the duration of a timed pause (`Pause(t)`), 0 for the indefinite `Pause()`:
+     * the message then says how long the run stays frozen, and that it starts again by itself.
      */
-    private fun showModifierPauseNotification() {
+    private fun showModifierPauseNotification(seconds: Double = 0.0) {
         if (modifierPauseNotification != null) return
+        val text = if (seconds > 0.0) {
+            page.i18n(
+                "The model paused the simulation for %0 s (modifier). The run resumes by itself at the end of the pause.",
+                formatPauseSeconds(seconds)
+            )
+        } else {
+            page.i18n("The model paused the simulation (modifier). Resume it with the Run button or step by step.")
+        }
         modifierPauseNotification = Notification(
-            Content { +page.i18n("The model paused the simulation (modifier). Resume it with the Run button or step by step.") },
+            Content { +text },
             color = ElementColor.Warning,
             onDelete = { hideModifierPauseNotification() }
         )

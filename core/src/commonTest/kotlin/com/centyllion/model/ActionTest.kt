@@ -552,21 +552,48 @@ class SimulationModifierTest {
     }
 
     @Test
-    fun testContinueIsRefusedWithAnExplicitMessage() {
-        // Continue() was removed: a pause is lifted only from the interface, never by the model.
-        // The formula is refused with a message that says so, not ignored and not reported as
-        // an unknown action (which would look like a typo).
-        val message = validateModifierActions("Continue()")
-        assertNotNull(message)
-        assertTrue(message!!.contains("Continue() n'existe plus"), "explicit removal message: $message")
-        assertTrue(message.contains("interface"), "the message points at the interface: $message")
-        assertFalse(message.contains("Unknown action"), "not reported as a typo: $message")
-        // refused too where it used to be refused as a meta-action, and in a list
-        assertTrue(validateActionFormula("Continue()")!!.contains("n'existe plus"))
-        assertTrue(validateModifierActions("Pause(), Continue()")!!.contains("n'existe plus"))
-        // it is not an action of the language any more
+    fun testContinueIsAnUnknownAction() {
+        // Continue() is not part of the language: it is reported like any other unknown name,
+        // with the list of the available actions (it is no longer a special case).
+        for (formula in listOf("Continue()", "Pause(), Continue()")) {
+            val message = validateModifierActions(formula)
+            assertNotNull(message)
+            assertTrue(message!!.contains("Unknown action 'Continue'"), "standard message: $message")
+            assertTrue(message.contains("Pause"), "the message lists the available actions: $message")
+        }
+        assertTrue(validateActionFormula("Continue()")!!.contains("Unknown action 'Continue'"))
         assertTrue(runCatching { "Continue()".parseModifierActions() }.isFailure)
         assertTrue(runCatching { "Continue()".parseActionFormula() }.isFailure)
+    }
+
+    @Test
+    fun testATimedPauseTakesADurationInSeconds() {
+        // Pause(t): t seconds of real time, a literal or an expression, strictly greater than 0
+        assertNull(validateModifierActions("Pause(2)"))
+        assertNull(validateModifierActions("Pause(2.5)"))
+        assertNull(validateModifierActions("Pause(5 / 2)"))
+        assertNull(validateModifierActions("Pause(step / 10)"), "a duration may depend on the state")
+        val timed = "Pause(2.5)".parseModifierActions().single()
+        assertTrue(timed is Action.TimedPause, "parsed as a timed pause: $timed")
+        assertTrue(isMetaAction(timed), "a timed pause is a meta-action")
+
+        // Pause() without argument is still the indefinite pause
+        assertEquals(Action.Pause, "Pause()".parseModifierActions().single())
+        assertNull(validateModifierActions("Pause()"))
+
+        // a duration <= 0 is refused
+        assertTrue(validateModifierActions("Pause(0)")!!.contains("greater than 0"))
+        assertTrue(validateModifierActions("Pause(-1)")!!.contains("greater than 0"))
+        assertTrue(validateModifierActions("Pause(1 - 1)")!!.contains("greater than 0"))
+        // a duration is a number, never a boolean
+        val booleanMessage = validateModifierActions("Pause(true)")!!
+        assertTrue(booleanMessage.contains("greater than 0"), "explicit refusal: $booleanMessage")
+        assertTrue(booleanMessage.contains("'true'"), "the message quotes the argument: $booleanMessage")
+        // arity
+        assertTrue(validateModifierActions("Pause(1, 2)")!!.contains("expects 0 or 1 arguments"))
+        // a timed pause is a meta-action: refused in the actions of a behaviour
+        assertTrue(validateActionFormula("Pause(2)")!!.contains("meta-action"))
+        assertTrue(validateActionFormula("Pause(2.5)")!!.contains("meta-action"))
     }
 
     @Test

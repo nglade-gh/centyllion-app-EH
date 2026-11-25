@@ -464,8 +464,12 @@ object English: Locale {
             "The identifiers are those displayed in the explorer, after the name: name (id). Arguments can be expressions built on the condition functions."
         "AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones." ->
             "AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones."
-        "Pauses the simulation at the end of the current step, for instance %0." ->
-            "Pauses the simulation at the end of the current step, for instance %0."
+        "Pauses the simulation at the end of the current step, for good: only the reader starts it again, for instance %0." ->
+            "Pauses the simulation at the end of the current step, for good: only the reader starts it again, for instance %0."
+        "Pauses the simulation for t seconds of real time (t > 0, for instance 2.5), then resumes it by itself, for instance %0." ->
+            "Pauses the simulation for t seconds of real time (t > 0, for instance 2.5), then resumes it by itself, for instance %0."
+        "A timed pause never advances the simulation: no step runs while it lasts, so the sequence of states stays reproducible as soon as the trigger is deterministic (step == 10). Only its duration comes from the clock of the machine: at least t seconds, and longer in a background tab, where the animation frames that notice the end of the pause are rare." ->
+            "A timed pause never advances the simulation: no step runs while it lasts, so the sequence of states stays reproducible as soon as the trigger is deterministic (step == 10). Only its duration comes from the clock of the machine: at least t seconds, and longer in a background tab, where the animation frames that notice the end of the pause are rare."
         "Meta-functions and meta-tests start with a capital letter (Pause, RunNStep, IsVisible); the functions used in the conditions and in the arguments stay in lower case (abs, min, max, sin, cos, count, field, age, agent)." ->
             "Meta-functions and meta-tests start with a capital letter (Pause, RunNStep, IsVisible); the functions used in the conditions and in the arguments stay in lower case (abs, min, max, sin, cos, count, field, age, agent)."
         "pause() in lower case is still accepted for the models already recorded, but it is obsolete: write Pause()." ->
@@ -484,6 +488,8 @@ object English: Locale {
         // warning shown in the simulation view when a modifier pauses the simulation
         "The model paused the simulation (modifier). Resume it with the Run button or step by step." ->
             "The model paused the simulation (modifier). Resume it with the Run button or step by step."
+        "The model paused the simulation for %0 s (modifier). The run resumes by itself at the end of the pause." ->
+            "The model paused the simulation for %0 s (modifier). The run resumes by itself at the end of the pause."
         "Adds N agents of type id on empty cells drawn at random in the whole environment, for instance %0." ->
             "Adds N agents of type id on empty cells drawn at random in the whole environment, for instance %0."
         "Adds N agents of type id on the empty cells of the rectangle (x1, y1)-(x2, y2), for instance %0." ->

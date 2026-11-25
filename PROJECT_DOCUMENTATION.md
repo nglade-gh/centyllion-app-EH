@@ -415,7 +415,7 @@ une fois par pas, hors de toute case, après les comportements.
 
 | Catégorie | Noms |
 |---|---|
-| Boucle de course | `Pause()`, `RunOneStep()`, `RunNStep(N)`, `Rewind()`, `Restart()` |
+| Boucle de course | `Pause()`, `Pause(t)`, `RunOneStep()`, `RunNStep(N)`, `Rewind()`, `Restart()` |
 | Population / activation | `Add(id, N)`, `AddRect(id, N, x1, y1, x2, y2)`, `AddDisc(id, N, x, y, radius)`, `DrawLine(id, x1, y1, x2, y2)`, `EraseRect(x1, y1, x2, y2)`, `EraseRect(id, x1, y1, x2, y2)`, `EraseDisc(x, y, radius)`, `EraseDisc(id, x, y, radius)`, `Erase(id)`, `Activate(id)`, `Inactivate(id)`, `Use(id)`, `Unuse(id)` |
 | Commandes de grille | `Show(id)`, `Hide(id)`, `Select(x1, y1, x2, y2)`, `Cut()`, `Copy()`, `EraseSelection()`, `Paste(x, y, overwrite)`, `FlushSelection()`, `Unselect()`, `PasteAndFlush(x, y, overwrite)`, `Rotate(N)`, `FlipX()`, `FlipY()`, `AllowToricSelection(enabled)`, `AllowOverwriting(enabled)` |
 | Tests d'état (condition seulement) | `IsBehaviourActive(id)`, `IsModifierActive(id)`, `IsToricSelectionOn()`, `IsOverwritingOn()`, `IsVisible(id)` |
@@ -431,41 +431,76 @@ continuent de se charger et de se comporter à l'identique. `Pause()` est le nom
   par la vue en fin de pas (`drainGridCommands()`) : le noyau ne connaît ni la sélection ni le
   presse-papiers ;
 - les **actions de boucle** passent par des **drapeaux** du `Simulator` —
-  `pauseRequested`, `stepsRequested`, `rewindRequested`, `restartRequested` —
-  regroupés par `consumeControlRequests()` en un `SimulationControlRequests`, et transformés en
-  état de boucle par `SimulationLoop.afterStep()`. Elles ne touchent jamais la grille.
+  `pauseRequested`, `pauseDurationSeconds`, `stepsRequested`, `rewindRequested`,
+  `restartRequested` — regroupés par `consumeControlRequests()` en un
+  `SimulationControlRequests`, et transformés en état de boucle par
+  `SimulationLoop.afterStep()`. Elles ne touchent jamais la grille.
 
 `SimulationLoop` (commonMain, `simulationloop.kt`) porte la sémantique une seule fois, pour la vue
 web et pour les tests JVM : `canStep`, `start()`, `stop()`, `afterStep()` → `LoopUpdate(running,
-remainingSteps, rewound)`. `RunOneStep()` est `RunNStep(1)` : la boucle exécute les pas demandés
-puis se met en pause d'elle-même ; `N <= 0` n'ajoute aucun pas et n'arrête pas la course. Dans un
-même pas, l'ordre d'application est `Restart`, `Rewind`, `Pause`,
+remainingSteps, rewound, pauseSeconds)`. `RunOneStep()` est `RunNStep(1)` : la boucle exécute les
+pas demandés puis se met en pause d'elle-même ; `N <= 0` n'ajoute aucun pas et n'arrête pas la
+course. Dans un même pas, l'ordre d'application est `Restart`, `Rewind`, `Pause`/`Pause(t)`,
 `RunOneStep`/`RunNStep` (le dernier l'emporte) ; les pas de deux demandes s'additionnent et un
 `Pause()` annule ceux qui restent. `Rewind()` et `Restart()` appellent `Simulator.reset()`, qui
 restaure l'état d'activation du début de course et efface les demandes en attente.
 
-`Continue()` **n'existe plus** : elle a été retirée de `Action`, du parseur, de `isMetaAction` et
-de l'arbitrage de `SimulationLoop`. Une formule qui l'écrit est **refusée** avec le message
-« Continue() n'existe plus : la pause ne peut être levée que depuis l'interface » (table
-`removedActionNames` d'`actions.kt`, consultée avant la recherche d'arité) : la pause ne se lève
-que depuis l'interface.
+**Pause minutée (`Pause(t)`)** — `Action.TimedPause(seconds)` : `t` est un nombre de **secondes
+réelles**, littéral ou expression, strictement positif. Le parseur refuse une valeur constante
+`<= 0` (`constantNumberOrNull()` d'`expression/TypeChecker.kt` replie les littéraux et les
+opérations arithmétiques) et un argument non numérique ; une expression qui dépend de l'état
+(`Pause(step / 10)`) n'est vérifiable qu'à l'exécution, où une valeur `<= 0` est ignorée, comme
+`RunNStep(N <= 0)`. Une pause minutée est une **méta-action** (refusée dans un comportement) et
+elle ne change pas la trajectoire : aucun pas n'est exécuté pendant la pause.
 
-Un `Pause()` émis par un modificateur est **signalé à l'utilisateur** : `Simulator.modifierPauseCount`
+C'est une **pause de confort**, pas une horloge de modèle. `SimulationLoop` ne lit jamais l'horloge
+système : il reçoit une `Clock` (`fun interface Clock { fun nowMillis(): Long }`, `clock.kt`),
+implémentée par `systemClock()` (`System.currentTimeMillis()` en JVM, `Date.now()` en JS) et
+injectable dans les tests. À la réception de `Pause(t)`, `afterStep()` passe `running = true` (la
+boucle **reste vivante**), pose `pausedUntilMillis = clock.nowMillis() + ceil(t * 1000)` et
+`pauseSeconds = t`, ce qui met `canStep` à `false` sans arrêter la vue. `resumeIfDue()` — appelé à
+chaque image d'animation, y compris celles où aucun pas ne tourne — lève la pause dès que
+l'échéance est atteinte (`>=`, donc la pause dure **au moins** `t`), remet `running = true` et
+rapporte `true` : la reprise appartient à la boucle, pas à la vue, et se teste sans navigateur ni
+attente réelle. `start()` et `stop()` effacent l'échéance (l'utilisateur reprend la main). La durée
+est donc liée à l'horloge de la machine — au moins `t` secondes, davantage en onglet
+d'arrière-plan, où les images d'animation se raréfient — mais la **trajectoire des états** reste
+reproductible dès que le déclencheur l'est (`step == 10`).
+
+`Continue()` n'est pas une action du langage : elle est refusée comme n'importe quel nom inconnu
+(« Unknown action 'Continue' », avec la liste des actions disponibles) et la pause ne se lève que
+depuis l'interface — ou seule, pour un `Pause(t)`.
+
+Un `Pause()` ou un `Pause(t)` émis par un modificateur est **signalé à l'utilisateur** :
+`Simulator.modifierPauseCount`
 compte les pauses demandées par un modificateur (remis à zéro par `consumeModifierPauseRequest()`,
 appelé par la vue, et par `reset()`), et `SimulationRunController` affiche alors une notification
 Bulma `notification is-warning` non bloquante et refermable, insérée en haut de la zone de
-simulation, retirée au prochain démarrage de la course.
+simulation. Le texte dépend de la pause : « Le modèle a mis la simulation en pause pendant 2.5 s
+(modificateur). La course reprend seule à la fin de la pause. » pour un `Pause(t)`
+(`formatPauseSeconds()` écrit la durée : `2`, `2.5`, `0.25`), le message « … en pause
+(modificateur). Reprenez avec le bouton Run ou avancez pas à pas. » pour un `Pause()`. Le bandeau
+est retiré au démarrage suivant de la course, à l'arrêt, et à la **reprise automatique** d'une
+pause minutée.
 
 Côté web, `SimulationRunController.applyControlRequests()` applique le `LoopUpdate` : il resynchronise
 les radios d'activation et rappelle `onReset` après un rembobinage, et il suit `running`. Les pas
 demandés s'enchaînent sans attendre la limite de fps (`loop.remainingSteps > 0` lève la condition
-de cadence dans `animationCallback`).
+de cadence dans `animationCallback`). Une pause minutée ne passe pas par `running` : la boucle reste
+vivante, donc la vue continue de demander des images ; `animationCallback` interroge
+`loop.isTimedPaused` / `loop.resumeIfDue()` avant la cadence et n'exécute un pas que si
+`loop.canStep`. L'observable `running` n'appelle `loop.start()` que si la boucle ne tourne pas déjà
+(`if (!loop.running)`), sinon le simple miroir de l'état de la boucle lèverait la pause qu'elle vient
+de poser.
 
 Tests : `core/src/commonTest/.../SimulationLoopTest.kt` (un pas puis pause, N pas puis arrêt,
 `N <= 0` ignoré, pause signalée par `modifierPauseCount` puis consommée, rewind sans relance,
-restart avec relance, aucune commande de grille en file) et `ActionTest.testTheLoopControlActionsParse` /
-`testContinueIsRefusedWithAnExplicitMessage` / `testPauseIsCapitalisedAndTheLowercaseFormIsAnAlias`
-pour le parseur.
+restart avec relance, aucune commande de grille en file ; `Pause(2)` avec une horloge simulée :
+aucun pas avant 1999 ms, reprise seule à 2000 ms, grille inchangée pendant la pause, `Pause()`
+indéfinie qui ne reprend jamais, durée `<= 0` ignorée à l'exécution) et
+`ActionTest.testTheLoopControlActionsParse` / `testATimedPauseTakesADurationInSeconds` /
+`testContinueIsAnUnknownAction` / `testPauseIsCapitalisedAndTheLowercaseFormIsAnAlias` pour le
+parseur.
 
 ---
 

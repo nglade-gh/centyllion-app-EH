@@ -27,7 +27,13 @@ data class SimulationControlRequests(
     val pause: Boolean = false,
     val steps: Int = 0,
     val rewind: Boolean = false,
-    val restart: Boolean = false
+    val restart: Boolean = false,
+    /**
+     * Duration of the requested pause, in seconds: 0 for the indefinite [Action.Pause], a
+     * strictly positive value for the timed [Action.TimedPause]. A timed pause always comes with
+     * `pause == true`.
+     */
+    val pauseSeconds: Double = 0.0
 ) {
     val isEmpty: Boolean get() = !pause && steps == 0 && !rewind && !restart
 }
@@ -140,6 +146,15 @@ class Simulator(
         private set
 
     /**
+     * Duration in seconds asked by the `Pause(t)` meta-action, 0 for the indefinite `Pause()`.
+     *
+     * Two timed pauses in the same step do not add up: the longest one wins, so that the loop
+     * never shortens a pause the model asked for.
+     */
+    var pauseDurationSeconds: Double = 0.0
+        private set
+
+    /**
      * Number of Pause() meta-actions executed by a simulation modifier and not shown yet.
      *
      * A modifier pauses the simulation behind the reader's back: the view reads this counter
@@ -175,11 +190,13 @@ class Simulator(
     /** Clears the pause request once the run loop has stopped. */
     fun clearPauseRequest() {
         pauseRequested = false
+        pauseDurationSeconds = 0.0
     }
 
     /** Drops every pending control request: a rewind cancels what the step had asked for. */
     private fun clearControlRequests() {
         pauseRequested = false
+        pauseDurationSeconds = 0.0
         stepsRequested = 0
         rewindRequested = false
         restartRequested = false
@@ -192,7 +209,8 @@ class Simulator(
     fun consumeControlRequests(): SimulationControlRequests {
         val requests = SimulationControlRequests(
             pause = pauseRequested, steps = stepsRequested,
-            rewind = rewindRequested, restart = restartRequested
+            rewind = rewindRequested, restart = restartRequested,
+            pauseSeconds = pauseDurationSeconds
         )
         clearControlRequests()
         return requests
@@ -299,7 +317,7 @@ class Simulator(
 
     /** True for the actions that act on the simulation as a whole rather than on a cell. */
     private fun isMetaAction(action: Action): Boolean = when (action) {
-        Action.Pause, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
+        Action.Pause, is Action.TimedPause, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
         is Action.AddMany, is Action.AddRect, is Action.AddDisc,
         is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
         is Action.EraseAll, is Action.Activate, is Action.Inactivate -> true
@@ -1043,6 +1061,17 @@ class Simulator(
                         pauseRequested = true
                         modifierPauseCount += 1
                     }
+                    is Action.TimedPause -> {
+                        // Pause(t): same pause, but the loop resumes by itself at the deadline.
+                        // A duration <= 0 asks for no pause at all, like RunNStep(N <= 0).
+                        val seconds = action.seconds.evalDouble(evaluator)
+                        if (seconds > 0.0) {
+                            pauseRequested = true
+                            modifierPauseCount += 1
+                            // two timed pauses in the same step: the longest one wins
+                            pauseDurationSeconds = max(pauseDurationSeconds, seconds)
+                        }
+                    }
                     Action.RunOneStep -> stepsRequested += 1
                     is Action.RunNStep -> {
                         // N <= 0 is ignored: it asks for no step at all
@@ -1216,6 +1245,9 @@ class Simulator(
     private fun Expression.evalFloat(evaluator: NetbioDynEvaluator): Float =
         evaluator.evaluate(this).float
 
+    private fun Expression.evalDouble(evaluator: NetbioDynEvaluator): Double =
+        evaluator.evaluate(this).float.toDouble()
+
     /**
      * Executes the [behaviour]'s actions (if any) at [index].
      *
@@ -1325,6 +1357,14 @@ class Simulator(
                     }
 
                     Action.Pause -> pauseRequested = true
+                    is Action.TimedPause -> {
+                        // kept for the models that still write meta-actions in a behaviour
+                        val seconds = action.seconds.evalDouble(evaluator)
+                        if (seconds > 0.0) {
+                            pauseRequested = true
+                            pauseDurationSeconds = max(pauseDurationSeconds, seconds)
+                        }
+                    }
                     Action.RunOneStep -> stepsRequested += 1
                     is Action.RunNStep -> {
                         // N <= 0 is ignored: it asks for no step at all

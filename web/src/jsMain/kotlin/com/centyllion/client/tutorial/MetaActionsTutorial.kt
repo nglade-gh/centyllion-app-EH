@@ -20,7 +20,8 @@ class MetaActionsTutorial(
 
     override val introduction: List<BulmaElement> = listOf(
         p(i18n("Actions such as Add, Move or SetField act around the cell where a behaviour applies. Meta-actions act on the simulation itself: they add or erase agents in a zone, draw a line, or switch a behaviour or another modifier on and off.")),
-        p(i18n("A second family drives the run loop instead of the grid: Pause() stops the run, RunOneStep() and RunNStep(N) run one or N steps then pause, Rewind() goes back to the initial state without restarting and Restart() goes back and starts again. A pause is lifted only from the interface, with the Run button: there is no Continue() any more, and a modifier that writes it is refused. The loop meta-actions and the state tests start with a capital letter; the functions of the formulas stay in lower case (abs, min, count, field, agent).")),
+        p(i18n("A second family drives the run loop instead of the grid: Pause() stops the run for good, RunOneStep() and RunNStep(N) run one or N steps then pause, Rewind() goes back to the initial state without restarting and Restart() goes back and starts again. A pause asked by the loop is never lifted by the model: the reader starts the run again with the Run button or step by step. The loop meta-actions and the state tests start with a capital letter; the functions of the formulas stay in lower case (abs, min, count, field, agent).")),
+        p(i18n("Pause(t) is the timed form: it freezes the run for about t seconds of real time — a number greater than 0, written as a literal or an expression, for instance Pause(2.5) — then resumes it by itself. No step runs while it lasts: the grid and the step counter do not move, so the sequence of states stays reproducible as soon as the trigger is deterministic (step == 10). Only its duration comes from the clock of the machine: at least t seconds, and longer in a background tab, where the animation frames that notice the end of the pause are rare. It is a comfort pause for a demonstration, not a model clock.")),
         p(i18n("They are no longer written in a behaviour: the behaviour editor refuses them. They belong to a simulation modifier, in the section « Simulation modifiers », which only appears in expert mode. This tutorial puts you in expert mode and builds a small model to work on."))
     )
 
@@ -103,6 +104,7 @@ class MetaActionsTutorial(
 
     override val conclusion: List<BulmaElement> = listOf(
         p(i18n("Run it: at step 10 the rectangle fills with viruses, then they spread cell by cell through the behaviour Kill. The modifier itself is off from that moment on.")),
+        p(i18n("For a demonstration, add a timed pause to the same modifier: Pause(2.5) freezes the run for two and a half seconds when the condition fires, then the run starts again by itself; the warning above the view says so and disappears at the resume.")),
         p(i18n("A modifier is evaluated once per step, after the behaviours. Its condition is evaluated outside any cell: use step, agent(x, y), age(x, y), count(id, x, y), field(id, x, y), and IsBehaviourActive/IsModifierActive/IsToricSelectionOn/IsOverwritingOn/IsVisible to test the state of the simulation; their negation is written with !."))
     )
 

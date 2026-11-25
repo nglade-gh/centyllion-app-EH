@@ -127,7 +127,8 @@ class ModifierEditController(
         p(page.i18n("These meta-actions drive the run loop, not the grid: they stop it, run a given number of steps, or rewind the simulation to its initial state. A request is applied at the end of the step that emits it.")),
         Table(
             body = listOf(
-                helpLine("Pause()", "Pauses the simulation at the end of the current step, for instance %0.", "Pause()"),
+                helpLine("Pause()", "Pauses the simulation at the end of the current step, for good: only the reader starts it again, for instance %0.", "Pause()"),
+                helpLine("Pause(t)", "Pauses the simulation for t seconds of real time (t > 0, for instance 2.5), then resumes it by itself, for instance %0.", "Pause(2.5)"),
                 helpLine("RunOneStep()", "Runs exactly one more step, then pauses the run, for instance %0.", "RunOneStep()"),
                 helpLine("RunNStep(N)", "Runs N more steps (N >= 1, rounded), then pauses the run; N <= 0 is ignored, for instance %0.", "RunNStep(10)"),
                 helpLine("Rewind()", "Goes back to the initial state and pauses the run, like the rewind button, for instance %0.", "Rewind()"),
@@ -135,6 +136,7 @@ class ModifierEditController(
             ),
             fullWidth = true, striped = true
         ),
+        p(page.i18n("A timed pause never advances the simulation: no step runs while it lasts, so the sequence of states stays reproducible as soon as the trigger is deterministic (step == 10). Only its duration comes from the clock of the machine: at least t seconds, and longer in a background tab, where the animation frames that notice the end of the pause are rare.")),
         SubTitle(page.i18n("Meta-actions")),
         Table(
             body = listOf(

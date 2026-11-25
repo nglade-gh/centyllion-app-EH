@@ -1,5 +1,7 @@
 package com.centyllion.expression
 
+import kotlin.math.pow
+
 /** Type of the value an expression evaluates to. */
 enum class ExprType {
     /** The expression evaluates to a number (integer or float). */
@@ -58,6 +60,53 @@ fun Expression.inferType(): ExprType = when (this) {
         }
         thenType
     }
+}
+
+/**
+ * Value of [this] expression when it is a constant, or null when it depends on the state of the
+ * simulation (variables, functions, state tests).
+ *
+ * Only literals combined with arithmetic operators are folded. The parser uses it to refuse an
+ * argument once and for all when it can: the duration of `Pause(t)` must be greater than 0, and
+ * a duration written `2.5` or `5 / 2` is checked at parse time, while `step / 10` can only be
+ * checked when the action runs.
+ */
+fun Expression.constantNumberOrNull(): Double? = when (this) {
+    is NumberLiteral -> value.float.toDouble()
+    is ParenthesisExpression -> child.constantNumberOrNull()
+    is UnaryExpression -> when (operator) {
+        UnaryOperator.Plus -> child.constantNumberOrNull()
+        UnaryOperator.Minus -> child.constantNumberOrNull()?.let { -it }
+        UnaryOperator.Not -> null
+    }
+    is ExponentExpression -> {
+        val base = decimal.constantNumberOrNull()
+        val power = exponent.constantNumberOrNull()
+        if (base == null || power == null) null else base.pow(power)
+    }
+    is BinaryExpression -> {
+        val leftValue = left.constantNumberOrNull()
+        val rightValue = right.constantNumberOrNull()
+        if (leftValue == null || rightValue == null) null else when (operator) {
+            BinaryOperator.Plus -> leftValue + rightValue
+            BinaryOperator.Minus -> leftValue - rightValue
+            BinaryOperator.Times -> leftValue * rightValue
+            // a division by zero is left to the run time, which reports it in its own way
+            BinaryOperator.Div -> if (rightValue == 0.0) null else leftValue / rightValue
+            BinaryOperator.Rem -> if (rightValue == 0.0) null else leftValue % rightValue
+            // comparisons and logical operators do not produce a number
+            else -> null
+        }
+    }
+    is TernaryExpression -> {
+        val condition = condition.constantNumberOrNull()
+        when {
+            condition == null -> null
+            condition != 0.0 -> ifThen.constantNumberOrNull()
+            else -> orElse.constantNumberOrNull()
+        }
+    }
+    is BooleanLiteral, is VariableCall, is FunctionCall -> null
 }
 
 /** True when the expression tree contains a call to the function [name]. */
