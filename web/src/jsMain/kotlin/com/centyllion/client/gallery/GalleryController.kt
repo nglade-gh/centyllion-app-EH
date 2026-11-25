@@ -2,9 +2,16 @@ package com.centyllion.client.gallery
 
 import bulma.*
 import com.centyllion.client.blobHref
+import com.centyllion.client.capture.WorkFolder
+import com.centyllion.client.capture.WorkFolderState
 import com.centyllion.client.decodeModelAndSimulation
 import com.centyllion.client.download
 import com.centyllion.client.page.ShowPage
+import com.centyllion.model.gallery.GALLERY_DISK_FOLDER
+import com.centyllion.model.gallery.GALLERY_DISK_INDEX
+import com.centyllion.model.gallery.GALLERY_IMAGE_EXTENSION
+import com.centyllion.model.gallery.galleryImageFileName
+import com.centyllion.model.gallery.isGalleryImageFileName
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.w3c.dom.HTMLCanvasElement
@@ -30,15 +37,19 @@ private const val IMAGE_MAX_SIZE = 640.0
 
 /**
  * Model gallery window: the models shipped with the software
- * (`Gallery/gallery.json`) merged with the models the user added or edited
- * locally (see [GalleryStore]). Opened from the "Gallery" button of the page.
+ * (`Gallery/gallery.json`) merged with the models the visitor added or edited
+ * locally. The personal gallery lives in the working folder (`galerie/`, see
+ * [GalleryDiskStorage]) when that folder is defined and its permission granted,
+ * and in the IndexedDB of the browser otherwise (see [GalleryStore]). The
+ * window always says which of the two is active: there is no silent switch.
+ * Opened from the "Gallery" button of the page.
  */
 class GalleryController(private val page: ShowPage) {
 
     /** Entries of the static index, empty until it is fetched. */
     private var indexEntries: List<GalleryEntry> = emptyList()
 
-    /** Local overlay: entries added by the user, and edits or masks of static entries. */
+    /** Personal gallery: entries added by the visitor, and edits or masks of static entries. */
     private var overlay: List<GalleryEntry> = emptyList()
 
     /** Root of the gallery window, null when it is closed. */
@@ -47,6 +58,15 @@ class GalleryController(private val page: ShowPage) {
     private val grid = Div(classes = "centy-gallery-grid")
 
     private val status = p(classes = "centy-gallery-status")
+
+    /** Line telling where the personal gallery lives (disk with its path, or browser). */
+    private val locationLine = p(classes = "centy-gallery-location")
+
+    /** What to do when the folder is remembered but its permission was not granted again. */
+    private val locationHint = p(classes = "centy-gallery-location-hint")
+
+    /** Where the personal gallery lives; browser until the state of the folder is known. */
+    private var location: GalleryLocation = GalleryLocation.Browser
 
     /** True when the static index could not be fetched: only the local models are shown. */
     private var indexFailed = false
@@ -59,6 +79,8 @@ class GalleryController(private val page: ShowPage) {
         indexFailed = false
         status.hidden = false
         status.text = page.i18n("Loading gallery...")
+        locationLine.text = page.i18n("Loading gallery...")
+        locationHint.hidden = true
 
         var card: ModalCard? = null
         val addButton = Button(page.i18n("Add Model"), Icon("plus"), color = ElementColor.Primary) { showForm(null) }
@@ -67,26 +89,26 @@ class GalleryController(private val page: ShowPage) {
             page.i18n("Export my gallery"), Icon("download"), color = ElementColor.Primary
         ) { exportPersonal() }
         val importButton = importControl()
+        val helpButton = Button(
+            page.i18n("Where is my gallery?"), Icon("question-circle"), color = ElementColor.Light
+        ) { showLocationHelp() }
         val closeButton = Button(page.i18n("Close"), color = ElementColor.Primary) { card?.active = false }
         val toolbar = Field(
-            Control(addButton), Control(exportButton), Control(importButton),
+            Control(addButton), Control(exportButton), Control(importButton), Control(helpButton),
             grouped = true, groupedMultiline = true
-        )
-        val notice = p(
-            page.i18n("Your additions stay in this browser; export them to keep them or to transfer them."),
-            classes = "centy-gallery-notice"
         )
 
         card = showModal(
             page.i18n("Model gallery"),
-            listOf(notice, toolbar, status, grid),
+            listOf(locationLine, locationHint, toolbar, status, grid),
             listOf(closeButton)
         )
         card.root.classList.add("centy-gallery-modal")
         modal = card
 
-        loadOverlay()
         loadIndex()
+        // the working folder is restored once at start-up: wait for its state instead of guessing it
+        WorkFolder.whenReady { loadPersonal() }
     }
 
     // ------------------------------------------------------------------ window
@@ -124,14 +146,150 @@ class GalleryController(private val page: ShowPage) {
     // ------------------------------------------------------------------- local
 
     /**
-     * Reads the personal gallery from the browser database; the cards are
-     * drawn again once it is known (the distributed index may arrive first).
+     * Reads the personal gallery from its active home: `galerie/` of the working folder when the
+     * folder is available, the IndexedDB of the browser otherwise. The cards are drawn again once it
+     * is known (the distributed index may arrive first).
      */
-    private fun loadOverlay() {
-        GalleryStore.load { entries ->
-            overlay = entries
-            render()
+    private fun loadPersonal() {
+        location = GalleryDiskStorage.location()
+        renderLocation()
+        when (location) {
+            is GalleryLocation.Disk -> loadFromDisk()
+            GalleryLocation.Browser -> GalleryStore.load { entries ->
+                overlay = entries
+                render()
+            }
         }
+    }
+
+    /** Reads `galerie/galerie.json`; an empty or absent folder is filled from the browser, once. */
+    private fun loadFromDisk() {
+        GalleryDiskStorage.load { disk ->
+            when (disk.state) {
+                DiskState.LOADED -> {
+                    overlay = disk.entries
+                    render()
+                    if (disk.entries.isEmpty()) seedFromBrowser()
+                }
+                DiskState.MISSING -> {
+                    overlay = emptyList()
+                    render()
+                    seedFromBrowser()
+                }
+                DiskState.UNREADABLE -> {
+                    overlay = emptyList()
+                    render()
+                    if (disk.backupName != null) {
+                        page.warning(
+                            "%0 could not be read: it was kept as %1 and a new file was created.",
+                            GALLERY_DISK_INDEX, disk.backupName
+                        )
+                    } else {
+                        page.warning("%0 could not be read: nothing was changed on the disk.", GALLERY_DISK_INDEX)
+                    }
+                    seedFromBrowser()
+                }
+            }
+        }
+    }
+
+    /**
+     * First use of the folder: the entries of the browser are copied into it, once, and the visitor
+     * is told so. Nothing is removed from IndexedDB — the browser copy is kept as the fallback. When
+     * the folder refuses the copy, the gallery of the browser is used again and the switch is
+     * announced, so no entry lives only in a write that failed.
+     */
+    private fun seedFromBrowser() {
+        val disk = location as? GalleryLocation.Disk ?: return
+        GalleryStore.load { entries ->
+            if (entries.isEmpty()) {
+                render()
+                return@load
+            }
+            GalleryDiskStorage.seedIfEmpty(entries) { written ->
+                if (written != null) {
+                    // what the folder holds: dates filled at the write, pictures as data URLs again
+                    overlay = written.entries
+                    page.message(
+                        "Gallery copied to %0: %1 entries of the browser are now on the disk; the browser copy is kept.",
+                        disk.path, written.entries.size
+                    )
+                } else {
+                    overlay = entries
+                    location = GalleryLocation.Browser
+                    renderLocation()
+                    page.warning(
+                        "The gallery of this browser could not be copied to %0: it stays in the browser.",
+                        disk.path
+                    )
+                }
+                render()
+            }
+        }
+    }
+
+    /** Says where the personal gallery lives, and what to do when its folder is out of reach. */
+    private fun renderLocation() {
+        val disk = location as? GalleryLocation.Disk
+        locationLine.text = if (disk != null) {
+            page.i18n(
+                "Gallery stored on the disk: %0 (%1 for the metadata, one %2 file per picture).",
+                disk.path, GALLERY_DISK_INDEX, GALLERY_IMAGE_EXTENSION
+            )
+        } else {
+            page.i18n("Gallery stored in this browser; export it to keep it or to transfer it.")
+        }
+        val hint = when (WorkFolder.state) {
+            WorkFolderState.PERMISSION_TO_RENEW -> page.i18n(
+                "The working folder %0 is remembered but its permission must be renewed: renew it with the home button to store the gallery on the disk.",
+                WorkFolder.folderName ?: ""
+            )
+            WorkFolderState.UNSUPPORTED -> page.i18n(
+                "This browser has no access to a folder: the gallery stays in its storage."
+            )
+            else -> ""
+        }
+        locationHint.text = hint
+        locationHint.hidden = hint.isEmpty()
+    }
+
+    /** Explains the two homes of the personal gallery, the disk format and the sharing by copy. */
+    private fun showLocationHelp() {
+        val disk = location as? GalleryLocation.Disk
+        val body = listOf(
+            p(
+                page.i18n(
+                    "The personal gallery has one home at a time, and this line always says which one: the folder galerie of the working folder, or the storage of this browser."
+                )
+            ),
+            p(
+                page.i18n(
+                    "On the disk: %0 holds the metadata of each entry (id, title, description, name of its picture, date) and every picture is a separate JPEG file of the same folder — never base64 inside the JSON. The file has the format of the export (version 1, key models).",
+                    disk?.path ?: GALLERY_DISK_FOLDER
+                )
+            ),
+            p(
+                page.i18n(
+                    "Sharing: copy the folder %0 to another computer (or into the working folder of another browser) and its models and pictures are there; the same folder can also be imported with Import my gallery.",
+                    GALLERY_DISK_FOLDER
+                )
+            ),
+            p(
+                page.i18n(
+                    "In the browser: without a working folder, or without its permission, the gallery stays in the IndexedDB of this browser, as before. The first time a folder is available, the gallery of the browser is copied into it once; the browser copy is never emptied."
+                )
+            ),
+            p(
+                page.i18n(
+                    "Two tabs: the file is read again before every write and merged entry by entry, so the models added in the other tab are kept; the last write wins for the same model. Deleting an entry deletes only its own picture file, after confirmation."
+                )
+            )
+        )
+        page.modalDialog(
+            page.i18n("Where is my gallery?"),
+            body,
+            Button(page.i18n("Close"), color = ElementColor.Primary) {}
+        )
     }
 
     // ------------------------------------------------------------------- cards
@@ -156,7 +314,10 @@ class GalleryController(private val page: ShowPage) {
 
     /** A card: image with the title on a translucent band, description, edit and delete buttons. */
     private fun card(entry: GalleryEntry): Column {
-        val media: BulmaElement = if (entry.image.isNotBlank()) {
+        // a bare file name means a picture of the folder that could not be read: showing it as a URL
+        // would only paint a broken image, and the model is still openable
+        val picture = entry.image.isNotBlank() && !isGalleryImageFileName(entry.image)
+        val media: BulmaElement = if (picture) {
             Image(entry.image).apply { root.classList.add("centy-gallery-image") }
         } else {
             Div(classes = "centy-gallery-image centy-gallery-noimage")
@@ -242,32 +403,62 @@ class GalleryController(private val page: ShowPage) {
 
     private fun deleteEntry(entry: GalleryEntry) {
         val isStatic = indexEntries.any { it.id == entry.id }
-        if (isStatic) {
-            // the distributed models are part of the software: they are always there
-            page.message(page.i18n("The distributed models cannot be removed from the gallery."))
-            return
+        val disk = location as? GalleryLocation.Disk
+        val explanation = when {
+            isStatic -> page.i18n("The entry is only hidden: gallery.json is never modified.")
+            disk != null -> page.i18n(
+                "The model and its picture (%0) are removed from %1. Only the file of this entry is deleted: the other models, their pictures and the folder are untouched.",
+                galleryImageFileName(entry.id), disk.path
+            )
+            else -> page.i18n("The model is removed from the local gallery of this browser.")
         }
         page.modalDialog(
             page.i18n("Delete this model from the gallery?"),
-            listOf(
-                p(
-                    if (isStatic) page.i18n("The entry is only hidden: gallery.json is never modified.")
-                    else page.i18n("The model is removed from the local gallery of this browser.")
-                )
-            ),
+            listOf(p(explanation)),
             Button(page.i18n("Delete"), color = ElementColor.Danger) {
                 val entries = if (isStatic) GalleryStore.hide(overlay, entry) else GalleryStore.remove(overlay, entry.id)
-                store(entries) { saved -> if (saved) page.message("Model removed from the gallery.") }
+                // only a personal entry has a picture of its own on the disk
+                val removed = if (isStatic) emptyList() else listOf(entry)
+                store(entries, removed) { saved -> if (saved) page.message("Model removed from the gallery.") }
             },
             Button(page.i18n("Cancel")) {}
         )
     }
 
     /**
-     * Writes the personal gallery and refreshes the cards; [onStored] receives
-     * false when the browser refused the write.
+     * Writes the personal gallery and refreshes the cards; [onStored] receives false when the write
+     * was refused. On the disk the file is read again and merged by id before the write (see
+     * [GalleryDiskStorage.save]); the browser keeps a copy, so losing the folder never loses the
+     * gallery. [removed] carries the entries the visitor just deleted: their picture files go away
+     * with them, and only them.
      */
-    private fun store(entries: List<GalleryEntry>, onStored: (Boolean) -> Unit = {}) {
+    private fun store(
+        entries: List<GalleryEntry>,
+        removed: List<GalleryEntry> = emptyList(),
+        onStored: (Boolean) -> Unit = {}
+    ) {
+        val disk = location as? GalleryLocation.Disk
+        if (disk != null) {
+            GalleryDiskStorage.save(entries, removed) { result ->
+                when (result.outcome) {
+                    DiskSaveOutcome.SAVED -> {
+                        overlay = result.entries
+                        render()
+                        // fallback copy: best effort, never announced when it fails (the disk has the data)
+                        GalleryStore.save(result.entries) { }
+                        onStored(true)
+                    }
+                    DiskSaveOutcome.FAILED -> {
+                        page.error(
+                            "The gallery could not be written in %0: nothing was changed. Check the permission of the folder, or forget it to use the gallery of this browser.",
+                            disk.path
+                        )
+                        onStored(false)
+                    }
+                }
+            }
+            return
+        }
         GalleryStore.save(entries) { saved ->
             if (saved) {
                 overlay = entries
@@ -445,6 +636,8 @@ class GalleryController(private val page: ShowPage) {
                         image = imageText ?: "",
                         file = existing?.file,
                         model = modelText,
+                        // the date of the entry is written on the disk; an edited entry keeps its own
+                        date = existing?.date?.takeIf { it.isNotBlank() } ?: Date(Date.now()).toISOString(),
                     )
                     store(GalleryStore.upsert(overlay, entry)) { saved ->
                         if (saved) {
@@ -630,10 +823,17 @@ class GalleryController(private val page: ShowPage) {
             .centy-gallery-status {
                 margin-bottom: 1rem;
             }
-            .centy-gallery-notice {
+            .centy-gallery-location {
                 margin-bottom: 0.9rem;
                 font-size: 0.8rem;
-                color: #7a7a7a;
+                font-weight: 600;
+                color: #4a4a4a;
+            }
+            .centy-gallery-location-hint {
+                margin-top: -0.5rem;
+                margin-bottom: 0.9rem;
+                font-size: 0.8rem;
+                color: #b8860b;
             }
             .centy-gallery-preview {
                 margin-bottom: 1rem;

@@ -145,6 +145,28 @@ object WorkFolder {
     /** True once the deletion of the handle of the previous database has been attempted. */
     private var legacyChecked = false
 
+    /** True once [restoreNow] has answered: the state of the folder is known. */
+    private var restored = false
+
+    /** True while [restoreNow] is running, so a second caller waits instead of reading twice. */
+    private var restoring = false
+
+    /** Callers waiting for the first restore (the gallery opens before the folder is known). */
+    private val waiting = mutableListOf<() -> Unit>()
+
+    /**
+     * The remembered directory handle, null when no folder is defined. It is the place where the
+     * features beside the captures write (the personal gallery, in `galerie/`), so they share the
+     * state of the button instead of keeping their own copy of the handle.
+     */
+    internal val directoryHandle: dynamic get() = handle
+
+    /**
+     * True when a folder is remembered **and** its read/write permission is still granted: the only
+     * state in which a feature may write in the working folder without asking the visitor.
+     */
+    internal val isFolderReady: Boolean get() = state == WorkFolderState.DEFINED
+
     /** True when the browser exposes the directory picker of the File System Access API. */
     fun isSupported(): Boolean = try {
         directoryAccess.supported() as Boolean
@@ -171,8 +193,35 @@ object WorkFolder {
      * Restores the remembered handle from its own database and asks the browser whether its
      * permission is still granted; [onReady] is called in every case (no folder, no database, no
      * API). The old key of the save dialog database is deleted once, on the way.
+     *
+     * The restore happens once, even when several features ask for it at start-up: the callers are
+     * queued by [whenReady], so the permission is asked to the browser a single time.
      */
-    fun restore(onReady: () -> Unit = {}) {
+    fun restore(onReady: () -> Unit = {}) = whenReady(onReady)
+
+    /**
+     * Calls [onReady] once the state of the folder is known, immediately when it already is. The
+     * first call starts the restore; the following ones wait for it instead of reading the database
+     * a second time.
+     */
+    fun whenReady(onReady: () -> Unit) {
+        if (restored) {
+            onReady()
+            return
+        }
+        waiting += onReady
+        if (restoring) return
+        restoring = true
+        restoreNow {
+            restoring = false
+            restored = true
+            val callbacks = waiting.toList()
+            waiting.clear()
+            callbacks.forEach { it() }
+        }
+    }
+
+    private fun restoreNow(onReady: () -> Unit) {
         forgetLegacyHandle()
         if (!isSupported()) {
             onReady()

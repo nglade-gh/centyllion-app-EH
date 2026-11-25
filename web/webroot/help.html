@@ -600,28 +600,77 @@ Comportement "Reproduction" : 0 → 0, voisin (1) : 1 → 1, formule : count(0) 
   <h3>6.1 Deux galeries</h3>
   <p>La <b>galerie distribuée</b> fait partie du logiciel : elle est identique pour
   tous et ne peut pas être modifiée depuis l'application. La <b>galerie
-  personnelle</b> contient les modèles que vous ajoutez ; elle est stockée dans les
-  données de votre navigateur, sur ce poste uniquement.</p>
+  personnelle</b> contient les modèles que vous ajoutez.</p>
 
-  <p>Vos ajouts ne sont donc <b>ni publiés, ni visibles des autres utilisateurs</b>,
-  et ils ne suivent pas d'un ordinateur à l'autre. Ils disparaissent si vous effacez
-  les données du navigateur.</p>
+  <p>La galerie personnelle a <b>deux emplacements possibles, un seul actif à la
+  fois</b> : la fenêtre de la galerie affiche toujours lequel, sur sa première ligne,
+  sous le titre. Il n'y a pas de bascule silencieuse.</p>
+  <ul>
+    <li><b>sur le disque</b> — dans le dossier <code>galerie/</code> à la racine du
+    <b>dossier de travail</b> (bouton maison, §9.3) quand ce dossier est défini et que
+    sa permission est accordée ; la ligne donne le chemin, par exemple
+    <code>Mes simulations/galerie</code> ;</li>
+    <li><b>dans le navigateur</b> — base IndexedDB <code>centyllion-gallery</code>,
+    comme avant, dans tous les autres cas : aucun dossier de travail, dossier oublié,
+    permission non accordée, ou navigateur sans accès aux dossiers (Firefox, Safari).</li>
+  </ul>
+  <p>Le bouton <b>Où est ma galerie ?</b> explique les deux cas dans la fenêtre de la
+  galerie. Quand le dossier est mémorisé mais que sa permission doit être renouvelée,
+  une ligne le signale : le bouton maison la rend d'un clic.</p>
 
-  <h3>6.2 Ajouter un modèle</h3>
+  <p>Vos ajouts ne sont <b>ni publiés, ni visibles des autres utilisateurs</b>. Sur le
+  disque, ils ne quittent pas le dossier que vous avez choisi ; dans le navigateur, ils
+  disparaissent si vous effacez ses données.</p>
+
+  <h3>6.2 Format sur le disque</h3>
+  <p>Le dossier <code>galerie/</code> contient un fichier <code>galerie.json</code> et
+  une image JPEG par entrée :</p>
+  <pre><code>Mes simulations/
+  └── galerie/
+        ├── galerie.json
+        ├── image-local-1732190000000.jpg
+        └── image-local-1732190001234.jpg</code></pre>
+  <p><code>galerie.json</code> ne contient que des <b>métadonnées</b> — identifiant,
+  titre, description, nom du fichier image, date — et <b>jamais d'image en base64</b> :
+  chaque image est un fichier séparé du même dossier, nommé d'après l'identifiant de
+  l'entrée, nettoyé pour le système de fichiers (les caractères <code>/</code>,
+  <code>\</code>, <code>:</code>, <code>*</code>, <code>?</code>, <code>"</code>,
+  <code>&lt;</code>, <code>&gt;</code> et <code>|</code> deviennent des soulignés).</p>
+  <p>Le fichier a exactement le <b>format de l'export</b> (version 1, clé
+  <code>models</code>) : un dossier <code>galerie/</code> est donc directement
+  réutilisable et importable, et un export peut être déposé dans un dossier de travail
+  sous le nom <code>galerie/galerie.json</code>.</p>
+  <p>À chaque écriture, <code>galerie.json</code> est <b>relu juste avant d'être
+  réécrit</b>, puis fusionné entrée par entrée : les modèles ajoutés depuis un autre
+  onglet ne sont pas perdus, et le dernier écrivain gagne pour un même modèle. Si le
+  fichier est illisible, il n'est <b>jamais écrasé</b> : il est conservé sous un nom
+  daté (<code>galerie.bak-AAAAMMJJ-HHMMSS.json</code>) et un fichier neuf est créé, ce
+  que la galerie annonce. La suppression d'une entrée demande confirmation, puis
+  supprime son image — et <b>seulement</b> le fichier référencé par cette entrée.</p>
+
+  <h3>6.3 Ajouter un modèle</h3>
   <p>Le bouton <b>Ajouter un modèle</b> demande un fichier de sauvegarde
   (<code>.nbd2</code> ou <code>.netbiodyn</code>), puis un titre — prérempli avec le
   nom du modèle — et une description. Le nom, la description et l'image peuvent être
   repris du fichier ; ils restent modifiables ensuite. Sans image, une vignette de
   l'état initial de la simulation est générée.</p>
 
-  <h3>6.3 Conserver et transférer</h3>
+  <h3>6.4 Conserver, partager et transférer</h3>
+  <p>Sur le disque, la galerie se partage par <b>simple copie du dossier
+  <code>galerie/</code></b> : copié dans le dossier de travail d'un autre poste, il
+  suffit à retrouver les modèles et leurs images.</p>
   <p><b>Exporter ma galerie</b> télécharge un fichier <code>ma-galerie.json</code>
-  autonome, qui contient vos modèles. C'est votre sauvegarde, et le seul moyen de
-  retrouver votre galerie sur un autre poste ou après un nettoyage du navigateur :
-  <b>Importer ma galerie</b> la reconstitue. La galerie distribuée n'est pas
-  concernée par ces deux boutons.</p>
+  autonome, qui contient vos modèles. C'est votre sauvegarde, et le moyen de retrouver
+  votre galerie sur un autre poste ou après un nettoyage du navigateur : <b>Importer ma
+  galerie</b> la reconstitue. La galerie distribuée n'est pas concernée par ces deux
+  boutons.</p>
+  <p><b>Première utilisation du disque</b> : quand un dossier de travail devient
+  disponible et que la galerie du disque est vide ou absente, la galerie du navigateur
+  y est <b>copiée une fois</b>, et un message le dit. La copie du navigateur n'est
+  jamais vidée : elle sert de repli si le dossier est oublié ou si sa permission est
+  perdue.</p>
 
-  <h3>6.4 Description du modèle et description de galerie</h3>
+  <h3>6.5 Description du modèle et description de galerie</h3>
   <p>Le bouton <b>Infos modèle</b>, au-dessus des Agents, édite le nom et la
   description <i>du modèle</i> : cette description est enregistrée dans le fichier
   <code>.nbd2</code>. La description saisie dans la galerie est une présentation
@@ -738,7 +787,7 @@ Actions   : Capture()
               ├── GoL_Modifiers__12.jpg
               └── GoL_Modifiers__13.jpg</code></pre>
   <p>Le dossier est mémorisé à part de tout le reste : son <em>handle</em> vit dans <b>sa propre base IndexedDB</b> — <code>centyllion-home</code>, version 1, magasin <code>handles</code>, clé <code>home</code> — qui ne partage rien avec la galerie (<code>centyllion-gallery</code>) ni avec les handles du dialogue d'enregistrement (<code>centyllion-files</code>). <code>localStorage</code> ne garde que <b>deux chaînes</b> : le nom à afficher et le mode de repli. L'ancienne clé <code>workFolder</code> de <code>centyllion-files</code> n'est <b>ni lue ni migrée</b> : elle est simplement supprimée si elle existe, et le dossier est choisi à nouveau.</p>
-  <p><b>Aucune image ne passe par le stockage du navigateur</b> : rien dans IndexedDB, <code>localStorage</code>, <code>sessionStorage</code> ni Cache Storage. La capture est encodée en mémoire (un <code>Blob</code>), puis écrite dans le dossier ou téléchargée — elle n'a pas d'autre destination. La base <code>centyllion-home</code> refuse d'ailleurs tout ce qui n'est pas un handle de dossier.</p>
+  <p><b>Aucune image de capture ne passe par le stockage du navigateur</b> : rien dans IndexedDB, <code>localStorage</code>, <code>sessionStorage</code> ni Cache Storage. La capture est encodée en mémoire (un <code>Blob</code>), puis écrite dans le dossier ou téléchargée — elle n'a pas d'autre destination. La base <code>centyllion-home</code> refuse d'ailleurs tout ce qui n'est pas un handle de dossier. (Les images de la galerie personnelle suivent la galerie, elles : fichiers JPEG de <code>galerie/</code> sur le disque, data URLs dans IndexedDB quand la galerie est dans le navigateur — §9.5.)</p>
   <p>La boîte de dialogue donne l'état du dossier : <b>non défini</b>, <b>défini</b> ou <b>permission à renouveler</b>. Un navigateur redemande parfois la permission après un redémarrage : le bouton <b>Reconnecter</b> la rend d'un clic (<code>queryPermission</code> puis <code>requestPermission</code>), sans choisir le dossier une seconde fois.</p>
   <p>Sans dossier de travail, si la permission n'est pas accordée, ou si l'écriture échoue, l'image est <b>téléchargée</b> (Blob + attribut <code>download</code>). Un message dit toujours laquelle des deux voies a été suivie, et pourquoi : une capture ne bascule jamais silencieusement en téléchargement, et <code>showSaveFilePicker</code> n'est jamais la seule voie.</p>
 
@@ -751,6 +800,12 @@ Actions   : Capture()
   </table>
   <p>Sur un navigateur sans File System Access, le bouton maison reste présent, en <b>magenta plein</b> : son infobulle dit « Dossier de travail — Non défini » et il ouvre la même boîte de dialogue, qui explique que les captures partiront en téléchargement, un fichier par pas. Aucune fonctionnalité de capture n'est réservée à Chrome ou à Edge.</p>
   <p><b>Débit</b> : chaque capture encode le canevas en JPEG et écrit un fichier. À 50 pas par seconde, un <code>Capture()</code> sans condition produit 50 fichiers par seconde : préférez un déclencheur rare (<code>step % 10 == 0</code>, un comptage de voisins, une valeur de champ), ou une pause avant la capture.</p>
+
+  <h3>9.5 Galerie personnelle dans le dossier de travail</h3>
+  <p>Le dossier de travail ne reçoit pas que les captures : quand il est <b>défini et que sa permission est accordée</b>, la <b>galerie personnelle</b> y vit aussi, dans <code>galerie/</code> à sa racine — un fichier <code>galerie.json</code> pour les métadonnées, une image JPEG par entrée (voir §6.2). La première ligne de la fenêtre de la galerie donne le chemin, par exemple <code>Mes simulations/galerie</code>.</p>
+  <p>Dans tous les autres cas — aucun dossier, dossier oublié, permission non renouvelée, navigateur sans accès aux dossiers — la galerie reste dans le <b>stockage du navigateur</b> (IndexedDB), comme avant. Les deux emplacements ne sont jamais actifs en même temps, et la galerie dit toujours lequel elle utilise.</p>
+  <p>Ce partage ne change rien aux captures : leur handle et la galerie restent dans deux bases distinctes (<code>centyllion-home</code> et <code>centyllion-gallery</code>). Les images de la galerie, elles, suivent la galerie : fichiers JPEG dans <code>galerie/</code> sur le disque, data URLs dans IndexedDB quand le repli du navigateur est actif — jamais de base64 dans <code>galerie.json</code>.</p>
+  <p>Le dossier se partage par simple copie : <code>galerie/</code> copié dans le dossier de travail d'un autre poste restitue les modèles et leurs images, et son <code>galerie.json</code> peut aussi être importé par <b>Importer ma galerie</b>.</p>
   </section>
 
 </body>

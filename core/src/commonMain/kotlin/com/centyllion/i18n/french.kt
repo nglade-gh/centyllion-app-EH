@@ -524,6 +524,38 @@ object French: Locale {
         "Thumbnail generated from the initial state." -> "Vignette générée à partir de l'état initial."
         "The gallery could not be saved in the browser storage." ->
             "La galerie n'a pas pu être enregistrée dans le stockage du navigateur."
+        // personal gallery: the disk (working folder) and the fallback of the browser
+        "Where is my gallery?" -> "Où est ma galerie ?"
+        "The personal gallery has one home at a time, and this line always says which one: the folder galerie of the working folder, or the storage of this browser." ->
+            "La galerie personnelle n'a qu'un seul emplacement à la fois, et cette ligne dit toujours lequel : le dossier galerie du dossier de travail, ou le stockage de ce navigateur."
+        "On the disk: %0 holds the metadata of each entry (id, title, description, name of its picture, date) and every picture is a separate JPEG file of the same folder — never base64 inside the JSON. The file has the format of the export (version 1, key models)." ->
+            "Sur le disque : %0 contient les métadonnées de chaque entrée (id, titre, description, nom de son image, date) et chaque image est un fichier JPEG séparé du même dossier — jamais de base64 dans le JSON. Le fichier a le format de l'export (version 1, clé models)."
+        "Sharing: copy the folder %0 to another computer (or into the working folder of another browser) and its models and pictures are there; the same folder can also be imported with Import my gallery." ->
+            "Partage : copiez le dossier %0 sur un autre poste (ou dans le dossier de travail d'un autre navigateur), ses modèles et ses images y sont ; le même dossier peut aussi être importé avec Importer ma galerie."
+        "In the browser: without a working folder, or without its permission, the gallery stays in the IndexedDB of this browser, as before. The first time a folder is available, the gallery of the browser is copied into it once; the browser copy is never emptied." ->
+            "Dans le navigateur : sans dossier de travail, ou sans sa permission, la galerie reste dans l'IndexedDB de ce navigateur, comme avant. La première fois qu'un dossier est disponible, la galerie du navigateur y est copiée une fois ; la copie du navigateur n'est jamais vidée."
+        "Two tabs: the file is read again before every write and merged entry by entry, so the models added in the other tab are kept; the last write wins for the same model. Deleting an entry deletes only its own picture file, after confirmation." ->
+            "Deux onglets : le fichier est relu avant chaque écriture et fusionné entrée par entrée, les modèles ajoutés dans l'autre onglet sont donc conservés ; le dernier écrivain gagne pour un même modèle. Supprimer une entrée ne supprime que son propre fichier image, après confirmation."
+        "Gallery stored on the disk: %0 (%1 for the metadata, one %2 file per picture)." ->
+            "Galerie enregistrée sur le disque : %0 (%1 pour les métadonnées, un fichier %2 par image)."
+        "Gallery stored in this browser; export it to keep it or to transfer it." ->
+            "Galerie enregistrée dans ce navigateur ; exportez-la pour la conserver ou la transférer."
+        "The working folder %0 is remembered but its permission must be renewed: renew it with the home button to store the gallery on the disk." ->
+            "Le dossier de travail %0 est mémorisé mais sa permission doit être renouvelée : renouvelez-la avec le bouton maison pour enregistrer la galerie sur le disque."
+        "This browser has no access to a folder: the gallery stays in its storage." ->
+            "Ce navigateur n'a pas accès aux dossiers : la galerie reste dans son stockage."
+        "The model and its picture (%0) are removed from %1. Only the file of this entry is deleted: the other models, their pictures and the folder are untouched." ->
+            "Le modèle et son image (%0) sont retirés de %1. Seul le fichier de cette entrée est supprimé : les autres modèles, leurs images et le dossier ne sont pas touchés."
+        "The gallery could not be written in %0: nothing was changed. Check the permission of the folder, or forget it to use the gallery of this browser." ->
+            "La galerie n'a pas pu être écrite dans %0 : rien n'a été modifié. Vérifiez la permission du dossier, ou oubliez-le pour utiliser la galerie de ce navigateur."
+        "%0 could not be read: it was kept as %1 and a new file was created." ->
+            "%0 n'a pas pu être lu : il a été conservé sous %1 et un nouveau fichier a été créé."
+        "%0 could not be read: nothing was changed on the disk." ->
+            "%0 n'a pas pu être lu : rien n'a été modifié sur le disque."
+        "Gallery copied to %0: %1 entries of the browser are now on the disk; the browser copy is kept." ->
+            "Galerie copiée dans %0 : les %1 entrées du navigateur sont maintenant sur le disque ; la copie du navigateur est conservée."
+        "The gallery of this browser could not be copied to %0: it stays in the browser." ->
+            "La galerie de ce navigateur n'a pas pu être copiée dans %0 : elle reste dans le navigateur."
         "Copy" -> "Copier"
         "Cut" -> "Couper"
         "Paste" -> "Coller"

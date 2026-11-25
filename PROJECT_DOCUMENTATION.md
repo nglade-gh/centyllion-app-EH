@@ -688,6 +688,57 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 - **Vue de simulation** (`controller/model/SimulatorViewController.kt`) : vue de dessus en canvas 2D, **sans 3D ni éclairage**. Un buffer hors écran de la taille de la grille (1 pixel = 1 cellule) reçoit les agents (couleur du grain, aplats stricts) puis la couche des champs (alpha identique à l'ancienne texture 3D) ; il est ensuite agrandi en `imageSmoothingEnabled = false` dans le canvas affiché (backing store en pixels de périphérique, `devicePixelRatio`), sur lequel sont tracés la grille et l'aperçu du pinceau. Outils conservés : stylo, ligne, carré, spray, gomme, déplacement (panoramique) ; zoom molette ×0,25 à ×16 ; bouton plein écran ; vignettes/captures par `canvas.toDataURL` / `toBlob`. `captureJpeg()` fournit l'image de la méta-action `Capture()` (JPEG 0,92, `toDataURL` synchrone décodé en `Blob`, pour lire le canevas avant le pas suivant). Les grains masqués (case à cocher) et les champs masqués sont rendus en couleur de fond. Les clés `simulation.assets` et `settings.gridTextureUrl` restent dans le modèle (compatibilité) mais ne sont plus rendues.
 - Coût mesuré sur `coeur` (8 694 agents, grille 100×100) : ~0,5 ms par repeint, contre ~31 ms par rendu de scène Babylon et 17 404 maillages ; débit en lecture ≈ 7 pas/s contre ≈ 1,8 pas/s (même modèle, même machine). Bundle JS : 806 Ko contre 3,5 Mo.
 
+### 8.5 Galerie personnelle : disque et repli navigateur
+
+La galerie personnelle (les modèles ajoutés par le visiteur, par opposition à la galerie
+distribuée `Gallery/gallery.json`, en lecture seule) a **deux emplacements possibles, un seul
+actif à la fois**. Le choix n'est pas un réglage : il suit l'état du **dossier de travail**
+(`WorkFolder`, `web/.../client/capture/`), et la fenêtre de la galerie annonce toujours l'emplacement
+actif — chemin du dossier ou « navigateur ».
+
+| état du dossier de travail | emplacement de la galerie |
+|---|---|
+| défini et permission accordée (`WorkFolderState.DEFINED`) | `<dossier de travail>/galerie/` (disque) |
+| non défini, oublié, permission à renouveler, navigateur sans File System Access | IndexedDB `centyllion-gallery` v1, magasin `entries` (repli) |
+
+**Format sur le disque** (`core/src/commonMain/kotlin/com/centyllion/model/gallery/GalleryDisk.kt`) :
+`galerie/galerie.json` porte les métadonnées (`id`, `title`, `description`, `image` = nom du
+fichier image, `date`, plus `file`/`model`/`hidden` comme l'export) et chaque image est un fichier
+JPEG séparé du même dossier, nommé `image-<id>.jpg` par `galleryImageFileName()` (id nettoyé avec
+les règles de `sanitizeCaptureName()` : `/ \ : * ? " < > |` → `_`, bords nettoyés, longueur bornée,
+préfixe `_` pour un nom de périphérique Windows, repli `entry` pour un id vide ; deux id qui se
+nettoient pareil reçoivent `-2`, `-3`…). Le JSON est celui de l'export : `version: 1`,
+`exportedAt`, clé `models` — donc un dossier `galerie/` est directement réutilisable et importable,
+et **aucune image n'est écrite en base64** dedans. `toDisk()` produit le JSON + la liste des
+fichiers, `fromDisk()` / `withDataUrls()` refont les data URLs, `decodeImageDataUrl()` /
+`encodeImageDataUrl()` font l'aller-retour base64.
+
+**Lecture et écriture** (`web/src/jsMain/kotlin/com/centyllion/client/gallery/GalleryDisk.kt`,
+`GalleryDiskStorage`) : lecture au chargement de la galerie, disque si `WorkFolder.isFolderReady`
+sinon IndexedDB. À chaque écriture, `galerie.json` est **relu juste avant** puis fusionné par id
+(`mergeById(disk, mine, removed)`) : dernier écrivain gagnant par entrée, entrées absentes du
+fichier conservées, ids explicitement supprimés retirés des deux côtés. Suppression d'une entrée :
+confirmation, puis `removePictures()` efface **uniquement** le fichier nommé par cette entrée (et
+seulement s'il est bien `galleryImageFileName(id)` et qu'aucune entrée restante ne le référence).
+`galerie.json` absent → fichier neuf ; illisible (`decodeDisk` → `GalleryDiskRead.Unreadable`) →
+copie datée `galerie.bak-AAAAMMJJ-HHMMSS.json`, puis fichier neuf, et message à l'utilisateur —
+jamais d'écrasement direct.
+
+**Premier usage du disque** : si la galerie du disque est absente ou vide et qu'IndexedDB contient
+des entrées, `seedIfEmpty()` les copie une fois (message affiché). IndexedDB n'est **jamais vidé** ;
+il est en revanche tenu à jour après chaque écriture sur le disque (`GalleryStore.save` en
+arrière-plan), pour que le repli soit à jour si le dossier disparaît.
+
+**Fichiers** : `gallery/Gallery.kt` (typealiases `GalleryEntry`/`GalleryIndex`/`GalleryExport` vers
+le core, `GalleryStore` : IndexedDB, export/import, fusion avec l'index distribué),
+`gallery/GalleryDisk.kt` (emplacement, lecture/écriture disque, JS `galleryFiles` : `readText`,
+`writeText`, `writeBytes`, `copyText`, `remove`, `readDataUrls`), `gallery/GalleryController.kt`
+(fenêtre, ligne d'emplacement, aide « Où est ma galerie ? », formulaire, suppression).
+`WorkFolder` expose `directoryHandle`, `isFolderReady` et `whenReady()` (restauration unique du
+handle, partagée entre le bouton maison et la galerie). Tests : `core/src/commonTest/.../gallery/GalleryDiskTest.kt`
+— conversion data URL ↔ fichier, absence de base64 dans le JSON, nom de fichier dérivé et assaini,
+fusion par id, JSON illisible, nom daté ; aucun test ne dépend d'un navigateur (`:core:jvmTest`).
+
 ---
 
 ## 9. Serveur / API (module `db/` — Ktor + SQLDelight)

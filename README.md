@@ -517,9 +517,9 @@ la description de galerie est une présentation, distincte.
 
 | | galerie distribuée | galerie personnelle |
 |---|---|---|
-| emplacement | `Gallery/gallery.json` + modèles, livrés avec le logiciel | IndexedDB du navigateur |
+| emplacement | `Gallery/gallery.json` + modèles, livrés avec le logiciel | `galerie/` du dossier de travail (disque) **ou** IndexedDB du navigateur |
 | contenu | les modèles exposés par l'équipe (Autopulse 2, Game of Life using Modifiers) | les modèles que l'utilisateur ajoute |
-| visibilité | tous les visiteurs, identique | ce navigateur uniquement |
+| visibilité | tous les visiteurs, identique | ce poste (dossier choisi) ou ce navigateur |
 | écriture | jamais modifiée par l'application | immédiate, à chaque ajout ou suppression |
 
 Le dossier `Gallery/` est à la racine du projet et **recopié dans `webroot/Gallery/`
@@ -528,33 +528,63 @@ chaque compilation. Il est distribué avec le logiciel.
 
 Un modèle ajouté par un utilisateur n'est donc **ni** publié, **ni** distribué,
 **ni** visible des autres visiteurs. C'est un choix assumé : sans comptes
-utilisateurs, un serveur ne peut pas savoir à qui appartient un modèle. Les ajouts
-vivent dans le navigateur, où IndexedDB leur donne un quota bien supérieur à
-`localStorage` (nécessaire pour des modèles de plusieurs mégaoctets).
+utilisateurs, un serveur ne peut pas savoir à qui appartient un modèle.
 
-Conséquence pratique : vider les données du navigateur efface la galerie
-personnelle. D'où les deux boutons **« Exporter ma galerie »** et **« Importer ma
-galerie »** : le fichier `ma-galerie.json` exporté est autonome (il contient les
-textes des modèles) et constitue la seule sauvegarde et le seul transfert possible
-entre navigateurs ou postes. La galerie distribuée n'est pas concernée : elle fait
-partie du déploiement.
+**Deux emplacements, un seul actif.** La galerie personnelle vit dans
+`galerie/` à la racine du **dossier de travail** quand ce dossier est défini et
+que sa permission est accordée (`WorkFolderState.DEFINED`) ; sinon elle reste
+dans l'IndexedDB du navigateur, comme avant. La fenêtre de la galerie affiche
+toujours l'emplacement actif (chemin du dossier, ou « navigateur ») : il n'y a
+pas de bascule silencieuse.
+
+**Format sur le disque.** `galerie/galerie.json` ne contient que des
+métadonnées — `id`, `title`, `description`, `image` (nom du fichier image),
+`date` — et chaque image est un fichier JPEG séparé du même dossier, nommé
+`image-<id>.jpg` (id nettoyé : `/ \ : * ? " < > |` remplacés, longueur bornée).
+Le JSON a **le format de l'export** (version 1, clé `models`, plus `exportedAt`),
+donc un dossier `galerie/` est directement réutilisable et importable, et jamais
+une image en base64 n'y est écrite.
+
+**Écriture.** `galerie.json` est relu juste avant chaque écriture puis fusionné
+par id (`mergeById`) : le dernier écrivain gagne pour une entrée, les entrées
+absentes du fichier — écrites par un autre onglet — sont conservées. Une
+suppression confirmée retire l'entrée des deux côtés et ne supprime **que** le
+fichier image référencé par cette entrée. Si `galerie.json` est illisible, il
+n'est jamais écrasé : il est copié sous `galerie.bak-AAAAMMJJ-HHMMSS.json`, un
+fichier neuf est écrit, et la galerie le signale.
+
+**Premier usage.** Si la galerie du disque est vide ou absente et que celle du
+navigateur contient des entrées, elles y sont copiées une fois, avec un message.
+IndexedDB n'est **jamais vidé** : c'est le repli si le dossier est oublié ou sa
+permission perdue ; il est aussi tenu à jour après chaque écriture sur le disque.
+
+Conséquence pratique : vider les données du navigateur n'efface plus la galerie
+quand elle vit sur le disque. Sans dossier de travail, elle disparaît avec les
+données du navigateur — d'où les deux boutons **« Exporter ma galerie »** et
+**« Importer ma galerie »** : le fichier `ma-galerie.json` exporté est autonome
+(il contient les textes des modèles) et la copie du dossier `galerie/` suffit sur
+le disque. La galerie distribuée n'est pas concernée : elle fait partie du
+déploiement.
 
 ### 9.3 Cas d'usage
 
 **Modélisateur, en local.** Il construit un modèle, l'essaie, puis l'expose dans sa
-galerie personnelle ; il exporte `ma-galerie.json` pour le retrouver sur un autre
-poste. Pour proposer un modèle à la distribution, il dépose le `.nbd2` et une image
-dans `Gallery/`, puis ajoute une entrée dans `Gallery/gallery.json` — opération
-d'équipe, versionnée avec le projet.
+galerie personnelle. Si un dossier de travail est choisi, la galerie est écrite dans
+`galerie/` de ce dossier : il la retrouve en copiant le dossier sur un autre poste,
+ou en important `ma-galerie.json`. Pour proposer un modèle à la distribution, il
+dépose le `.nbd2` et une image dans `Gallery/`, puis ajoute une entrée dans
+`Gallery/gallery.json` — opération d'équipe, versionnée avec le projet.
 
 **Enseignant, en salle.** Les étudiants se connectent à l'application déployée. Ils
 partent de la galerie distribuée, qui donne des exemples immédiatement ouvrables,
-puis construisent les leurs. Chaque poste garde ses ajouts ; rien n'est centralisé,
-et l'enseignant n'a pas à administrer de comptes.
+puis construisent les leurs. Chaque poste garde ses ajouts — dans le dossier de
+travail quand ils en choisissent un (salle de TP avec un dossier partagé, par
+exemple), sinon dans le navigateur ; rien n'est centralisé, et l'enseignant n'a pas à
+administrer de comptes.
 
 **Visiteur d'une instance publique.** Il consulte les modèles exposés, en ouvre un,
-l'explore, éventuellement l'édite pour lui-même. Ses ajouts ne quittent pas son
-navigateur ; le message affiché dans la galerie le lui rappelle.
+l'explore, éventuellement l'édite pour lui-même. Sans dossier de travail, ses ajouts
+ne quittent pas son navigateur ; la ligne d'emplacement de la galerie le lui rappelle.
 
 ### 9.4 Déploiement
 
@@ -581,8 +611,10 @@ contenu de `Gallery/` au moment du build. Côté client :
 
 - aucun dossier local, aucune écriture côté serveur ;
 - galerie distribuée en lecture seule, identique pour tous ;
-- galerie personnelle dans le navigateur de chaque visiteur, sauvegardable par
-  export.
+- galerie personnelle dans le navigateur de chaque visiteur — ou dans le dossier de
+  travail que le visiteur choisit, si son navigateur offre le File System Access
+  (Chrome, Edge, sur HTTPS ou `localhost`) — sauvegardable par export et par copie
+  du dossier `galerie/`.
 
 Ce que l'instance doit fournir : le bundle `web.js`, `css/`, `font/`, `index.html`,
 `help.html`, `favicon.ico` et `Gallery/`. Aucun service particulier, aucune base de
@@ -602,10 +634,13 @@ production) :
   version. Sans en-tête `Cache-Control: no-cache` sur les `.js` et `index.html`,
   les visiteurs continuent d'exécuter l'ancienne version après une mise à jour.
 
-**Limites à annoncer aux utilisateurs d'une instance partagée.** La galerie
-personnelle est liée au navigateur et au poste ; elle ne suit pas d'une machine à
-l'autre ; elle disparaît si les données du navigateur sont effacées ; elle n'est
-pas vue par les autres visiteurs. L'export est la réponse à ces quatre limites.
+**Limites à annoncer aux utilisateurs d'une instance partagée.** Sans dossier de
+travail, la galerie personnelle est liée au navigateur et au poste : elle ne suit pas
+d'une machine à l'autre et disparaît si les données du navigateur sont effacées. Avec
+un dossier de travail, elle suit le dossier (copie sur un autre poste), mais reste
+invisible des autres visiteurs de l'instance. Dans les deux cas, l'emplacement est
+affiché dans la galerie, et l'export (`ma-galerie.json`) ou la copie du dossier
+`galerie/` est la réponse au transfert.
 
 ### 9.5 Ce que la galerie n'est pas
 

@@ -5,7 +5,6 @@ import com.centyllion.model.ModelAndSimulation
 import com.centyllion.model.colorNames
 import kotlinx.browser.document
 import kotlinx.browser.window
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -47,39 +46,18 @@ const val GALLERY_EXPORT_WARNING_BYTES = 20 * 1024 * 1024
 /** Sanity limit of a single model text, in bytes. */
 const val MAX_GALLERY_MODEL_BYTES = 2 * 1024 * 1024
 
-/** One card of the gallery. */
-@Serializable
-data class GalleryEntry(
-    val id: String,
-    val title: String = "",
-    val description: String = "",
-    val image: String = "",
-    /** Path of the model file, relative to the served root (static entries only). */
-    val file: String? = null,
-    /** JSON text of the model, kept for the models imported by the user (overlay only). */
-    val model: String? = null,
-    /** Masks a static entry without touching `gallery.json`. */
-    val hidden: Boolean = false
-) {
-    /** True for an entry carrying its own model text (a model imported by the user). */
-    val imported: Boolean get() = !model.isNullOrBlank()
-}
+/**
+ * One card of the gallery. The type lives in the core module
+ * (`com.centyllion.model.gallery`), with the conversion to and from the on-disk format, so the
+ * rules are tested on the JVM, without a browser.
+ */
+typealias GalleryEntry = com.centyllion.model.gallery.GalleryEntry
 
 /** Content of `Gallery/gallery.json`. */
-@Serializable
-data class GalleryIndex(
-    val version: Int = 1,
-    val models: List<GalleryEntry> = emptyList()
-)
+typealias GalleryIndex = com.centyllion.model.gallery.GalleryIndex
 
-/** Content of a personal gallery export, as downloaded by the visitor. */
-@Serializable
-data class GalleryExport(
-    val version: Int = 1,
-    /** ISO-8601 timestamp of the export. */
-    val exportedAt: String = "",
-    val models: List<GalleryEntry> = emptyList()
-)
+/** Content of a personal gallery export, as downloaded by the visitor — and of `galerie.json`. */
+typealias GalleryExport = com.centyllion.model.gallery.GalleryExport
 
 /**
  * Persistence and merging of the gallery.
