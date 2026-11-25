@@ -18,7 +18,7 @@ object French: Locale {
         "Field permeability for %0 must be between 0 and 1" -> "La perméabilité du champ %0 doit être entre 0 et 1"
         "Field threshold value for %0 must be between 0 and 1" -> "Le seuil de champ pour %0 doit être entre 0 et 1"
 
-        "Previous" -> "Précedent"
+        "Previous" -> "Précédent"
         "Next" -> "Suivant"
         "Ok" -> "Ok"
 
@@ -747,6 +747,114 @@ object French: Locale {
         "Working folder and captures" -> "Dossier de travail et captures"
         "The browser remembers only the folder itself, in its own database: no picture is stored in the browser, a capture goes to the folder or to a download, nowhere else." ->
             "Le navigateur ne retient que le dossier lui-même, dans sa propre base : aucune image n'est stockée dans le navigateur, une capture va dans le dossier ou en téléchargement, nulle part ailleurs."
+        "Getting started" -> "Premiers pas"
+        "Cut, rotate, paste" -> "Couper, tourner, coller"
+        "Skip" -> "Passer"
+        "Finish" -> "Terminer"
+        "Some models take a picture of the view while they run, through the Capture() meta-action. The picture is written in the captures folder of the working folder, in a sub-folder named after the model." ->
+            "Certains modèles prennent une image de la vue pendant qu'ils tournent, par la méta-action Capture(). L'image est écrite dans le dossier captures du dossier de travail, dans un sous-dossier portant le nom du modèle."
+        "This browser has no access to a folder, so there is nothing to choose here: every capture is downloaded, one file per step. Chrome and Edge offer the working folder on HTTPS or on localhost; Firefox and Safari do not." ->
+            "Ce navigateur n'a pas accès aux dossiers : il n'y a donc rien à choisir ici, chaque capture est téléchargée, un fichier par pas. Chrome et Edge proposent le dossier de travail en HTTPS ou sur localhost ; Firefox et Safari non."
+        "Nothing to do here: the pictures go to this folder. The home button of the bar, under the title, reopens this folder dialog at any time." ->
+            "Rien à faire ici : les images vont dans ce dossier. Le bouton maison de la barre, sous le titre, rouvre ce dialogue du dossier à tout moment."
+        "You can set it now, or later with the home button of the bar: it is magenta while no folder is set and blue once one is." ->
+            "Vous pouvez le définir maintenant, ou plus tard avec le bouton maison de la barre : il est magenta tant qu'aucun dossier n'est défini et bleu dès qu'un dossier l'est."
+        "Welcome" -> "Bienvenue"
+        "NetBioDyn simulates a population of agents on a grid: every agent follows the behaviours of its grain, and fields diffuse around them, cell by cell." ->
+            "NetBioDyn simule une population d'agents sur une grille : chaque agent suit les comportements de son grain, et des champs diffusent autour d'eux, de cellule en cellule."
+        "This tour shows the screen in eight short steps, from the working folder to the drawing tools. It stops there: the agents, the fields, the behaviours and the formulas have their own tutorials." ->
+            "Ce tour présente l'écran en huit étapes courtes, du dossier de travail aux outils de dessin. Il s'arrête là : les agents, les champs, les comportements et les formules ont leurs propres tutoriels."
+        "Go on with Next, or leave at any time with Skip: the tour then closes and will not open by itself again." ->
+            "Avancez avec Suivant, ou quittez à tout moment avec Passer : le tour se ferme alors et ne s'ouvrira plus de lui-même."
+        "The working folder" -> "Le dossier de travail"
+        "The top bar" -> "La barre du haut"
+        "New Model starts an empty model, Import loads a .nbd2 file from the disk, and Save As writes the model and its simulation to a file." ->
+            "Nouveau Modèle part d'un modèle vide, Charger charge un fichier .nbd2 depuis le disque, et Enregistrer sous… écrit le modèle et sa simulation dans un fichier."
+        "Gallery lists the pictures and the snapshots kept in the browser, Tutorial reopens this tour and the others, Help opens the documentation and About gives the version. Undo and Redo are on the right." ->
+            "Galerie liste les images et les instantanés gardés dans le navigateur, Tutoriel rouvre ce tour et les autres, Aide ouvre la documentation et À propos donne la version. Annuler et Rétablir sont à droite."
+        "The pink button under the bar, « Model information », edits the name and the description of the model." ->
+            "Le bouton rose sous la barre, « Informations sur le modèle », modifie le nom et la description du modèle."
+        "The simulation screen" -> "L'écran de simulation"
+        "One square of the grid is one cell of the simulation: an agent takes the colour of its grain, an empty cell the background colour." ->
+            "Un carré de la grille est une cellule de la simulation : un agent prend la couleur de son grain, une cellule vide la couleur de fond."
+        "The fields are overlaid on the grid as a coloured veil, the more opaque the more concentrated. The wheel zooms, and the pointer names the cell under it with the value of each field there." ->
+            "Les champs se superposent à la grille comme un voile coloré, d'autant plus opaque qu'ils sont concentrés. La molette zoome et le pointeur nomme la cellule survolée avec la valeur de chaque champ à cet endroit."
+        "Above the grid, the run bar: Rewind, Run, Step, Stop, the speed in steps per second and the step counter." ->
+            "Au-dessus de la grille, la barre de simulation : retour au début, lecture, pas à pas, arrêt, la vitesse en pas par seconde et le compteur de pas."
+        "The explorer" -> "L'explorateur"
+        "The left column lists what the model contains: Agents (the grains), Fields and Behaviours, then Simulation modifiers in expert mode." ->
+            "La colonne de gauche liste le contenu du modèle : Agents (les grains), Champs et Comportements, puis Modificateurs de simulation en mode expert."
+        "Each row carries an On/Off radio, a name and its identifier, written name (id): that identifier is what the formulas use. The + of a section adds an element and opens its editor, and the search box above filters the list." ->
+            "Chaque ligne porte une case On/Off, un nom et son identifiant, écrit nom (id) : c'est cet identifiant qu'utilisent les formules. Le + d'une section ajoute un élément et ouvre son éditeur, et la zone de recherche au-dessus filtre la liste."
+        "The tabs" -> "Les onglets"
+        "Simulation holds the grid, the run bar and the edition tools. Model opens the editor of the element selected in the explorer, and Settings holds the size of the grid, the seed, the update plan and the curves." ->
+            "Simulation contient la grille, la barre de simulation et les outils d'édition. Modèle ouvre l'éditeur de l'élément sélectionné dans l'explorateur, et Paramètres contient la taille de la grille, la graine, le plan de mise à jour et les courbes."
+        "The curves" -> "Les courbes"
+        "The right column draws one curve per agent: how many there are at each step, in the colour of its grain. The Fields chart below does the same for the amount of each field, and appears as soon as the model has one." ->
+            "La colonne de droite trace une courbe par agent : combien il y en a à chaque pas, dans la couleur de son grain. Le graphique Champs en dessous fait de même pour la quantité de chaque champ, et apparaît dès que le modèle en a un."
+        "Both start again at a rewind. The CSV button exports the history, and Settings can show a sliding window instead of the whole run." ->
+            "Les deux repartent de zéro à un retour au début. Le bouton CSV exporte l'historique, et Paramètres peut afficher une fenêtre glissante au lieu de toute la simulation."
+        "Drawing tools and edit bar" -> "Outils de dessin et barre d'édition"
+        "The bar under the grid holds the drawing tools — pen, line, square, circle, spray, eraser and move — with their size, the Fill switch of the square and the circle, the random add and the button that clears the grid." ->
+            "La barre sous la grille porte les outils de dessin — crayon, ligne, carré, cercle, pulvérisateur, gomme et déplacement — avec leur taille, l'interrupteur Remplir du carré et du cercle, l'ajout aléatoire et le bouton qui vide la grille."
+        "The bar under it copies, cuts, pastes, erases, turns and mirrors a selection of cells; a shift + drag selects a rectangle." ->
+            "La barre en dessous copie, coupe, colle, supprime, tourne et retourne une sélection de cellules ; un glissé avec Maj sélectionne un rectangle."
+        "The tutorial « Cut, rotate, paste » takes those gestures one by one. This tour stops here." ->
+            "Le tutoriel « Couper, tourner, coller » reprend ces gestes un par un. Ce tour s'arrête ici."
+        "That is the whole screen. The other tutorials go further: « Cut, rotate, paste » for the edition, the beginner ones for the agents and the fields, the expert ones for the behaviours, the actions, the modifiers and the formulas." ->
+            "C'est tout l'écran. Les autres tutoriels vont plus loin : « Couper, tourner, coller » pour l'édition, ceux de niveau débutant pour les agents et les champs, ceux de niveau expert pour les comportements, les actions, les modificateurs et les formules."
+        "Hold Shift and drag on the grid: a rectangle follows the pointer and stays selected when the button is released, with a dark veil and a frame on its cells. That selection is what Copy, Cut and Erase work on." ->
+            "Maintenez Maj et glissez sur la grille : un rectangle suit le pointeur et reste sélectionné au relâchement, avec un voile sombre et un cadre sur ses cellules. C'est sur cette sélection qu'agissent Copier, Couper et Suppr."
+        "A plain drag draws with the tool of the bar instead, so Shift is the way to select without drawing." ->
+            "Un glissé simple dessine avec l'outil de la barre : Maj est donc le moyen de sélectionner sans dessiner."
+        "This grid is empty: draw a few agents with the pen before selecting them, otherwise the copy has nothing to carry." ->
+            "Cette grille est vide : dessinez quelques agents au crayon avant de les sélectionner, sinon la copie n'a rien à emporter."
+        "Select a rectangle" -> "Sélectionner un rectangle"
+        "Copy (Ctrl+C) or cut (Ctrl+X)" -> "Copier (Ctrl+C) ou couper (Ctrl+X)"
+        "Copy keeps the cells in place and memorises their agents; Cut memorises them and empties the selected cells. Both read the visible agents only: an agent hidden by a Show(id)/Hide(id) is not carried away." ->
+            "Copier laisse les cellules en place et mémorise leurs agents ; Couper les mémorise et vide les cellules sélectionnées. Les deux ne lisent que les agents visibles : un agent masqué par Show(id)/Hide(id) n'est pas emporté."
+        "The two buttons of the edit bar do the same as the shortcuts. Nothing is written in the grid by Copy, and a cut can be undone with Undo." ->
+            "Les deux boutons de la barre d'édition font la même chose que les raccourcis. Copier n'écrit rien dans la grille, et une coupe peut être annulée avec Annuler."
+        "Anchor the floating selection" -> "Ancrer la sélection flottante"
+        "Once copied or cut, the extraction floats under the pointer: a thin cool frame with the ghost of its agents, which shows exactly what a paste would write on the cell below." ->
+            "Une fois copiée ou coupée, l'extraction flotte sous le pointeur : un cadre fin et froid avec le fantôme de ses agents, qui montre exactement ce qu'un collage écrirait sur la cellule en dessous."
+        "A left click anchors it on that cell: the frame becomes thick and yellow, it no longer follows the pointer, and the cell under it is the origin of the next paste." ->
+            "Un clic gauche l'ancre sur cette cellule : le cadre devient épais et jaune, il ne suit plus le pointeur, et la cellule sous lui est l'origine du prochain collage."
+        "Release it (right click)" -> "La libérer (clic droit)"
+        "A right click detaches the anchor: the extraction floats again under the pointer, ready to be anchored somewhere else. Escape drops the preview without emptying the clipboard." ->
+            "Un clic droit détache l'ancre : l'extraction flotte de nouveau sous le pointeur, prête à être ancrée ailleurs. Échap abandonne l'aperçu sans vider le presse-papiers."
+        "A right click inside the selection, when nothing is anchored, drops the selection itself; Ctrl+Shift+S and the Deselect button do the same." ->
+            "Un clic droit dans la sélection, quand rien n'est ancré, abandonne la sélection elle-même ; Ctrl+Maj+S et le bouton Désélectionner font de même."
+        "Turn it (Ctrl+R)" -> "La tourner (Ctrl+R)"
+        "Ctrl+R, or the circular arrow of the edit bar, gives the extraction a quarter turn clockwise: the frame and its ghost agents turn at once, and a rectangle that is not square swaps its width and its height." ->
+            "Ctrl+R, ou la flèche circulaire de la barre d'édition, fait faire un quart de tour dans le sens horaire à l'extraction : le cadre et ses agents fantômes tournent ensemble, et un rectangle non carré échange sa largeur et sa hauteur."
+        "Only the clipboard turns, never the grid: four turns bring the extraction back to its first position, and nothing has been written yet." ->
+            "Seul le presse-papiers tourne, jamais la grille : quatre tours ramènent l'extraction à sa position d'origine, et rien n'a encore été écrit."
+        "Mirror it (Ctrl+F, Ctrl+Shift+F)" -> "La retourner (Ctrl+F, Ctrl+Maj+F)"
+        "Ctrl+F mirrors the extraction left to right, Ctrl+Shift+F top to bottom; the two arrow buttons of the edit bar do the same. The two mirrors can be combined with a turn." ->
+            "Ctrl+F retourne l'extraction de gauche à droite, Ctrl+Maj+F de haut en bas ; les deux boutons fléchés de la barre d'édition font de même. Les deux miroirs peuvent se combiner avec une rotation."
+        "Paste (Ctrl+V or the button)" -> "Coller (Ctrl+V ou le bouton)"
+        "Ctrl+V or the Paste button writes the extraction where the anchor is; without an anchor, it lands under the pointer, or on the corner of the selection when the pointer is outside the grid." ->
+            "Ctrl+V, ou le bouton Coller, écrit l'extraction là où est l'ancre ; sans ancre, elle atterrit sous le pointeur, ou sur le coin de la sélection quand le pointeur est hors de la grille."
+        "Only the agents of the extraction are written: a cell of the copy that was empty leaves the target cell as it is, unless Overwrite is on — see the switch below. A second Ctrl+V pastes the same extraction again, without the floating preview." ->
+            "Seuls les agents de l'extraction sont écrits : une cellule vide de la copie laisse la cellule cible telle quelle, sauf si Écraser est actif — voir l'interrupteur plus bas. Un second Ctrl+V colle de nouveau la même extraction, sans l'aperçu flottant."
+        "Toric ? — the borders of the grid" -> "Torique ? — les bords de la grille"
+        "Off, a paste that overflows the grid loses the cells that fall outside: they are simply not written." ->
+            "Inactif, un collage qui déborde de la grille perd les cellules qui tombent dehors : elles ne sont simplement pas écrites."
+        "On, those cells fold on the opposite side of the grid, as if the edges were glued: a paste astride the right edge continues on the left. The preview already shows the folded cells." ->
+            "Actif, ces cellules se replient de l'autre côté de la grille, comme si les bords étaient collés : un collage à cheval sur le bord droit continue à gauche. L'aperçu montre déjà les cellules repliées."
+        "The switch also drives the Paste(x, y, overwrite) and PasteAndFlush(x, y, overwrite) meta-actions, and the drawing tools that overflow the grid." ->
+            "L'interrupteur pilote aussi les méta-actions Paste(x, y, overwrite) et PasteAndFlush(x, y, overwrite), ainsi que les outils de dessin qui débordent de la grille."
+        "Overwrite ? — the agents already there" -> "Écraser ? — les agents déjà présents"
+        "Off, a paste only writes the empty cells of its target: the agents already present stay where they are, and the paste looks partial over a populated zone." ->
+            "Inactif, un collage n'écrit que les cellules vides de sa cible : les agents déjà présents restent en place, et le collage paraît partiel sur une zone peuplée."
+        "On, the agents of the extraction replace the ones in place, cell by cell, visible agents only. The frame of the preview turns warm when the switch is on." ->
+            "Actif, les agents de l'extraction remplacent ceux en place, cellule par cellule, agents visibles seulement. Le cadre de l'aperçu devient chaud quand l'interrupteur est actif."
+        "Erase the selection (Ctrl+Delete)" -> "Supprimer la sélection (Ctrl+Suppr)"
+        "Ctrl+Delete, or the red Erase button, empties the visible agents of the selection and drops the selection. The clipboard is not touched: what was copied or cut can still be pasted." ->
+            "Ctrl+Suppr, ou le bouton rouge Suppr, vide les agents visibles de la sélection et abandonne la sélection. Le presse-papiers n'est pas touché : ce qui a été copié ou coupé peut encore être collé."
+        "The whole edition rests on one rectangle: Shift + drag to select it, Copy or Cut to fill the clipboard, a left click to anchor the paste, a right click to release it, Ctrl+R and Ctrl+F to turn it, Ctrl+V to write it, Ctrl+Delete to empty it. Before a paste, check the Toric and Overwrite switches: they decide what happens at the borders and over the agents already there." ->
+            "Toute l'édition repose sur un rectangle : Maj + glissé pour le sélectionner, Copier ou Couper pour remplir le presse-papiers, un clic gauche pour ancrer le collage, un clic droit pour le libérer, Ctrl+R pour la tourner et Ctrl+F pour la retourner, Ctrl+V pour l'écrire, Ctrl+Suppr pour le vider. Avant de coller, vérifiez les interrupteurs Torique et Écraser : ils décident de ce qui se passe aux bords et sur les agents déjà présents."
         else -> null
     }
 }

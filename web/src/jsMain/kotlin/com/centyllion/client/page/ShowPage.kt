@@ -11,6 +11,8 @@ import com.centyllion.client.gallery.GalleryController
 import com.centyllion.client.tutorial.ActionsTutorial
 import com.centyllion.client.tutorial.BacteriasTutorial
 import com.centyllion.client.tutorial.DisplayTutorial
+import com.centyllion.client.tutorial.EditSelectionTutorial
+import com.centyllion.client.tutorial.GettingStartedTour
 import com.centyllion.client.tutorial.MetaActionsTutorial
 import com.centyllion.client.tutorial.FieldFormulaTutorial
 import com.centyllion.client.tutorial.FieldTutorial
@@ -168,8 +170,11 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
      * colour (magenta when not set, blue when set) makes it readable at a glance. The control
      * keeps its own state (IndexedDB handle + two strings of localStorage), so the run loop can
      * save a capture without going through this page.
+     *
+     * Public because the tour of the first connection points at its button and opens its
+     * dialog from the step that presents the working folder.
      */
-    private val workFolderController = WorkFolderController(this)
+    val workFolderController = WorkFolderController(this)
 
     val tutorialControl = Control(Button(
         i18n("Tutorial"), Icon("question-circle"), color = ElementColor.Primary
@@ -189,6 +194,10 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         rounded = true,
         checked = expertMode
     ) { _, value -> expertMode = value }
+
+    /** Title of the page: the anchor the tour of the first connection points at, as the identity
+     *  of the application. */
+    val titleLabel = Label("NetBioDyn", size = Size.Large)
 
     val tools = BField(
         newControl,
@@ -210,7 +219,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
                     // the home button of the working folder sits beside the model information
                     // button, not in the title bar: its tooltip carries the state of the folder
                     left = listOf(
-                        Label("NetBioDyn", size = Size.Large)
+                        titleLabel
                     ),
                     center = listOf(tools),
                     right = listOf(expertModeSwitch)
@@ -285,14 +294,17 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     }
 
     /**
-     * Tutorial menu: the two beginner tutorials (bacterias, fields) and the
-     * expert ones (Game of Life, actions, field formula). Each tutorial can also
-     * be reached from the conclusion of the previous one.
+     * Tutorial menu: the tour of the first connection and the editing tutorial come first,
+     * then the two beginner tutorials (bacterias, fields) and the expert ones (Game of Life,
+     * actions, field formula). Each tutorial can also be reached from the conclusion of the
+     * previous one.
      */
     fun startTutorial() {
         val beginner = i18n("Beginner")
         val expert = i18n("Expert")
         val entries: List<Pair<String, Tutorial<ShowPage>>> = listOf(
+            beginner to GettingStartedTour(this),
+            beginner to EditSelectionTutorial(this),
             beginner to BacteriasTutorial(this),
             beginner to FieldTutorial(this),
             expert to GameOfLifeTutorial(this),
@@ -493,5 +505,18 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
         // restore the file handle of the last saved file (quick save across restarts)
         restoreFileHandle("save").then { handle: dynamic -> saveHandle = handle }
+
+        // first connection: the tour opens by itself, once. The persistent flag is set when it
+        // is closed (Skip, close button or end), so a reload never starts it again; the delay
+        // lets the page be attached to the document, which the layer needs to measure its
+        // targets.
+        if (!GettingStartedTour.seen()) {
+            window.setTimeout({
+                // the visitor may have opened a tutorial or a dialog in the meantime
+                if (tutorialLayer == null && !GettingStartedTour.seen()) {
+                    startTutorial(GettingStartedTour(this))
+                }
+            }, 900)
+        }
     }
 }

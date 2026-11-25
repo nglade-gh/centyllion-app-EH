@@ -11739,6 +11739,14 @@ div.field-label {
   border-bottom: 1rem solid #3fde77;
 }
 
+/* Frame drawn around the element a tutorial step points at: moved at each step, removed when
+   the layer closes. Outline only, so the layout of the page never moves. */
+.tutorial-target {
+  outline: 3px solid #3fde77;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .uplot .off {
   text-decoration: line-through;
 }
