@@ -165,22 +165,28 @@ class SimulationRunController(
     private var modifierPauseNotification: Notification? by
         bulma(null, simulationView.root, Position.AfterBegin)
 
+    /**
+     * The run bar above the grid: Rewind, Run, Step, Stop, the speed and the step counter. A
+     * property so that the tour of the first connection can frame the bar itself.
+     */
+    val runBar: Level = Level(
+        center = listOf(
+            BField(
+                Control(rewindButton), Control(runButton), Control(stepButton), Control(stopButton),
+                Control(parallelButton),
+                addons = true
+            ),
+            Control(stepLabel),
+            BField(Control(fpsSlider), Control(fpsLabel), grouped = true)
+        ),
+        right = listOf(
+            BField(Control(resetOrbitButton), Control(fullscreenButton), grouped = true)
+        )
+    )
+
     val simulationColumns: Columns = Columns(
         Column(
-            Level(
-                center = listOf(
-                    BField(
-                        Control(rewindButton), Control(runButton), Control(stepButton), Control(stopButton),
-                        Control(parallelButton),
-                        addons = true
-                    ),
-                    Control(stepLabel),
-                    BField(Control(fpsSlider), Control(fpsLabel), grouped = true)
-                ),
-                right = listOf(
-                    BField(Control(resetOrbitButton), Control(fullscreenButton), grouped = true)
-                )
-            ), size = ColumnSize.Full
+            runBar, size = ColumnSize.Full
         ),
         simulationView,
         multiline = true

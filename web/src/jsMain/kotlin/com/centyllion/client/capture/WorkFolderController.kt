@@ -4,6 +4,7 @@ import bulma.*
 import com.centyllion.client.page.BulmaPage
 import com.centyllion.client.page.notification
 import com.centyllion.model.CAPTURE_FOLDER
+import org.w3c.dom.HTMLElement
 
 /**
  * The home button of the model bar and the working folder dialog.
@@ -42,11 +43,17 @@ class WorkFolderController(private val page: BulmaPage) {
         // the icon-only button needs its own label: the tooltip and the accessible name are the
         // label of the control
         root.setAttribute("aria-label", page.i18n("Working folder — Not set"))
-        root.style.marginLeft = "0.5rem"
     }
 
     /** The element to put beside the model information button: the home button alone. */
     val control: Control = Control(homeButton)
+
+    /**
+     * The button element itself, without the control that wraps it: the tour of the first
+     * connection frames the icon, and a frame drawn around the control would span the whole
+     * row instead of the house.
+     */
+    val buttonRoot: HTMLElement get() = homeButton.root
 
     init {
         refresh()

@@ -91,6 +91,7 @@ class TutorialLayer<P: BulmaPage>(
         content.body = step.liveContent?.invoke() ?: step.content
         progression.value = currentStep
         if (tutorial.guided) refreshNavigation()
+        counter.root.textContent = i18n("%0 of %1", currentStep + 1, tutorial.steps.size)
         placeStep(target)
         highlight(target)
     }
@@ -104,7 +105,7 @@ class TutorialLayer<P: BulmaPage>(
         nextButton.color = if (currentStep >= tutorial.steps.size - 1) ElementColor.Success else ElementColor.Primary
     }
 
-    private fun i18n(key: String) = tutorial.i18n(key)
+    private fun i18n(key: String, vararg parameters: Any) = tutorial.i18n(key, *parameters)
 
     private fun checking() {
         if (currentStep < tutorial.steps.size) {
@@ -241,7 +242,14 @@ class TutorialLayer<P: BulmaPage>(
 
     val skipButton = Button(i18n("Skip"), size = Size.Small) { skip() }
 
-    val navigation = Div(previousButton, nextButton, skipButton).apply {
+    /** « 3 of 17 »: on a tour of seventeen steps, the position must also be readable as a number. */
+    val counter = span("", "is-size-7").apply {
+        root.style.alignSelf = "center"
+        root.style.marginRight = "auto"
+        root.style.paddingLeft = "0.5rem"
+    }
+
+    val navigation = Div(counter, previousButton, nextButton, skipButton).apply {
         root.style.display = if (tutorial.guided) "flex" else "none"
         root.style.justifyContent = "flex-end"
         root.style.setProperty("gap", "0.5rem")

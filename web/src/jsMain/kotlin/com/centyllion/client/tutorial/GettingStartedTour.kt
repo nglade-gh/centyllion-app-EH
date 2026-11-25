@@ -2,10 +2,10 @@ package com.centyllion.client.tutorial
 
 import bulma.*
 import com.centyllion.client.capture.WorkFolder
-import com.centyllion.client.capture.WorkFolderState
 import com.centyllion.client.page.ShowPage
 import kotlinx.browser.window
 import kotlinx.html.*
+import org.w3c.dom.HTMLElement
 
 /**
  * Tour of the first connection: what the screen is, step by step.
@@ -41,14 +41,37 @@ class GettingStartedTour(
     // ------------------------------------------------------------------ targets
 
     private val title = { page.titleLabel.root }
-    private val workingFolder = { page.workFolderController.control.root }
-    private val topBar = { page.tools.root }
+    /** The home button itself: the frame must surround the house, not the row it sits in. */
+    private val workingFolder = { page.workFolderController.buttonRoot }
+    /** The model information button, beside the home button. */
+    private val modelInfo = { page.modelInfoButton.root }
+
+    /**
+     * The button drawn inside a control, or the control itself when it holds no button (the
+     * import control is a file label): every step of the bar frames one button, never the row.
+     */
+    private fun buttonOf(control: Control): HTMLElement =
+        control.root.querySelector("button") as? HTMLElement ?: control.root
+
+    private val newModel = { buttonOf(page.newControl) }
+    private val importButton = { page.fileInput.root }
+    private val saveAs = { buttonOf(page.saveAsControl) }
+    private val gallery = { buttonOf(page.galleryControl) }
+    private val tutorial = { buttonOf(page.tutorialControl) }
+    private val help = { buttonOf(page.helpControl) }
+    private val about = { buttonOf(page.aboutControl) }
+    /** Undo and redo are disabled — hence drawn at low opacity — while the history is empty. */
+    private val undo = { targetOr(page.undoButton.root, page.tools.root) }
+    private val redo = { targetOr(page.redoButton.root, page.tools.root) }
+
     private val grid = {
         targetOr(
             page.simulationController.simulationViewController.simulationCanvas.root,
             page.modelController.editionTabs.root
         )
     }
+    /** The run bar above the grid, with its own step. */
+    private val runBar = { page.simulationController.runBar.root }
     private val explorer = { page.modelController.leftColumn.root }
     private val tabs = { page.modelController.editionTabs.root }
     private val curves = {
@@ -64,48 +87,30 @@ class GettingStartedTour(
     // ------------------------------------------------------------ working folder
 
     /**
-     * Text of the working folder step, built when the step is shown: the visitor may have
-     * chosen a folder since the tour started, and the step must then state it instead of
-     * offering the picker again.
+     * Text of the working folder step. The sentence is fixed; only the download fallback depends
+     * on the browser, so the content is still built when the step is shown.
      */
     private fun folderContent(): List<BulmaElement> {
         val content = mutableListOf<BulmaElement>()
         content += p(
             i18n(
-                "Some models take a picture of the view while they run, through the Capture() " +
-                    "meta-action. The picture is written in the captures folder of the working " +
-                    "folder, in a sub-folder named after the model."
+                "One of the first things to do the first time you use NetBioDyn is to set your " +
+                    "home. This folder is where your models are saved by default, and it is also " +
+                    "where the model gallery and the captures (in the « captures » sub-folder) " +
+                    "are saved."
             )
         )
-        content += p(page.workFolderController.stateText())
-        when (WorkFolder.state) {
-            // no picker in this browser: say where the pictures go instead of showing a button
-            // that cannot do anything
-            WorkFolderState.UNSUPPORTED -> content += p(
-                i18n(
-                    "This browser has no access to a folder, so there is nothing to choose here: " +
-                        "every capture is downloaded, one file per step. Chrome and Edge offer the " +
-                        "working folder on HTTPS or on localhost; Firefox and Safari do not."
-                )
-            )
-            // already set: state it, and say what the home button does now
-            WorkFolderState.DEFINED -> content += p(
-                i18n(
-                    "Nothing to do here: the pictures go to this folder. The home button of the " +
-                        "bar, under the title, reopens this folder dialog at any time."
-                )
-            )
-            // not defined, or permission to renew: the gesture can be done from this step
-            else -> {
-                content += p(
-                    i18n(
-                        "You can set it now, or later with the home button of the bar: it is " +
-                            "magenta while no folder is set and blue once one is."
-                    )
-                )
-                content += Button(
-                    i18n("Choose a folder…"), Icon("folder-open"), color = ElementColor.Primary
-                ) { page.workFolderController.showDialog() }
+        if (WorkFolder.isSupported()) {
+            content += Button(
+                i18n("Choose a folder…"), Icon("folder-open"), color = ElementColor.Primary
+            ) { page.workFolderController.showDialog() }
+        } else {
+            // short secondary line: this browser can never open the picker
+            content += p(
+                i18n("Captures are downloaded: this browser has no access to a folder.")
+            ).apply {
+                root.classList.add("is-size-7")
+                root.classList.add("has-text-grey")
             }
         }
         return content
@@ -125,9 +130,9 @@ class GettingStartedTour(
                 ),
                 p(
                     i18n(
-                        "This tour shows the screen in eight short steps, from the working folder " +
-                            "to the drawing tools. It stops there: the agents, the fields, the " +
-                            "behaviours and the formulas have their own tutorials."
+                        "This tour shows the screen in eighteen short steps, from the working " +
+                            "folder to the drawing tools. It stops there: the agents, the fields, " +
+                            "the behaviours and the formulas have their own tutorials."
                     )
                 ),
                 p(
@@ -147,56 +152,110 @@ class GettingStartedTour(
             selector = workingFolder,
             validated = { false }
         ),
+        // one step per button of the top bar, in the order the bar draws them: the visitor reads
+        // what each icon does while the frame surrounds that icon alone
         TutorialStep(
-            title = i18n("The top bar"),
+            title = i18n("New Model"),
+            content = listOf(
+                p(i18n("In the top bar you will find the following icons:")),
+                p(i18n("New Model, which starts a new empty model"))
+            ),
+            selector = newModel,
+            validated = { false }
+        ),
+        TutorialStep(
+            title = i18n("Import"),
+            content = listOf(
+                p(i18n("Import loads a .nbd2 file from the disk"))
+            ),
+            selector = importButton,
+            validated = { false }
+        ),
+        TutorialStep(
+            title = i18n("Save As"),
+            content = listOf(
+                p(i18n("Save As writes the model and its simulation to a .nbd2 file."))
+            ),
+            selector = saveAs,
+            validated = { false }
+        ),
+        TutorialStep(
+            title = i18n("Gallery"),
+            content = listOf(
+                p(i18n("Gallery lets you bookmark models and open them directly"))
+            ),
+            selector = gallery,
+            validated = { false }
+        ),
+        TutorialStep(
+            title = i18n("Tutorial"),
+            content = listOf(
+                p(i18n("Tutorial shows a series of tutorials, from beginner to expert level"))
+            ),
+            selector = tutorial,
+            validated = { false }
+        ),
+        TutorialStep(
+            title = i18n("Help"),
+            content = listOf(
+                p(i18n("Help gives you access to a detailed documentation of NetBioDyn"))
+            ),
+            selector = help,
+            validated = { false }
+        ),
+        TutorialStep(
+            title = i18n("About"),
+            content = listOf(
+                p(i18n("About tells you about the current version of NetBioDyn."))
+            ),
+            selector = about,
+            validated = { false }
+        ),
+        TutorialStep(
+            title = i18n("Undo"),
+            content = listOf(
+                p(i18n("The left circular arrow button is Undo"))
+            ),
+            selector = undo,
+            validated = { false }
+        ),
+        TutorialStep(
+            title = i18n("Redo"),
+            content = listOf(
+                p(i18n("The right circular arrow button is Redo"))
+            ),
+            selector = redo,
+            validated = { false }
+        ),
+        TutorialStep(
+            title = i18n("Model information"),
             content = listOf(
                 p(
                     i18n(
-                        "New Model starts an empty model, Import loads a .nbd2 file from the disk, " +
-                            "and Save As writes the model and its simulation to a file."
-                    )
-                ),
-                p(
-                    i18n(
-                        "Gallery lists the pictures and the snapshots kept in the browser, Tutorial " +
-                            "reopens this tour and the others, Help opens the documentation and " +
-                            "About gives the version. Undo and Redo are on the right."
-                    )
-                ),
-                p(
-                    i18n(
-                        "The pink button under the bar, « Model information », edits the name and " +
-                            "the description of the model."
+                        "In « Model information » you can enter a name and a description for your " +
+                            "model."
                     )
                 )
             ),
-            selector = topBar,
+            selector = modelInfo,
             validated = { false }
         ),
         TutorialStep(
             title = i18n("The simulation screen"),
             content = listOf(
-                p(
-                    i18n(
-                        "One square of the grid is one cell of the simulation: an agent takes the " +
-                            "colour of its grain, an empty cell the background colour."
-                    )
-                ),
-                p(
-                    i18n(
-                        "The fields are overlaid on the grid as a coloured veil, the more opaque the " +
-                            "more concentrated. The wheel zooms, and the pointer names the cell under " +
-                            "it with the value of each field there."
-                    )
-                ),
-                p(
-                    i18n(
-                        "Above the grid, the run bar: Rewind, Run, Step, Stop, the speed in steps per " +
-                            "second and the step counter."
-                    )
-                )
+                p(i18n("A square of the grid may hold one agent of the simulation, or none.")),
+                p(i18n("Fields are overlaid on the grid as a coloured veil, the more opaque the more concentrated. The visibility of the agents and of the fields can be controlled both by a Show ? button and, for the fields, by a control of their transparency.")),
+                p(i18n("The mouse wheel zooms on the grid. The pointer gives information about the values met in the grid."))
             ),
             selector = grid,
+            validated = { false }
+        ),
+        TutorialStep(
+            title = i18n("The run bar"),
+            content = listOf(
+                p(i18n("Above the grid, the run bar: Rewind, Run, Step, Stop, the speed in steps per second and the step counter."))
+            ),
+            selector = runBar,
             validated = { false }
         ),
         TutorialStep(

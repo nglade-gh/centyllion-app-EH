@@ -21,6 +21,7 @@ object French: Locale {
         "Previous" -> "Précédent"
         "Next" -> "Suivant"
         "Ok" -> "Ok"
+        "%0 of %1" -> "%0 sur %1"
 
         "Anonymous" -> "Anonyme"
         "Logout" -> "Se déconnecter"
@@ -751,34 +752,35 @@ object French: Locale {
         "Cut, rotate, paste" -> "Couper, tourner, coller"
         "Skip" -> "Passer"
         "Finish" -> "Terminer"
-        "Some models take a picture of the view while they run, through the Capture() meta-action. The picture is written in the captures folder of the working folder, in a sub-folder named after the model." ->
-            "Certains modèles prennent une image de la vue pendant qu'ils tournent, par la méta-action Capture(). L'image est écrite dans le dossier captures du dossier de travail, dans un sous-dossier portant le nom du modèle."
-        "This browser has no access to a folder, so there is nothing to choose here: every capture is downloaded, one file per step. Chrome and Edge offer the working folder on HTTPS or on localhost; Firefox and Safari do not." ->
-            "Ce navigateur n'a pas accès aux dossiers : il n'y a donc rien à choisir ici, chaque capture est téléchargée, un fichier par pas. Chrome et Edge proposent le dossier de travail en HTTPS ou sur localhost ; Firefox et Safari non."
-        "Nothing to do here: the pictures go to this folder. The home button of the bar, under the title, reopens this folder dialog at any time." ->
-            "Rien à faire ici : les images vont dans ce dossier. Le bouton maison de la barre, sous le titre, rouvre ce dialogue du dossier à tout moment."
-        "You can set it now, or later with the home button of the bar: it is magenta while no folder is set and blue once one is." ->
-            "Vous pouvez le définir maintenant, ou plus tard avec le bouton maison de la barre : il est magenta tant qu'aucun dossier n'est défini et bleu dès qu'un dossier l'est."
+        "One of the first things to do the first time you use NetBioDyn is to set your home. This folder is where your models are saved by default, and it is also where the model gallery and the captures (in the « captures » sub-folder) are saved." ->
+            "Une des premières choses à faire la première fois que vous utilisez NetBioDyn est de définir votre home. C'est dans ce dossier que seront enregistrés par défaut vos modèles, et c'est dans ce même dossier que la galerie des modèles et les captures (sous dossier « captures ») seront enregistrées."
         "Welcome" -> "Bienvenue"
         "NetBioDyn simulates a population of agents on a grid: every agent follows the behaviours of its grain, and fields diffuse around them, cell by cell." ->
             "NetBioDyn simule une population d'agents sur une grille : le modélisateur décrit le comportement de chaque agent comme un ensemble de réactions simples, ainsi que celui de champs continus diffusant autour d'eux."
-        "This tour shows the screen in eight short steps, from the working folder to the drawing tools. It stops there: the agents, the fields, the behaviours and the formulas have their own tutorials." ->
-            "Ce tour présente l'écran en huit étapes courtes, du dossier de travail aux outils de dessin. Il s'arrête là : les agents, les champs, les comportements et les formules ont leurs propres tutoriels."
+        "This tour shows the screen in eighteen short steps, from the working folder to the drawing tools. It stops there: the agents, the fields, the behaviours and the formulas have their own tutorials." ->
+            "Ce tour présente l'écran en dix-huit étapes courtes, du dossier de travail aux outils de dessin. Il s'arrête là : les agents, les champs, les comportements et les formules ont leurs propres tutoriels."
         "Go on with Next, or leave at any time with Skip: the tour then closes and will not open by itself again." ->
             "Avancez avec Suivant, ou quittez à tout moment avec Passer : le tour se ferme alors et ne s'ouvrira plus de lui-même."
         "The working folder" -> "Le dossier de travail"
-        "The top bar" -> "La barre du haut"
-        "New Model starts an empty model, Import loads a .nbd2 file from the disk, and Save As writes the model and its simulation to a file." ->
-            "Nouveau Modèle part d'un modèle vide, Charger charge un fichier .nbd2 depuis le disque, et Enregistrer sous… écrit le modèle et sa simulation dans un fichier."
-        "Gallery lists the pictures and the snapshots kept in the browser, Tutorial reopens this tour and the others, Help opens the documentation and About gives the version. Undo and Redo are on the right." ->
-            "Galerie liste les images et les instantanés gardés dans le navigateur, Tutoriel rouvre ce tour et les autres, Aide ouvre la documentation et À propos donne la version. Annuler et Rétablir sont à droite."
-        "The pink button under the bar, « Model information », edits the name and the description of the model." ->
-            "Le bouton rose sous la barre, « Informations sur le modèle », modifie le nom et la description du modèle."
+        "In the top bar you will find the following icons:" -> "Dans la barre du haut, vous trouverez les icones suivants :"
+        "New Model, which starts a new empty model" -> "Nouveau Modèle qui permet d'initier un nouveau modèle vide"
+        "Import loads a .nbd2 file from the disk" -> "Charger charge un fichier .nbd2 depuis le disque"
+        "Save As writes the model and its simulation to a .nbd2 file." -> "Enregistrer sous écrit le modèle et sa simulation dans un fichier .nbd2."
+        "Gallery lets you bookmark models and open them directly" -> "Galerie permet de mettre en favoris des modèles et d'y accéder directement"
+        "Tutorial shows a series of tutorials, from beginner to expert level" -> "Tutoriel vous présente une série de tutoriels du niveau débutant au niveau expert"
+        "Help gives you access to a detailed documentation of NetBioDyn" -> "l'Aide vous donne accès à une documentation détaillée de NetBioDyn"
+        "About tells you about the current version of NetBioDyn." -> "À propos vous renseigne sur la version actuelle de NetBioDyn."
+        "The left circular arrow button is Undo" -> "Le bouton à flèche tournante de gauche correspond à Annuler"
+        "The right circular arrow button is Redo" -> "Le bouton à flèche tournante de droite correspond à Rétablir"
+        "Undo" -> "Annuler"
+        "Redo" -> "Rétablir"
+        "In « Model information » you can enter a name and a description for your model." ->
+            "Dans « Informations sur le modèle » vous pouvez entrer un nom et une description à votre modèle."
         "The simulation screen" -> "L'écran de simulation"
-        "One square of the grid is one cell of the simulation: an agent takes the colour of its grain, an empty cell the background colour." ->
-            "Un carré de la grille est une cellule de la simulation : un agent prend la couleur de son grain, une cellule vide la couleur de fond."
-        "The fields are overlaid on the grid as a coloured veil, the more opaque the more concentrated. The wheel zooms, and the pointer names the cell under it with the value of each field there." ->
-            "Les champs se superposent à la grille comme un voile coloré, d'autant plus opaque qu'ils sont concentrés. La molette zoome et le pointeur nomme la cellule survolée avec la valeur de chaque champ à cet endroit."
+        "A square of the grid may hold one agent of the simulation, or none." -> "Un carré de la grille peut contenir ou non un et un seul agent de la simulation."
+        "Fields are overlaid on the grid as a coloured veil, the more opaque the more concentrated. The visibility of the agents and of the fields can be controlled both by a Show ? button and, for the fields, by a control of their transparency." -> "Les champs se superposent à la grille comme un voile coloré, d'autant plus opaque qu'ils sont concentrés. La visibilité des agents et champs peut être contrôlée à la fois par un bouton Show ? et pour les champs par un contrôle de leur transparence."
+        "The mouse wheel zooms on the grid. The pointer gives information about the values met in the grid." -> "La molette de la souris permet de zoomer sur la grille. Son pointeur donne des informations sur les valeurs rencontrées dans la grille."
+        "The run bar" -> "La barre de simulation"
         "Above the grid, the run bar: Rewind, Run, Step, Stop, the speed in steps per second and the step counter." ->
             "Au-dessus de la grille, la barre de simulation : retour au début, lecture, pas à pas, arrêt, la vitesse en pas par seconde et le compteur de pas."
         "The explorer" -> "L'explorateur"
