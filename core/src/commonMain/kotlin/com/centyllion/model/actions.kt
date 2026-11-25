@@ -87,35 +87,63 @@ sealed class Action {
     /** Adds `count` agents of type `grain` anywhere in the environment (empty cells only). */
     data class AddMany(val grain: Expression, val count: Expression) : Action()
 
-    /** Adds `count` agents of type `grain` in the rectangle (x1, y1)-(x2, y2). */
+    /**
+     * Adds `count` agents of type `grain` in the rectangle (x1, y1)-(x2, y2).
+     *
+     * [fill] draws the whole rectangle; `false` draws its border only (see [rectangleRows]).
+     */
     data class AddRect(
         val grain: Expression, val count: Expression,
-        val x1: Expression, val y1: Expression, val x2: Expression, val y2: Expression
+        val x1: Expression, val y1: Expression, val x2: Expression, val y2: Expression,
+        /** False for the outline of the rectangle, true (the default) for the solid shape. */
+        val fill: Boolean = true
     ) : Action()
 
-    /** Adds `count` agents of type `grain` in the disc centred on (x, y). */
-    data class AddDisc(
+    /**
+     * Adds `count` agents of type `grain` in the disc centred on (x, y).
+     *
+     * [fill] draws the whole disc; `false` draws its ring only (see [circleRows]).
+     *
+     * Formerly `AddDisc`, an obsolete spelling still accepted by the parser.
+     */
+    data class AddCircle(
         val grain: Expression, val count: Expression,
-        val x: Expression, val y: Expression, val radius: Expression
+        val x: Expression, val y: Expression, val radius: Expression,
+        /** False for the outline of the disc, true (the default) for the solid shape. */
+        val fill: Boolean = true
     ) : Action()
 
     /** Erases every agent (any type) in the rectangle (x1, y1)-(x2, y2). */
     data class EraseRectAll(
-        val x1: Expression, val y1: Expression, val x2: Expression, val y2: Expression
+        val x1: Expression, val y1: Expression, val x2: Expression, val y2: Expression,
+        /** False for the outline of the rectangle, true (the default) for the solid shape. */
+        val fill: Boolean = true
     ) : Action()
 
     /** Erases every agent (any type) in the disc centred on (x, y). */
-    data class EraseDiscAll(val x: Expression, val y: Expression, val radius: Expression) : Action()
+    data class EraseCircleAll(
+        val x: Expression, val y: Expression, val radius: Expression,
+        /** False for the outline of the disc, true (the default) for the solid shape. */
+        val fill: Boolean = true
+    ) : Action()
 
     /** Erases the agents of type `grain` in the rectangle (x1, y1)-(x2, y2). */
     data class EraseRect(
         val grain: Expression, val x1: Expression, val y1: Expression,
-        val x2: Expression, val y2: Expression
+        val x2: Expression, val y2: Expression,
+        /** False for the outline of the rectangle, true (the default) for the solid shape. */
+        val fill: Boolean = true
     ) : Action()
 
-    /** Erases the agents of type `grain` in the disc centred on (x, y). */
-    data class EraseDisc(
-        val grain: Expression, val x: Expression, val y: Expression, val radius: Expression
+    /**
+     * Erases the agents of type `grain` in the disc centred on (x, y).
+     *
+     * Formerly `EraseDisc`, an obsolete spelling still accepted by the parser.
+     */
+    data class EraseCircle(
+        val grain: Expression, val x: Expression, val y: Expression, val radius: Expression,
+        /** False for the outline of the disc, true (the default) for the solid shape. */
+        val fill: Boolean = true
     ) : Action()
 
     /** Erases every agent of type `grain` in the whole environment. */
@@ -151,8 +179,8 @@ sealed class Action {
 fun isMetaAction(action: Action): Boolean = when (action) {
     Action.Pause, is Action.TimedPause, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
     Action.Capture,
-    is Action.AddMany, is Action.AddRect, is Action.AddDisc,
-    is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
+    is Action.AddMany, is Action.AddRect, is Action.AddCircle,
+    is Action.EraseRectAll, is Action.EraseCircleAll, is Action.EraseRect, is Action.EraseCircle,
     is Action.EraseAll, is Action.Activate, is Action.Inactivate, is Action.Use, is Action.Unuse,
     is Action.DrawLine, is Action.Grid -> true
     else -> false
@@ -161,12 +189,23 @@ fun isMetaAction(action: Action): Boolean = when (action) {
 /**
  * Names kept for the models already recorded, mapped to the current spelling.
  *
- * `pause()` was the only meta-function written in lower case: the meta-functions and the
- * meta-tests start with a capital letter, and so does every other one. The alias is accepted
- * (an old `.nbd2` must keep loading and running) but it is obsolete: `Pause()` is the name to
- * write, and the help says so.
+ * Two kinds of names live here, both obsolete but both accepted, because an old `.nbd2` must
+ * keep loading and running exactly as before:
+ *
+ * - `pause()`, the only meta-function written in lower case (every other one starts with a
+ *   capital letter, and so does every other function of a formula): write `Pause()`;
+ * - `AddDisc` and `EraseDisc`, the former names of the disc shapes: the rectangle is called
+ *   `AddRect`/`EraseRect` and a round shape is a **circle** everywhere else in the
+ *   application, so the shapes are `AddCircle`/`EraseCircle`. The old names are only
+ *   spellings of the new ones, with the same arguments and the same meaning.
+ *
+ * The help of the meta-actions shows the current names and says the others are obsolete.
  */
-val deprecatedActionNames: Map<String, String> = mapOf("pause" to "Pause")
+val deprecatedActionNames: Map<String, String> = mapOf(
+    "pause" to "Pause",
+    "AddDisc" to "AddCircle",
+    "EraseDisc" to "EraseCircle"
+)
 
 /** Accepted arities of each action: some names are overloaded (relative or global). */
 private val actionArities = mapOf(
@@ -183,9 +222,9 @@ private val actionArities = mapOf(
     "Restart" to intArrayOf(0),
     "Capture" to intArrayOf(0),
     "AddRect" to intArrayOf(6),
-    "AddDisc" to intArrayOf(5),
+    "AddCircle" to intArrayOf(5),
     "EraseRect" to intArrayOf(4, 5),
-    "EraseDisc" to intArrayOf(3, 4),
+    "EraseCircle" to intArrayOf(3, 4),
     "Erase" to intArrayOf(1),
     "Activate" to intArrayOf(1),
     "Inactivate" to intArrayOf(1),
@@ -194,9 +233,16 @@ private val actionArities = mapOf(
     "Unuse" to intArrayOf(1),
 )
 
+/**
+ * Shapes whose last argument may be the optional `fill` flag: a literal `true` or `false`,
+ * written after the usual arguments (`AddRect(0, 10, 2, 2, 8, 8, false)`).
+ */
+private val shapeActions: Set<String> = setOf("AddRect", "AddCircle", "EraseRect", "EraseCircle")
+
 private const val availableActions =
     "Add, Remove, Move, SetField, AddField, ClearField, Pause, RunOneStep, RunNStep, Rewind, Restart, Capture, " +
-        "AddRect, AddDisc, EraseRect, EraseDisc, Erase, Activate, Inactivate, Use, Unuse, DrawLine"
+        "AddRect, AddCircle, EraseRect, EraseCircle, Erase, Activate, Inactivate, Use, Unuse, DrawLine " +
+        "(obsolete names still accepted: pause, AddDisc, EraseDisc)"
 
 /** Grid commands of the meta-actions: they are parsed by [parseGridCommandCall]. */
 private const val availableGridCommands =
@@ -212,6 +258,13 @@ private val actionCallPattern = Regex("""^(\w+)\s*\((.*)\)$""")
  * returned as [Action.Grid], at their position in the list: the order of the formula is the
  * order the view applies them.
  *
+ * The four shape actions (`AddRect`, `AddCircle`, `EraseRect`, `EraseCircle`) accept an
+ * optional trailing `fill` flag, written as the literal `true` (the solid shape, and the
+ * default when the flag is omitted) or `false` (the outline only):
+ * `AddRect(0, 10, 2, 2, 8, 8, false)`, `EraseCircle(5, 20, 20, 3, false)`. The obsolete
+ * spellings `AddDisc`/`EraseDisc` are read as `AddCircle`/`EraseCircle` (see
+ * [deprecatedActionNames]).
+ *
  * Throws [IllegalArgumentException] with a descriptive message when the formula is invalid.
  */
 fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
@@ -224,8 +277,8 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
                 "Expected a list of actions like Add(0, 1, 0), Remove(1, 0, 0) — got '$part'"
             )
         val writtenName = match.groupValues[1]
-        // obsolete spellings (pause) are mapped to the current name before any lookup, so that
-        // an old formula parses exactly like the new one
+        // obsolete spellings (pause, AddDisc, EraseDisc) are mapped to the current name before
+        // any lookup, so that an old formula parses exactly like the new one
         val name = deprecatedActionNames[writtenName] ?: writtenName
         val argsText = match.groupValues[2].trim()
         // a state test is a condition, not an action: say it instead of "unknown action"
@@ -245,7 +298,25 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
             ?: throw IllegalArgumentException(
                 "Unknown action '$name' (available: $availableActions; grid commands: $availableGridCommands)"
             )
-        val args = if (argsText.isEmpty()) emptyList() else splitTopLevelArguments(argsText).map { arg ->
+        var argTexts = if (argsText.isEmpty()) emptyList() else splitTopLevelArguments(argsText)
+        // The shapes take an optional trailing fill flag. It is a literal true/false, like the
+        // boolean of Paste(x, y, overwrite), never an expression: a model that omits it keeps
+        // the solid shape, so every formula written before the flag existed means the same.
+        var fill = true
+        if (name in shapeActions) {
+            val last = argTexts.lastOrNull()
+            val literal = last?.lowercase()
+            val isFlag = literal == "true" || literal == "false"
+            if (isFlag && argTexts.size - 1 in arities) {
+                fill = literal == "true"
+                argTexts = argTexts.dropLast(1)
+            } else if (!isFlag && argTexts.size - 1 in arities && argTexts.size !in arities) {
+                throw IllegalArgumentException(
+                    "$name: the last argument is fill, a boolean: write true or false, got '$last'"
+                )
+            }
+        }
+        val args = argTexts.map { arg ->
             val expr = try {
                 arg.parseExpression()
             } catch (e: Exception) {
@@ -276,8 +347,9 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
             expr
         }
         if (args.size !in arities) {
+            val fillHint = if (name in shapeActions) " (plus an optional fill, true or false)" else ""
             throw IllegalArgumentException(
-                "$name expects ${arities.joinToString(" or ")} arguments, got ${args.size}"
+                "$name expects ${arities.joinToString(" or ")} arguments$fillHint, got ${args.size}"
             )
         }
         val parsed = when (name) {
@@ -294,12 +366,12 @@ fun String.parseActionFormula(allowMeta: Boolean = true): List<Action> {
             "Rewind" -> Action.Rewind
             "Restart" -> Action.Restart
             "Capture" -> Action.Capture
-            "AddRect" -> Action.AddRect(args[0], args[1], args[2], args[3], args[4], args[5])
-            "AddDisc" -> Action.AddDisc(args[0], args[1], args[2], args[3], args[4])
-            "EraseRect" -> if (args.size == 4) Action.EraseRectAll(args[0], args[1], args[2], args[3])
-            else Action.EraseRect(args[0], args[1], args[2], args[3], args[4])
-            "EraseDisc" -> if (args.size == 3) Action.EraseDiscAll(args[0], args[1], args[2])
-            else Action.EraseDisc(args[0], args[1], args[2], args[3])
+            "AddRect" -> Action.AddRect(args[0], args[1], args[2], args[3], args[4], args[5], fill)
+            "AddCircle" -> Action.AddCircle(args[0], args[1], args[2], args[3], args[4], fill)
+            "EraseRect" -> if (args.size == 4) Action.EraseRectAll(args[0], args[1], args[2], args[3], fill)
+            else Action.EraseRect(args[0], args[1], args[2], args[3], args[4], fill)
+            "EraseCircle" -> if (args.size == 3) Action.EraseCircleAll(args[0], args[1], args[2], fill)
+            else Action.EraseCircle(args[0], args[1], args[2], args[3], fill)
             "Erase" -> Action.EraseAll(args[0])
             "Activate" -> Action.Activate(args[0])
             "Inactivate" -> Action.Inactivate(args[0])

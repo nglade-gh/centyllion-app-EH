@@ -158,6 +158,7 @@ tr:hover td { background: var(--panel-2); }
   <a href="#exemples-champs" class="sub">4.4 Exemples — champs</a>
   <a href="#exemples-comportements" class="sub">4.5 Exemples — comportements</a>
   <a href="#exemples-complets">5. Exemples complets</a>
+  <a href="#dessin" class="sub">7.4 La barre de dessin</a>
   <a href="#boucle">8. Méta-actions de la boucle</a>
   <a href="#captures">9. Captures et dossier de travail</a>
 </nav>
@@ -706,6 +707,34 @@ Comportement "Reproduction" : 0 → 0, voisin (1) : 1 → 1, formule : count(0) 
   <pre><code>Condition : IsVisible(0) &amp;&amp; IsToricSelectionOn()
 Actions   : Hide(0), AllowOverwriting(true)</code></pre>
   <p>La négation s'écrit avec l'opérateur <code>!</code> : <code>!IsBehaviourActive(0)</code>. Il n'existe pas de test « inactif » séparé. Une formule d'actions qui contient un test (<code>IsBehaviourActive(0)</code>, <code>IsVisible(0)</code>…) est refusée, et la condition d'un comportement aussi : ces tests décrivent la simulation entière et la vue, pas la cellule d'un comportement.</p>
+
+  <h3>7.3 Les formes : rectangle et cercle, le drapeau <code>fill</code></h3>
+  <p>Quatre méta-actions tracent ou effacent une <b>forme</b> dans la zone du modificateur. Elles acceptent toutes un drapeau <code>fill</code> <b>facultatif</b>, écrit en dernier, sous la forme littérale <code>true</code> ou <code>false</code> — jamais une expression, jamais <code>0</code>/<code>1</code> :</p>
+  <table>
+    <tr><th>Action</th><th>Effet</th></tr>
+    <tr><td><code>AddRect(id, N, x1, y1, x2, y2[, fill])</code></td><td>Ajoute jusqu'à N agents de type <code>id</code> sur les cellules vides du rectangle (x1, y1)-(x2, y2), coins dans n'importe quel ordre.</td></tr>
+    <tr><td><code>AddCircle(id, N, x, y, radius[, fill])</code></td><td>Ajoute jusqu'à N agents de type <code>id</code> sur les cellules vides du disque centré sur (x, y).</td></tr>
+    <tr><td><code>EraseRect(x1, y1, x2, y2[, fill])</code><br><code>EraseRect(id, x1, y1, x2, y2[, fill])</code></td><td>Efface tous les agents du rectangle, ou seulement ceux de type <code>id</code>.</td></tr>
+    <tr><td><code>EraseCircle(x, y, radius[, fill])</code><br><code>EraseCircle(id, x, y, radius[, fill])</code></td><td>Efface tous les agents du disque, ou seulement ceux de type <code>id</code>.</td></tr>
+  </table>
+  <p><code>fill</code> vaut <code>true</code> par défaut, c'est-à-dire la <b>forme pleine</b> : une formule écrite avant l'existence du drapeau garde donc exactement le même sens. Écrit à <code>false</code>, il ne garde que le <b>contour</b> :</p>
+  <pre><code>AddRect(1, 40, 10, 10, 30, 30, false)
+# le bord du rectangle seulement, pas son intérieur
+EraseCircle(0, 50, 50, 20, false)
+# l'anneau du disque : le centre et l'intérieur gardent leurs agents</code></pre>
+  <p>Le contour n'est pas une seconde définition de la forme : c'est le <b>plein de la même forme moins son intérieur</b>. Pour le rectangle, les lignes du haut et du bas sont émises entières et chaque ligne intermédiaire ne garde que ses deux cellules de bord ; pour le cercle, chaque ligne émet la portée du rayon <code>r</code> <b>moins</b> la portée du rayon <code>r − 1</code>. Un rayon de 0 est une seule cellule, dont le contour est cette cellule. Les deux formes sont calculées par les fonctions pures <code>rectangleRows</code> et <code>circleRows</code> du noyau (<code>shapes.kt</code>), que la barre de dessin utilise aussi : il n'existe qu'une seule définition du disque dans l'application.</p>
+  <p>Un argument non booléen à la place de <code>fill</code> est <b>refusé</b> à l'écriture, avec un message qui nomme le drapeau et demande <code>true</code> ou <code>false</code> ; par exemple <code>AddRect(1, 10, 0, 0, 9, 9, 1)</code> est rejeté. Le littéral en dernière position est le seul marqueur du drapeau, ce qui laisse la forme typée intacte : <code>EraseRect(1, 0, 0, 9, 9)</code> efface les agents de type 1 dans le rectangle, tandis que <code>EraseRect(0, 0, 9, 9, false)</code> efface le bord du rectangle pour tous les types.</p>
+  <p><b>Noms obsolètes</b> : <code>AddDisc</code> et <code>EraseDisc</code> sont les anciens noms de <code>AddCircle</code> et <code>EraseCircle</code>. Ils restent <b>acceptés</b>, avec les mêmes arguments et le même sens (drapeau <code>fill</code> compris), pour que les modèles déjà enregistrés continuent de se charger et de se comporter à l'identique ; ils sont en revanche <b>obsolètes</b>, et c'est le nom du cercle qu'affiche l'aide contextuelle. Comme <code>pause()</code> pour <code>Pause()</code>, ils ne sont conservés que pour la compatibilité.</p>
+
+  <h3 id="dessin">7.4 La barre de dessin</h3>
+  <p>La barre sous la vue de simulation aligne, de gauche à droite, les <b>outils</b> (stylo, ligne, rectangle, cercle, spray, gomme, déplacement), leur interrupteur <b>« Fill ? »</b> (« Remplir ? »), la <b>taille</b> du pinceau, l'ajout aléatoire d'agents et l'effacement total.</p>
+  <ul>
+    <li><b>Rectangle</b> (<code>fa-square</code>) et <b>cercle</b> (<code>fa-circle</code>) s'<b>ancrent</b> sur la cellule où le bouton est enfoncé et se tracent au <b>relâchement</b> : le rectangle va de la cellule d'appui à celle du pointeur, le rayon du cercle est la <b>distance</b> entre les deux.</li>
+    <li>L'interrupteur <b>« Fill ? » / « Remplir ? »</b>, dans le style de « Torique ? » et « Écraser ? » de la barre d'édition, décide pour ces deux outils entre <b>forme pleine</b> (allumé, le défaut) et <b>contour</b> (éteint). Il s'applique aux deux formes à la fois.</li>
+    <li>Les cellules tracées sont celles des fonctions pures du noyau, les mêmes que celles des méta-actions <code>AddRect</code>/<code>AddCircle</code> : un rectangle tracé à la main et un <code>AddRect</code> de mêmes coordonnées couvrent exactement les mêmes cellules.</li>
+    <li><b>Débordement</b> : une cellule de la forme qui sort de la grille est <b>repliée</b> sur le côté opposé (coordonnées modulo la largeur et la hauteur) quand l'interrupteur <b>« Torique ? »</b> est actif, et <b>perdue</b> sinon — la règle du collage.</li>
+    <li>Les autres outils sont des pinceaux : le stylo pose l'agent sélectionné, le spray en pose au hasard, la gomme efface ; leur disque suit la <b>taille</b> choisie.</li>
+  </ul>
 
   <section id="boucle">
   <h2>8. Méta-actions de la boucle de simulation</h2>

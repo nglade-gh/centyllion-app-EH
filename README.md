@@ -348,10 +348,19 @@ un onglet d'arrière-plan. Un `Pause()` ou un `Pause(t)` émis par un modificate
 `notification is-warning` au-dessus de la vue de simulation ; celui d'une pause minutée disparaît à
 la reprise automatique.
 
-**Population et activation** : `Add(id, N)`, `AddRect(id, N, x1, y1, x2, y2)`,
-`AddDisc(id, N, x, y, radius)`, `DrawLine(id, x1, y1, x2, y2)`, `EraseRect(x1, y1, x2, y2)` /
-`EraseRect(id, x1, y1, x2, y2)`, `EraseDisc(x, y, radius)` / `EraseDisc(id, x, y, radius)`,
-`Erase(id)`, `Activate(id)`, `Inactivate(id)`, `Use(id)`, `Unuse(id)`.
+**Population et activation** : `Add(id, N)`, `AddRect(id, N, x1, y1, x2, y2[, fill])`,
+`AddCircle(id, N, x, y, radius[, fill])`, `DrawLine(id, x1, y1, x2, y2)`,
+`EraseRect(x1, y1, x2, y2[, fill])` / `EraseRect(id, x1, y1, x2, y2[, fill])`,
+`EraseCircle(x, y, radius[, fill])` / `EraseCircle(id, x, y, radius[, fill])`, `Erase(id)`,
+`Activate(id)`, `Inactivate(id)`, `Use(id)`, `Unuse(id)`.
+
+Le drapeau **`fill`** des quatre formes est un **littéral** `true` / `false`, écrit en dernier
+(`AddRect(1, 10, 0, 0, 9, 9, false)`) : `true` (le défaut quand il est omis) trace la forme pleine,
+`false` son contour seul. Un argument non booléen à cette place est refusé avec un message explicite.
+Le contour est calculé à partir du plein de la même forme — rectangle des mêmes coins moins son
+intérieur, disque de rayon `r` moins celui de rayon `r − 1` — par les deux fonctions pures
+`rectangleRows` / `circleRows` (`core/.../model/shapes.kt`), que le simulateur **et** la barre de
+dessin utilisent : il n'existe qu'une seule définition du disque dans l'application.
 
 **Commandes de grille** : `Show(id)`, `Hide(id)`, `Select(x1, y1, x2, y2)`, `Cut()`, `Copy()`,
 `EraseSelection()`, `Paste(x, y, overwrite)`, `FlushSelection()`, `Unselect()`,
@@ -363,9 +372,23 @@ la reprise automatique.
 
 `pause()` en minuscules reste accepté comme **alias de compatibilité** de `Pause()` pour les
 modèles déjà enregistrés (il a été la seule méta-fonction à ne pas respecter la règle de casse) ;
-il est **obsolète** et n'est plus documenté ailleurs que comme alias.
+il est **obsolète** et n'est plus documenté ailleurs que comme alias. `AddDisc` et `EraseDisc` sont
+de même les anciens noms de `AddCircle` et `EraseCircle` : acceptés, obsolètes, remplacés dans
+l'aide par les noms du cercle.
 
-### 4.6 Visibilité des agents et des champs
+### 4.6 Barre de dessin
+
+La barre sous la vue aligne les outils (stylo, ligne, **rectangle**, **cercle**, spray, gomme,
+déplacement), la taille du pinceau, l'ajout aléatoire et l'effacement total. Le rectangle et le
+cercle s'ancrent sur la cellule d'appui et se tracent au relâchement du bouton ; le rayon du cercle
+est la distance entre le point d'appui et le pointeur. L'interrupteur **« Fill ? » / « Remplir ? »**,
+à côté des outils et dans le style de « Torique ? » et « Écraser ? » de la barre d'édition, décide
+pour les deux formes entre **plein** (allumé, le défaut) et **contour** (éteint). Le tracé utilise
+les mêmes fonctions pures que les méta-actions `AddRect`/`AddCircle`/`EraseRect`/`EraseCircle`
+(`rectangleRows`, `circleRows`) ; une cellule qui déborde de la grille est **repliée** du côté
+opposé si « Torique ? » est actif, **perdue** sinon.
+
+### 4.7 Visibilité des agents et des champs
 
 Dans le panneau latéral (liste des agents, comportements et champs), chaque grain et
 chaque champ possède une **case à cocher** (cochée par défaut) à gauche de sa couleur :
@@ -373,7 +396,7 @@ chaque champ possède une **case à cocher** (cochée par défaut) à gauche de 
   (desktop et web) ;
 - la visibilité est session-only (non persistée dans le modèle).
 
-### 4.7 Exemples complets
+### 4.8 Exemples complets
 
 **Prédation** (Agent_A mangé par Agent_B voisin) :
 ```
@@ -393,7 +416,7 @@ C0 : Agent_A -> Agent_B
 Cij : Agent_B -> Agent_A
 ```
 
-### 4.8 Conditions aux limites
+### 4.9 Conditions aux limites
 
 Chaque agent et chaque champ est **torique par défaut** (retour en bout de
 plateau). En **mode expert** :
@@ -414,10 +437,10 @@ plateau). En **mode expert** :
   « best effort » sans solveur dédié).
 
 Les conditions sont stockées dans le modèle (`boundaryConditions` par grain et
-par comportement, `toric` par champ), sauvegardées (cf. §4.9) ; celles du
+par comportement, `toric` par champ), sauvegardées (cf. §4.10) ; celles du
 comportement sont visibles dans les deux modes, comme celles du grain.
 
-### 4.9 Format de sauvegarde (`.netbiodyn`)
+### 4.10 Format de sauvegarde (`.netbiodyn`)
 
 Les fichiers sauvegardés sont compacts : une valeur égale à sa valeur par
 défaut est omise (`encodeDefaults = false`), sauf quatre champs qui obéissent

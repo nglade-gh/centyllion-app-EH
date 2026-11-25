@@ -580,6 +580,7 @@ object French: Locale {
         // edit bar switches and explorer visibility switches
         "Toric ?" -> "Torique ?"
         "Overwrite ?" -> "Écraser ?"
+        "Fill ?" -> "Remplir ?"
         "Show ?" -> "Show ?"
 
         // help of the meta-actions of a simulation modifier
@@ -591,8 +592,22 @@ object French: Locale {
         "Grid commands" -> "Commandes de grille"
         "The identifiers are those displayed in the explorer, after the name: name (id). Arguments can be expressions built on the condition functions." ->
             "Les identifiants sont ceux affichés dans l'explorateur, après le nom : nom (id). Les arguments peuvent être des expressions construites sur les fonctions de la condition."
-        "AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones." ->
-            "AddRect et AddDisc tirent leurs positions parmi les cellules vides de la zone : demander plus d'agents qu'il n'y a de cellules libres n'ajoute que les agents possibles."
+        "AddRect and AddCircle draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones." ->
+            "AddRect et AddCircle tirent leurs positions parmi les cellules vides de la zone : demander plus d'agents qu'il n'y a de cellules libres n'ajoute que les agents possibles."
+        "Adds N agents of type id on the cells of the rectangle (x1, y1)-(x2, y2): fill true (the default) for the whole rectangle, false for its border only, for instance %0." ->
+            "Ajoute N agents de type id sur les cellules du rectangle (x1, y1)-(x2, y2) : fill vaut true (par défaut) pour le rectangle entier, false pour son contour seul, par exemple %0."
+        "Adds N agents of type id on the cells of the disc centred on (x, y): fill true (the default) for the whole disc, false for its ring only, for instance %0." ->
+            "Ajoute N agents de type id sur les cellules du disque centré sur (x, y) : fill vaut true (par défaut) pour le disque entier, false pour son anneau seul, par exemple %0."
+        "Erases every agent of the rectangle, or only the agents of type id; fill false erases the border only, for instance %0." ->
+            "Efface tous les agents du rectangle, ou seulement ceux de type id ; fill à false n'efface que le contour, par exemple %0."
+        "Erases every agent of the disc, or only the agents of type id; fill false erases the ring only, for instance %0." ->
+            "Efface tous les agents du disque, ou seulement ceux de type id ; fill à false n'efface que l'anneau, par exemple %0."
+        "fill is written after the other arguments, as the literal true or false: AddRect(1, 10, 0, 0, 9, 9, false) draws the border of the rectangle and EraseCircle(50, 50, 10, false) erases the ring of the disc. Omitting it means true, the solid shape, so a formula written before the flag existed keeps its meaning." ->
+            "fill s'écrit après les autres arguments, sous la forme littérale true ou false : AddRect(1, 10, 0, 0, 9, 9, false) trace le contour du rectangle et EraseCircle(50, 50, 10, false) efface l'anneau du disque. L'omettre vaut true, la forme pleine : une formule écrite avant l'existence du drapeau garde donc son sens."
+        "AddDisc and EraseDisc are the former names of AddCircle and EraseCircle: they are still accepted for the models already recorded, but they are obsolete: write the circle names." ->
+            "AddDisc et EraseDisc sont les anciens noms de AddCircle et EraseCircle : ils restent acceptés pour les modèles déjà enregistrés, mais ils sont obsolètes : écrivez les noms du cercle."
+        "The rectangle and the circle are the same shapes as in the drawing bar: the Fill ? switch of the bar traces them solid or outlined, with the same functions as the meta-actions." ->
+            "Le rectangle et le cercle sont les mêmes formes que dans la barre de dessin : l'interrupteur Remplir ? y trace la forme pleine ou son contour, avec les mêmes fonctions que les méta-actions."
 
         "Pauses the simulation at the end of the current step, for good: only the reader starts it again, for instance %0." ->
             "Met la simulation en pause à la fin de l'étape courante, définitivement : seul l'utilisateur relance la course, par exemple %0."
@@ -622,16 +637,8 @@ object French: Locale {
             "Le modèle a mis la simulation en pause pendant %0 s (modificateur). La course reprend seule à la fin de la pause."
         "Adds N agents of type id on empty cells drawn at random in the whole environment, for instance %0." ->
             "Ajoute N agents de type id sur des cellules vides tirées au hasard dans tout l'environnement, par exemple %0."
-        "Adds N agents of type id on the empty cells of the rectangle (x1, y1)-(x2, y2), for instance %0." ->
-            "Ajoute N agents de type id sur les cellules vides du rectangle (x1, y1)-(x2, y2), par exemple %0."
-        "Adds N agents of type id on the empty cells of the disc centred on (x, y), for instance %0." ->
-            "Ajoute N agents de type id sur les cellules vides du disque centré sur (x, y), par exemple %0."
         "Draws a line of agents of type id from (x1, y1) to (x2, y2), on the empty cells only, for instance %0." ->
             "Trace une ligne d'agents de type id de (x1, y1) à (x2, y2), sur les cellules vides uniquement, par exemple %0."
-        "Erases every agent of the rectangle, or only the agents of type id, for instance %0." ->
-            "Efface tous les agents du rectangle, ou seulement ceux de type id, par exemple %0."
-        "Erases every agent of the disc, or only the agents of type id, for instance %0." ->
-            "Efface tous les agents du disque, ou seulement ceux de type id, par exemple %0."
         "Erases every agent of type id in the whole environment, for instance %0." ->
             "Efface tous les agents de type id dans tout l'environnement, par exemple %0."
         "Activates the behaviour id, for instance %0." ->

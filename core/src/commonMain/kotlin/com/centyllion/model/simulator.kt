@@ -336,12 +336,12 @@ class Simulator(
 
     private fun behaviourIndexForId(id: Int): Int = allBehaviours.indexOfFirst { it.id == id }
 
-    /** True for the actions that act on the simulation as a whole rather than on a cell. */
+    /** True for the actions that act on the simulation as a whole rather than on one cell. */
     private fun isMetaAction(action: Action): Boolean = when (action) {
         Action.Pause, is Action.TimedPause, Action.RunOneStep, is Action.RunNStep, Action.Rewind, Action.Restart,
         Action.Capture,
-        is Action.AddMany, is Action.AddRect, is Action.AddDisc,
-        is Action.EraseRectAll, is Action.EraseDiscAll, is Action.EraseRect, is Action.EraseDisc,
+        is Action.AddMany, is Action.AddRect, is Action.AddCircle,
+        is Action.EraseRectAll, is Action.EraseCircleAll, is Action.EraseRect, is Action.EraseCircle,
         is Action.EraseAll, is Action.Activate, is Action.Inactivate -> true
         else -> false
     }
@@ -379,23 +379,17 @@ class Simulator(
         }
     }
 
-    /** Calls [block] with the index of every cell of the rectangle, clamped to the grid. */
-    private fun forEachCellInRect(x1: Int, y1: Int, x2: Int, y2: Int, block: (Int) -> Unit) {
-        val left = minOf(x1, x2).coerceIn(0, simulation.width - 1)
-        val right = maxOf(x1, x2).coerceIn(0, simulation.width - 1)
-        val top = minOf(y1, y2).coerceIn(0, simulation.height - 1)
-        val bottom = maxOf(y1, y2).coerceIn(0, simulation.height - 1)
-        for (y in top..bottom) for (x in left..right) block(y * simulation.width + x)
-    }
-
-    /** Calls [block] with the index of every cell of the disc, clamped to the grid. */
-    private fun forEachCellInDisc(centerX: Int, centerY: Int, radius: Int, block: (Int) -> Unit) {
-        val r = maxOf(0, radius)
-        forEachCellInRect(centerX - r, centerY - r, centerX + r, centerY + r) { index ->
-            val dx = index % simulation.width - centerX
-            val dy = index / simulation.width - centerY
-            if (dx * dx + dy * dy <= r * r) block(index)
-        }
+    /**
+     * Calls [block] with the slot of every cell of these shape runs, skipping the cells that
+     * fall outside the grid.
+     *
+     * The shapes come from [rectangleRows] and [circleRows], the only definitions of the
+     * rectangle and of the disc of the application: the outline of an action is then, by
+     * construction, the border of the area its filled form covers.
+     */
+    private fun forEachShapeCell(rows: List<CellRow>, block: (Int) -> Unit) {
+        val width = simulation.width
+        rows.forEachCell(width, simulation.height) { x, y -> block(y * width + x) }
     }
 
     /** Collector reused by the sequential path (no map, no per-step allocation). */
@@ -1068,9 +1062,9 @@ class Simulator(
     private fun executeMetaActions(actions: List<Action>, evaluator: NetbioDynEvaluator) {
         // the view must redraw even when no behaviour was applied
         if (actions.any {
-                it is Action.AddMany || it is Action.AddRect || it is Action.AddDisc ||
-                    it is Action.EraseRectAll || it is Action.EraseDiscAll ||
-                    it is Action.EraseRect || it is Action.EraseDisc || it is Action.EraseAll ||
+                it is Action.AddMany || it is Action.AddRect || it is Action.AddCircle ||
+                    it is Action.EraseRectAll || it is Action.EraseCircleAll ||
+                    it is Action.EraseRect || it is Action.EraseCircle || it is Action.EraseAll ||
                     it is Action.DrawLine ||
                     // a grid command changes the view (selection, clipboard, visibility): the
                     // run loop must then call the view, which drains the queue
@@ -1128,9 +1122,11 @@ class Simulator(
                         val id = action.grain.evalInt(evaluator)
                         if (grainForId(id) == null) continue
                         val candidates = ArrayList<Int>()
-                        forEachCellInRect(
-                            action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
-                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                        forEachShapeCell(
+                            rectangleRows(
+                                action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                                action.x2.evalInt(evaluator), action.y2.evalInt(evaluator), action.fill
+                            )
                         ) { slot -> if (agents[slot] < 0) candidates.add(slot) }
                         repeat(minOf(action.count.evalInt(evaluator), candidates.size)) {
                             val slot = candidates.removeAt(random.nextInt(0, candidates.size))
@@ -1139,12 +1135,15 @@ class Simulator(
                         }
                     }
 
-                    is Action.AddDisc -> {
+                    is Action.AddCircle -> {
                         val id = action.grain.evalInt(evaluator)
                         if (grainForId(id) == null) continue
                         val candidates = ArrayList<Int>()
-                        forEachCellInDisc(
-                            action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                        forEachShapeCell(
+                            circleRows(
+                                action.x.evalInt(evaluator), action.y.evalInt(evaluator),
+                                action.radius.evalInt(evaluator), action.fill
+                            )
                         ) { slot -> if (agents[slot] < 0) candidates.add(slot) }
                         repeat(minOf(action.count.evalInt(evaluator), candidates.size)) {
                             val slot = candidates.removeAt(random.nextInt(0, candidates.size))
@@ -1153,27 +1152,37 @@ class Simulator(
                         }
                     }
 
-                    is Action.EraseRectAll -> forEachCellInRect(
-                        action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
-                        action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                    is Action.EraseRectAll -> forEachShapeCell(
+                        rectangleRows(
+                            action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator), action.fill
+                        )
                     ) { slot -> agents[slot] = -1; ages[slot] = -1 }
 
-                    is Action.EraseDiscAll -> forEachCellInDisc(
-                        action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                    is Action.EraseCircleAll -> forEachShapeCell(
+                        circleRows(
+                            action.x.evalInt(evaluator), action.y.evalInt(evaluator),
+                            action.radius.evalInt(evaluator), action.fill
+                        )
                     ) { slot -> agents[slot] = -1; ages[slot] = -1 }
 
                     is Action.EraseRect -> {
                         val id = action.grain.evalInt(evaluator)
-                        forEachCellInRect(
-                            action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
-                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                        forEachShapeCell(
+                            rectangleRows(
+                                action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                                action.x2.evalInt(evaluator), action.y2.evalInt(evaluator), action.fill
+                            )
                         ) { slot -> if (agents[slot] == id) { agents[slot] = -1; ages[slot] = -1 } }
                     }
 
-                    is Action.EraseDisc -> {
+                    is Action.EraseCircle -> {
                         val id = action.grain.evalInt(evaluator)
-                        forEachCellInDisc(
-                            action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                        forEachShapeCell(
+                            circleRows(
+                                action.x.evalInt(evaluator), action.y.evalInt(evaluator),
+                                action.radius.evalInt(evaluator), action.fill
+                            )
                         ) { slot -> if (agents[slot] == id) { agents[slot] = -1; ages[slot] = -1 } }
                     }
 
@@ -1422,9 +1431,11 @@ class Simulator(
                         if (grainForId(id) == null) continue
                         // N positions drawn among the empty cells of the zone (selection sampling)
                         val candidates = ArrayList<Int>()
-                        forEachCellInRect(
-                            action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
-                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                        forEachShapeCell(
+                            rectangleRows(
+                                action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                                action.x2.evalInt(evaluator), action.y2.evalInt(evaluator), action.fill
+                            )
                         ) { slot -> if (targetAgents[slot] < 0) candidates.add(slot) }
                         repeat(minOf(action.count.evalInt(evaluator), candidates.size)) {
                             val slot = candidates.removeAt(random.nextInt(index, candidates.size))
@@ -1433,13 +1444,16 @@ class Simulator(
                         }
                     }
 
-                    is Action.AddDisc -> {
+                    is Action.AddCircle -> {
                         val id = action.grain.evalInt(evaluator)
                         if (grainForId(id) == null) continue
                         // N positions drawn among the empty cells of the disc (selection sampling)
                         val candidates = ArrayList<Int>()
-                        forEachCellInDisc(
-                            action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                        forEachShapeCell(
+                            circleRows(
+                                action.x.evalInt(evaluator), action.y.evalInt(evaluator),
+                                action.radius.evalInt(evaluator), action.fill
+                            )
                         ) { slot -> if (targetAgents[slot] < 0) candidates.add(slot) }
                         repeat(minOf(action.count.evalInt(evaluator), candidates.size)) {
                             val slot = candidates.removeAt(random.nextInt(index, candidates.size))
@@ -1449,18 +1463,23 @@ class Simulator(
                     }
 
                     is Action.EraseRectAll -> {
-                        forEachCellInRect(
-                            action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
-                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                        forEachShapeCell(
+                            rectangleRows(
+                                action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                                action.x2.evalInt(evaluator), action.y2.evalInt(evaluator), action.fill
+                            )
                         ) { slot ->
                             targetAgents[slot] = -1
                             targetAges[slot] = -1
                         }
                     }
 
-                    is Action.EraseDiscAll -> {
-                        forEachCellInDisc(
-                            action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                    is Action.EraseCircleAll -> {
+                        forEachShapeCell(
+                            circleRows(
+                                action.x.evalInt(evaluator), action.y.evalInt(evaluator),
+                                action.radius.evalInt(evaluator), action.fill
+                            )
                         ) { slot ->
                             targetAgents[slot] = -1
                             targetAges[slot] = -1
@@ -1469,9 +1488,11 @@ class Simulator(
 
                     is Action.EraseRect -> {
                         val id = action.grain.evalInt(evaluator)
-                        forEachCellInRect(
-                            action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
-                            action.x2.evalInt(evaluator), action.y2.evalInt(evaluator)
+                        forEachShapeCell(
+                            rectangleRows(
+                                action.x1.evalInt(evaluator), action.y1.evalInt(evaluator),
+                                action.x2.evalInt(evaluator), action.y2.evalInt(evaluator), action.fill
+                            )
                         ) { slot ->
                             if (targetAgents[slot] == id) {
                                 targetAgents[slot] = -1
@@ -1480,10 +1501,13 @@ class Simulator(
                         }
                     }
 
-                    is Action.EraseDisc -> {
+                    is Action.EraseCircle -> {
                         val id = action.grain.evalInt(evaluator)
-                        forEachCellInDisc(
-                            action.x.evalInt(evaluator), action.y.evalInt(evaluator), action.radius.evalInt(evaluator)
+                        forEachShapeCell(
+                            circleRows(
+                                action.x.evalInt(evaluator), action.y.evalInt(evaluator),
+                                action.radius.evalInt(evaluator), action.fill
+                            )
                         ) { slot ->
                             if (targetAgents[slot] == id) {
                                 targetAgents[slot] = -1

@@ -54,6 +54,19 @@ class SimulatorViewController(
     private var selectedTool: EditTool = EditTool.Pen
     private var selectedSize: ToolSize = ToolSize.Fine
 
+    /**
+     * True when the rectangle and circle tools draw a solid shape: the "Fill ?" switch of the
+     * drawing bar. Off, both tools draw the border of the shape only, and the border is
+     * computed from the solid shape of the core ([rectangleRows], [circleRows]), so the two
+     * are the same shape by construction.
+     */
+    var fillShapes: Boolean = true
+        set(value) {
+            if (field == value) return
+            field = value
+            render()
+        }
+
     var selectedGrain: Grain? by observable(initialSelectedGrain) { _, old, new ->
         if (old != new) render()
     }
@@ -634,20 +647,13 @@ class SimulatorViewController(
         if (data.idAtIndex(index) < 0) data.setIdAtIndex(index, id)
     }
 
+    /**
+     * Cells of the brush, a disc of the size of the selected tool: the disc of the core
+     * ([circleRows], solid), clipped to the grid.
+     */
     fun circle(x: Int, y: Int, block: (i: Int, j: Int) -> Unit) {
-        val size = selectedTool.actualSize(selectedSize)
-        val halfSize = (size / 2).coerceAtLeast(1)
-        if (halfSize == 1) {
-            block(x, y)
-        } else {
-            for (i in x - halfSize until x + halfSize) {
-                for (j in y - halfSize until y + halfSize) {
-                    val inCircle = (x - i) * (x - i) + (y - j - 1) * (y - j) + 1 < halfSize * halfSize
-                    val inSimulation = data.simulation.positionInside(i, j)
-                    if (inCircle && inSimulation) block(i, j)
-                }
-            }
-        }
+        val radius = (selectedTool.actualSize(selectedSize) / 2).coerceAtLeast(0)
+        circleRows(x, y, radius).forEachCell(data.simulation.width, data.simulation.height, block)
     }
 
     fun line(sourceX: Int, sourceY: Int, x: Int, y: Int, block: (i: Int, j: Int) -> Unit) {
@@ -668,23 +674,41 @@ class SimulatorViewController(
         }
     }
 
-    fun square(sourceX: Int, sourceY: Int, x: Int, y: Int, block: (i: Int, j: Int) -> Unit) {
-        if (selectedSize == ToolSize.Fine) {
-            for (i in min(sourceX, x)..max(sourceX, x)) {
-                block(i, sourceY)
-                block(i, y)
-            }
-            for (j in min(sourceY, y)..max(sourceY, y)) {
-                block(sourceX, j)
-                block(x, j)
-            }
-        } else {
-            for (i in min(sourceX, x)..max(sourceX, x)) {
-                for (j in min(sourceY, y)..max(sourceY, y)) {
-                    block(i, j)
-                }
+    /**
+     * Calls [block] with every cell of these shape runs that lands in the grid.
+     *
+     * The runs come from the core ([rectangleRows], [circleRows]): the drawing tools and the
+     * shape meta-actions therefore draw the very same rectangle and disc. A cell that
+     * overflows the grid is folded on the opposite side when the "Toric ?" switch is on
+     * ([toricPaste]) and dropped otherwise, like a paste.
+     */
+    private fun forEachShapeCell(rows: List<CellRow>, block: (i: Int, j: Int) -> Unit) {
+        val simulation = data.simulation
+        for (run in rows) {
+            val y = if (toricPaste) wrapCoordinate(run.row, simulation.height) else run.row
+            if (y < 0 || y >= simulation.height) continue
+            for (column in run.from..run.to) {
+                val x = if (toricPaste) wrapCoordinate(column, simulation.width) else column
+                if (x < 0 || x >= simulation.width) continue
+                block(x, y)
             }
         }
+    }
+
+    /** Rectangle tool: the solid rectangle, or its border when "Fill ?" is off. */
+    fun square(sourceX: Int, sourceY: Int, x: Int, y: Int, block: (i: Int, j: Int) -> Unit) {
+        forEachShapeCell(rectangleRows(sourceX, sourceY, x, y, fillShapes), block)
+    }
+
+    /**
+     * Circle tool: the radius is the distance between the press cell and the pointer, so the
+     * shape follows the drag (a click without a drag draws the single cell of radius 0).
+     */
+    fun circleShape(sourceX: Int, sourceY: Int, x: Int, y: Int, block: (i: Int, j: Int) -> Unit) {
+        val dx = x - sourceX
+        val dy = y - sourceY
+        val radius = sqrt((dx * dx + dy * dy).toDouble()).roundToInt()
+        forEachShapeCell(circleRows(sourceX, sourceY, radius, fillShapes), block)
     }
 
     fun drawOnSimulation() {
@@ -702,6 +726,14 @@ class SimulatorViewController(
             EditTool.Square -> selectedGrain?.id?.let { id ->
                 if (drawStep == -1) {
                     square(simulationSourceX, simulationSourceY, simulationX, simulationY) { i, j -> writeGrain(i, j, id) }
+                }
+            }
+
+            EditTool.Circle -> selectedGrain?.id?.let { id ->
+                if (drawStep == -1) {
+                    circleShape(simulationSourceX, simulationSourceY, simulationX, simulationY) { i, j ->
+                        writeGrain(i, j, id)
+                    }
                 }
             }
 
@@ -1442,8 +1474,24 @@ class SimulatorViewController(
         }
     }
 
+    /**
+     * "Fill ?" switch of the drawing bar: on (the default), the rectangle and circle tools
+     * draw solid shapes; off, they draw their border. It sits next to the tools, in the style
+     * of the "Toric ?" and "Overwrite ?" switches of the edit bar.
+     */
+    private val fillSwitch = Switch(
+        text = "", checked = fillShapes, color = ElementColor.Success, size = Size.Small, rounded = true
+    ) { _, value -> fillShapes = value }
+
+    private val fillControl = captionedSwitch("Fill ?", fillSwitch)
+
+    /** Drawing tools and their "Fill ?" switch, aligned on their bottom edge like the edit bar. */
+    private val toolsRow = Div(toolsField, fillControl).apply {
+        root.classList.add("is-flex", "is-align-items-flex-end")
+    }
+
     val toolbar = Level(
-        center = listOf(toolsField, sizeDropdown, randomAddField, clearAllButton)
+        center = listOf(toolsRow, sizeDropdown, randomAddField, clearAllButton)
     )
 
     // ------------------------------------------------------------- edit toolbar

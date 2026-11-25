@@ -93,7 +93,8 @@ centyllion-app/
 │   └── src/
 │       ├── commonMain/kotlin/com/centyllion/
 │       │   ├─ model/          # model.kt, simulator.kt, evaluator.kt, technic.kt,
-│       │   │                # tools.kt, utils.kt, validation.kt, colors.kt, icons.kt
+│       │   │                # actions.kt, shapes.kt, tools.kt, utils.kt, validation.kt,
+│       │   │                # gridcommands.kt, colors.kt, icons.kt
 │       │   ├─ i18n/           # english.kt, french.kt, locales.kt
 │       │   └─ expression/     # Lexer.kt, Parser.kt, Builder.kt, Check.kt,
 │       │                       # Evaluation.kt, Ast.kt, Input.kt, Stdlib.kt
@@ -418,14 +419,23 @@ une fois par pas, hors de toute case, après les comportements.
 |---|---|
 | Boucle de course | `Pause()`, `Pause(t)`, `RunOneStep()`, `RunNStep(N)`, `Rewind()`, `Restart()` |
 | Captures | `Capture()` |
-| Population / activation | `Add(id, N)`, `AddRect(id, N, x1, y1, x2, y2)`, `AddDisc(id, N, x, y, radius)`, `DrawLine(id, x1, y1, x2, y2)`, `EraseRect(x1, y1, x2, y2)`, `EraseRect(id, x1, y1, x2, y2)`, `EraseDisc(x, y, radius)`, `EraseDisc(id, x, y, radius)`, `Erase(id)`, `Activate(id)`, `Inactivate(id)`, `Use(id)`, `Unuse(id)` |
+| Population / activation | `Add(id, N)`, `AddRect(id, N, x1, y1, x2, y2[, fill])`, `AddCircle(id, N, x, y, radius[, fill])`, `DrawLine(id, x1, y1, x2, y2)`, `EraseRect(x1, y1, x2, y2[, fill])`, `EraseRect(id, x1, y1, x2, y2[, fill])`, `EraseCircle(x, y, radius[, fill])`, `EraseCircle(id, x, y, radius[, fill])`, `Erase(id)`, `Activate(id)`, `Inactivate(id)`, `Use(id)`, `Unuse(id)` |
 | Commandes de grille | `Show(id)`, `Hide(id)`, `Select(x1, y1, x2, y2)`, `Cut()`, `Copy()`, `EraseSelection()`, `Paste(x, y, overwrite)`, `FlushSelection()`, `Unselect()`, `PasteAndFlush(x, y, overwrite)`, `Rotate(N)`, `FlipX()`, `FlipY()`, `AllowToricSelection(enabled)`, `AllowOverwriting(enabled)` |
 | Tests d'état (condition seulement) | `IsBehaviourActive(id)`, `IsModifierActive(id)`, `IsToricSelectionOn()`, `IsOverwritingOn()`, `IsVisible(id)` |
 
-**Alias obsolète** : `pause()` (minuscules) reste accepté — table `deprecatedActionNames`
-(`actions.kt`), normalisée avant toute recherche de nom — pour que les `.nbd2` déjà enregistrés
-continuent de se charger et de se comporter à l'identique. `Pause()` est le nom courant ;
-`pause()` n'est plus documenté que comme alias.
+**Alias obsolètes** : `pause()` (minuscules), `AddDisc` et `EraseDisc` restent acceptés — table
+`deprecatedActionNames` (`actions.kt`), normalisée avant toute recherche de nom — pour que les
+`.nbd2` déjà enregistrés continuent de se charger et de se comporter à l'identique. `Pause()`,
+`AddCircle` et `EraseCircle` sont les noms courants ; les anciens ne sont plus documentés que comme
+alias.
+
+**Le drapeau `fill`** des quatre formes est un **littéral** `true` / `false`, écrit après les
+autres arguments (`AddRect(1, 10, 0, 0, 9, 9, false)`), comme le booléen de
+`Paste(x, y, overwrite)` : il n'est pas évalué comme une expression, et un argument non booléen à
+cette place est refusé avec un message qui nomme `fill` et demande `true` ou `false`. Omis, il vaut
+`true` (forme pleine), le comportement d'avant le drapeau : aucune formule existante ne change de
+sens. `EraseRect(x1, y1, x2, y2, false)` reste distinguishable de la forme typée
+`EraseRect(id, x1, y1, x2, y2)` : c'est le **littéral** en dernière position qui marque le drapeau.
 
 **Deux canaux distincts, à ne pas confondre** :
 
@@ -539,6 +549,35 @@ indéfinie qui ne reprend jamais, durée `<= 0` ignorée à l'exécution) et
 `ActionTest.testTheLoopControlActionsParse` / `testATimedPauseTakesADurationInSeconds` /
 `testContinueIsAnUnknownAction` / `testPauseIsCapitalisedAndTheLowercaseFormIsAnAlias` pour le
 parseur.
+
+---
+
+### 6.5ter Géométrie des formes : rectangle et cercle (`shapes.kt`)
+
+Les formes ne sont plus énumérées cellule par cellule dans la boîte englobante : deux fonctions
+**pures** de `core/.../model/shapes.kt` les décrivent **par lignes** (portées de colonnes) :
+
+| Fonction | Rôle |
+|---|---|
+| `CellRow(row, from, to)` | une portée : les cellules `from..to` de la ligne `row`, bornes incluses, dans l'ordre |
+| `rectangleRows(x1, y1, x2, y2, fill = true)` | une portée par ligne (plein), ou les deux portées de bord de chaque ligne (contour) |
+| `circleRows(cx, cy, radius, fill = true)` | une portée par ligne du disque, ou `portée(r) − portée(r − 1)` sur chaque ligne (contour) |
+| `List<CellRow>.forEachCell(width, height, block)` | parcourt les cellules des portées **dans la grille** (celles du dehors sont sautées) |
+
+Le **contour est défini à partir du plein**, sans seconde formule de la forme : le rectangle est le
+plein des mêmes coins moins le plein de `(left + 1, top + 1)-(right - 1, bottom - 1)` ; le cercle est
+le plein du rayon `r` moins le plein du rayon `r − 1`. Une ligne intermédiaire du rectangle émet deux
+portées (une par côté), une ligne du haut ou du bas une seule, entière ; une ligne du disque émet la
+portée extérieure et la portée intérieure quand elle existe, sinon la portée extérieure entière (les
+calottes et le rayon 0). La racine carrée entière (`integerSquareRoot`) évite qu'un arrondi flottant
+ouvre un trou : `dx² + dy² <= r²` est décidé en arithmétique entière.
+
+Le noyau (`Simulator.forEachShapeCell`) et la vue (`SimulatorViewController.forEachShapeCell`) ne
+font que convertir ces portées — en index de case pour l'un, en coordonnées de dessin pour l'autre
+— de sorte qu'il n'existe **qu'une seule** définition du disque dans l'application. La vue replie une
+cellule qui déborde de la grille sur le côté opposé quand l'interrupteur « Torique ? » est actif et
+la perd sinon, comme un collage. Tests : `ShapeRowsTest.kt` (plein/contour, petits et grands,
+bords de grille, contour = plein − intérieur) et `ShapeActionsTest.kt` (parseur, exécution, alias).
 
 ---
 
@@ -685,7 +724,7 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 ### 8.4 Graphiques (Plotter) et vue de simulation 2D
 
 - **data2viz** (`plotter/`) : tracé des courbes (nombre de grains, quantité de champs) dans `Plotter` (Canvas Skia) avec axes, ticks et courbes coloriées.
-- **Vue de simulation** (`controller/model/SimulatorViewController.kt`) : vue de dessus en canvas 2D, **sans 3D ni éclairage**. Un buffer hors écran de la taille de la grille (1 pixel = 1 cellule) reçoit les agents (couleur du grain, aplats stricts) puis la couche des champs (alpha identique à l'ancienne texture 3D) ; il est ensuite agrandi en `imageSmoothingEnabled = false` dans le canvas affiché (backing store en pixels de périphérique, `devicePixelRatio`), sur lequel sont tracés la grille et l'aperçu du pinceau. Outils conservés : stylo, ligne, carré, spray, gomme, déplacement (panoramique) ; zoom molette ×0,25 à ×16 ; bouton plein écran ; vignettes/captures par `canvas.toDataURL` / `toBlob`. `captureJpeg()` fournit l'image de la méta-action `Capture()` (JPEG 0,92, `toDataURL` synchrone décodé en `Blob`, pour lire le canevas avant le pas suivant). Les grains masqués (case à cocher) et les champs masqués sont rendus en couleur de fond. Les clés `simulation.assets` et `settings.gridTextureUrl` restent dans le modèle (compatibilité) mais ne sont plus rendues.
+- **Vue de simulation** (`controller/model/SimulatorViewController.kt`) : vue de dessus en canvas 2D, **sans 3D ni éclairage**. Un buffer hors écran de la taille de la grille (1 pixel = 1 cellule) reçoit les agents (couleur du grain, aplats stricts) puis la couche des champs (alpha identique à l'ancienne texture 3D) ; il est ensuite agrandi en `imageSmoothingEnabled = false` dans le canvas affiché (backing store en pixels de périphérique, `devicePixelRatio`), sur lequel sont tracés la grille et l'aperçu du pinceau. Outils : stylo, ligne, **rectangle**, **cercle**, spray, gomme, déplacement (panoramique) ; le rectangle et le cercle sont ancrés sur la cellule d'appui et tracés au relâchement, le rayon du cercle étant la distance au point d'appui. L'interrupteur **« Fill ? » / « Remplir ? »**, à côté des outils et dans le style de « Torique ? » et « Écraser ? », décide pour les deux formes entre plein et contour ; leurs cellules viennent des fonctions pures du noyau (`rectangleRows`, `circleRows`, `shapes.kt`), et non d'un tracé propre à la vue, avec repli torique des cellules qui débordent quand « Torique ? » est actif. Zoom molette ×0,25 à ×16 ; bouton plein écran ; vignettes/captures par `canvas.toDataURL` / `toBlob`. `captureJpeg()` fournit l'image de la méta-action `Capture()` (JPEG 0,92, `toDataURL` synchrone décodé en `Blob`, pour lire le canevas avant le pas suivant). Les grains masqués (case à cocher) et les champs masqués sont rendus en couleur de fond. Les clés `simulation.assets` et `settings.gridTextureUrl` restent dans le modèle (compatibilité) mais ne sont plus rendues.
 - Coût mesuré sur `coeur` (8 694 agents, grille 100×100) : ~0,5 ms par repeint, contre ~31 ms par rendu de scène Babylon et 17 404 maillages ; débit en lecture ≈ 7 pas/s contre ≈ 1,8 pas/s (même modèle, même machine). Bundle JS : 806 Ko contre 3,5 Mo.
 
 ### 8.5 Galerie personnelle : disque et repli navigateur

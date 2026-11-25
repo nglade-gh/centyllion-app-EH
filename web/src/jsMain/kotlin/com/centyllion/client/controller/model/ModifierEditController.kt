@@ -153,11 +153,11 @@ class ModifierEditController(
         Table(
             body = listOf(
                 helpLine("Add(id, N)", "Adds N agents of type id on empty cells drawn at random in the whole environment, for instance %0.", "Add(1, 20)"),
-                helpLine("AddRect(id, N, x1, y1, x2, y2)", "Adds N agents of type id on the empty cells of the rectangle (x1, y1)-(x2, y2), for instance %0.", "AddRect(1, 10, 0, 0, 9, 9)"),
-                helpLine("AddDisc(id, N, x, y, radius)", "Adds N agents of type id on the empty cells of the disc centred on (x, y), for instance %0.", "AddDisc(1, 10, 50, 50, 5)"),
+                helpLine("AddRect(id, N, x1, y1, x2, y2[, fill])", "Adds N agents of type id on the cells of the rectangle (x1, y1)-(x2, y2): fill true (the default) for the whole rectangle, false for its border only, for instance %0.", "AddRect(1, 10, 0, 0, 9, 9) / AddRect(1, 40, 0, 0, 9, 9, false)"),
+                helpLine("AddCircle(id, N, x, y, radius[, fill])", "Adds N agents of type id on the cells of the disc centred on (x, y): fill true (the default) for the whole disc, false for its ring only, for instance %0.", "AddCircle(1, 10, 50, 50, 5) / AddCircle(1, 40, 50, 50, 8, false)"),
                 helpLine("DrawLine(id, x1, y1, x2, y2)", "Draws a line of agents of type id from (x1, y1) to (x2, y2), on the empty cells only, for instance %0.", "DrawLine(1, 0, 0, 99, 99)"),
-                helpLine("EraseRect(x1, y1, x2, y2)\nEraseRect(id, x1, y1, x2, y2)", "Erases every agent of the rectangle, or only the agents of type id, for instance %0.", "EraseRect(0, 0, 9, 9) / EraseRect(1, 0, 0, 9, 9)"),
-                helpLine("EraseDisc(x, y, radius)\nEraseDisc(id, x, y, radius)", "Erases every agent of the disc, or only the agents of type id, for instance %0.", "EraseDisc(50, 50, 5) / EraseDisc(1, 50, 50, 5)"),
+                helpLine("EraseRect(x1, y1, x2, y2[, fill])\nEraseRect(id, x1, y1, x2, y2[, fill])", "Erases every agent of the rectangle, or only the agents of type id; fill false erases the border only, for instance %0.", "EraseRect(0, 0, 9, 9) / EraseRect(1, 0, 0, 9, 9, false)"),
+                helpLine("EraseCircle(x, y, radius[, fill])\nEraseCircle(id, x, y, radius[, fill])", "Erases every agent of the disc, or only the agents of type id; fill false erases the ring only, for instance %0.", "EraseCircle(50, 50, 5) / EraseCircle(1, 50, 50, 5, false)"),
                 helpLine("Erase(id)", "Erases every agent of type id in the whole environment, for instance %0.", "Erase(1)"),
                 helpLine("Activate(id)", "Activates the behaviour id, for instance %0.", "Activate(2)"),
                 helpLine("Inactivate(id)", "Inactivates the behaviour id, for instance %0.", "Inactivate(2)"),
@@ -169,7 +169,10 @@ class ModifierEditController(
         SubTitle(page.i18n("State tests")),
         p(page.i18n("The tests whose name begins with Is (IsBehaviourActive, IsModifierActive, IsToricSelectionOn, IsVisible…) test the state of the simulation: they are written in the Condition of the modifier, never here. An actions formula that calls one of them is refused.")),
         p(page.i18n("The identifiers are those displayed in the explorer, after the name: name (id). Arguments can be expressions built on the condition functions.")),
-        p(page.i18n("AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones.")),
+        p(page.i18n("fill is written after the other arguments, as the literal true or false: AddRect(1, 10, 0, 0, 9, 9, false) draws the border of the rectangle and EraseCircle(50, 50, 10, false) erases the ring of the disc. Omitting it means true, the solid shape, so a formula written before the flag existed keeps its meaning.")),
+        p(page.i18n("AddRect and AddCircle draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones.")),
+        p(page.i18n("AddDisc and EraseDisc are the former names of AddCircle and EraseCircle: they are still accepted for the models already recorded, but they are obsolete: write the circle names.")),
+        p(page.i18n("The rectangle and the circle are the same shapes as in the drawing bar: the Fill ? switch of the bar traces them solid or outlined, with the same functions as the meta-actions.")),
         SubTitle(page.i18n("Grid commands")),
         Table(
             body = listOf(

@@ -1,9 +1,16 @@
 package com.centyllion.model
 
 
+/**
+ * Tools of the drawing bar.
+ *
+ * [Square] and [Circle] draw shapes anchored on the press cell: they are applied when the
+ * button is released, and the "Fill ?" switch of the bar decides whether they are solid or
+ * only outlined (the other tools are brushes).
+ */
 enum class EditTool(val icon: String) {
     Move("arrows-alt"), Pen("pen"),
-    Square("square"),
+    Square("square"), Circle("circle"),
     Line("pencil-ruler"), Spray("spray-can"),
     Eraser("eraser");
 

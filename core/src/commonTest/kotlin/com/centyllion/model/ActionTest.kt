@@ -604,7 +604,10 @@ class SimulationModifierTest {
         assertEquals(Action.Pause, "Pause()".parseModifierActions().single())
         assertEquals(Action.Pause, "pause()".parseActionFormula().single())
         // the alias table holds the obsolete spellings and nothing else
-        assertEquals(mapOf("pause" to "Pause"), deprecatedActionNames)
+        assertEquals(
+            mapOf("pause" to "Pause", "AddDisc" to "AddCircle", "EraseDisc" to "EraseCircle"),
+            deprecatedActionNames
+        )
         // the unknown-action message proposes the current spelling
         assertTrue(validateModifierActions("Paused()")!!.contains("Pause"))
     }

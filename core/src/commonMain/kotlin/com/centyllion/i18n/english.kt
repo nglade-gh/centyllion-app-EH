@@ -483,6 +483,7 @@ object English: Locale {
         // edit bar switches and explorer visibility switches
         "Toric ?" -> "Toric ?"
         "Overwrite ?" -> "Overwrite ?"
+        "Fill ?" -> "Fill ?"
         "Show ?" -> "Show ?"
 
         // help of the meta-actions of a simulation modifier (the keys are the English text)
@@ -494,8 +495,22 @@ object English: Locale {
         "Grid commands" -> "Grid commands"
         "The identifiers are those displayed in the explorer, after the name: name (id). Arguments can be expressions built on the condition functions." ->
             "The identifiers are those displayed in the explorer, after the name: name (id). Arguments can be expressions built on the condition functions."
-        "AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones." ->
-            "AddRect and AddDisc draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones."
+        "AddRect and AddCircle draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones." ->
+            "AddRect and AddCircle draw their positions among the empty cells of the zone: asking for more agents than there are free cells adds only the free ones."
+        "Adds N agents of type id on the cells of the rectangle (x1, y1)-(x2, y2): fill true (the default) for the whole rectangle, false for its border only, for instance %0." ->
+            "Adds N agents of type id on the cells of the rectangle (x1, y1)-(x2, y2): fill true (the default) for the whole rectangle, false for its border only, for instance %0."
+        "Adds N agents of type id on the cells of the disc centred on (x, y): fill true (the default) for the whole disc, false for its ring only, for instance %0." ->
+            "Adds N agents of type id on the cells of the disc centred on (x, y): fill true (the default) for the whole disc, false for its ring only, for instance %0."
+        "Erases every agent of the rectangle, or only the agents of type id; fill false erases the border only, for instance %0." ->
+            "Erases every agent of the rectangle, or only the agents of type id; fill false erases the border only, for instance %0."
+        "Erases every agent of the disc, or only the agents of type id; fill false erases the ring only, for instance %0." ->
+            "Erases every agent of the disc, or only the agents of type id; fill false erases the ring only, for instance %0."
+        "fill is written after the other arguments, as the literal true or false: AddRect(1, 10, 0, 0, 9, 9, false) draws the border of the rectangle and EraseCircle(50, 50, 10, false) erases the ring of the disc. Omitting it means true, the solid shape, so a formula written before the flag existed keeps its meaning." ->
+            "fill is written after the other arguments, as the literal true or false: AddRect(1, 10, 0, 0, 9, 9, false) draws the border of the rectangle and EraseCircle(50, 50, 10, false) erases the ring of the disc. Omitting it means true, the solid shape, so a formula written before the flag existed keeps its meaning."
+        "AddDisc and EraseDisc are the former names of AddCircle and EraseCircle: they are still accepted for the models already recorded, but they are obsolete: write the circle names." ->
+            "AddDisc and EraseDisc are the former names of AddCircle and EraseCircle: they are still accepted for the models already recorded, but they are obsolete: write the circle names."
+        "The rectangle and the circle are the same shapes as in the drawing bar: the Fill ? switch of the bar traces them solid or outlined, with the same functions as the meta-actions." ->
+            "The rectangle and the circle are the same shapes as in the drawing bar: the Fill ? switch of the bar traces them solid or outlined, with the same functions as the meta-actions."
         "Pauses the simulation at the end of the current step, for good: only the reader starts it again, for instance %0." ->
             "Pauses the simulation at the end of the current step, for good: only the reader starts it again, for instance %0."
         "Pauses the simulation for t seconds of real time (t > 0, for instance 2.5), then resumes it by itself, for instance %0." ->
@@ -524,16 +539,8 @@ object English: Locale {
             "The model paused the simulation for %0 s (modifier). The run resumes by itself at the end of the pause."
         "Adds N agents of type id on empty cells drawn at random in the whole environment, for instance %0." ->
             "Adds N agents of type id on empty cells drawn at random in the whole environment, for instance %0."
-        "Adds N agents of type id on the empty cells of the rectangle (x1, y1)-(x2, y2), for instance %0." ->
-            "Adds N agents of type id on the empty cells of the rectangle (x1, y1)-(x2, y2), for instance %0."
-        "Adds N agents of type id on the empty cells of the disc centred on (x, y), for instance %0." ->
-            "Adds N agents of type id on the empty cells of the disc centred on (x, y), for instance %0."
         "Draws a line of agents of type id from (x1, y1) to (x2, y2), on the empty cells only, for instance %0." ->
             "Draws a line of agents of type id from (x1, y1) to (x2, y2), on the empty cells only, for instance %0."
-        "Erases every agent of the rectangle, or only the agents of type id, for instance %0." ->
-            "Erases every agent of the rectangle, or only the agents of type id, for instance %0."
-        "Erases every agent of the disc, or only the agents of type id, for instance %0." ->
-            "Erases every agent of the disc, or only the agents of type id, for instance %0."
         "Erases every agent of type id in the whole environment, for instance %0." ->
             "Erases every agent of type id in the whole environment, for instance %0."
         "Activates the behaviour id, for instance %0." -> "Activates the behaviour id, for instance %0."
