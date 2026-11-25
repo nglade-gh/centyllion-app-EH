@@ -761,7 +761,7 @@ object French: Locale {
             "Vous pouvez le définir maintenant, ou plus tard avec le bouton maison de la barre : il est magenta tant qu'aucun dossier n'est défini et bleu dès qu'un dossier l'est."
         "Welcome" -> "Bienvenue"
         "NetBioDyn simulates a population of agents on a grid: every agent follows the behaviours of its grain, and fields diffuse around them, cell by cell." ->
-            "NetBioDyn simule une population d'agents sur une grille : chaque agent suit les comportements de son grain, et des champs diffusent autour d'eux, de cellule en cellule."
+            "NetBioDyn simule une population d'agents sur une grille : le modélisateur décrit le comportement de chaque agent comme un ensemble de réactions simples, ainsi que celui de champs continus diffusant autour d'eux."
         "This tour shows the screen in eight short steps, from the working folder to the drawing tools. It stops there: the agents, the fields, the behaviours and the formulas have their own tutorials." ->
             "Ce tour présente l'écran en huit étapes courtes, du dossier de travail aux outils de dessin. Il s'arrête là : les agents, les champs, les comportements et les formules ont leurs propres tutoriels."
         "Go on with Next, or leave at any time with Skip: the tour then closes and will not open by itself again." ->
