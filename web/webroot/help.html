@@ -159,6 +159,7 @@ tr:hover td { background: var(--panel-2); }
   <a href="#exemples-comportements" class="sub">4.5 Exemples — comportements</a>
   <a href="#exemples-complets">5. Exemples complets</a>
   <a href="#dessin" class="sub">7.4 La barre de dessin</a>
+  <a href="#stencil" class="sub">7.5 Charger un stencil</a>
   <a href="#boucle">8. Méta-actions de la boucle</a>
   <a href="#captures">9. Captures et dossier de travail</a>
   <a href="#records" class="sub">9.6 Réglages d'enregistrement</a>
@@ -738,6 +739,68 @@ EraseCircle(0, 50, 50, 20, false)
     <li><b>Débordement</b> : une cellule de la forme qui sort de la grille est <b>repliée</b> sur le côté opposé (coordonnées modulo la largeur et la hauteur) quand l'interrupteur <b>« Torique ? »</b> est actif, et <b>perdue</b> sinon — la règle du collage.</li>
     <li>Les autres outils sont des pinceaux : le stylo pose l'agent sélectionné, le spray en pose au hasard, la gomme efface ; leur disque suit la <b>taille</b> choisie.</li>
   </ul>
+
+  <h3 id="stencil">7.5 Charger un stencil (coller un motif)</h3>
+  <p>Le bouton <b>Stencil</b> (icône tampon) de la barre d'édition, juste après <b>Coller</b>,
+  ouvre une fenêtre qui lit un <b>motif</b> et le dépose dans le <b>presse-papiers en sélection
+  flottante</b>. Rien n'est écrit sur la grille : le motif se comporte exactement comme une copie
+  — il flotte sous la souris, s'ancre d'un clic gauche, se libère d'un clic droit, se tourne avec
+  Ctrl+R, se retourne avec Ctrl+F ou Ctrl+Maj+F et se colle avec Ctrl+V. Le bouton <b>?</b> à côté
+  de Stencil ouvre cette aide depuis la barre d'édition.</p>
+  <p>Le format est <b>détecté tout seul</b> : il n'y a pas de sélecteur à régler. Quatre formats
+  sont acceptés ; tout autre contenu est <b>refusé</b>, la fenêtre affiche alors un message qui les
+  énumère et <b>rien n'est chargé</b>.</p>
+  <table>
+    <tr><th>Format</th><th>Reconnaissance</th><th>Identifiants de grains</th></tr>
+    <tr>
+      <td><b>RLE</b> (Golly)</td>
+      <td>une ligne <code>x = L, y = H</code>, éventuellement suivie de <code>rule = B3/S23</code>,
+      puis les cellules sur les lignes suivantes ; les lignes <code>#</code> sont des commentaires
+      (<code>#N</code> nomme le motif, <code>#C</code>, <code>#r</code>, <code>#c</code> aussi)</td>
+      <td><code>b</code> ou <code>.</code> = cellule vide, <code>o</code> = grain 1, lettre
+      majuscule = état à part entière : <code>A</code> = 10, <code>B</code> = 11 … <code>Z</code>
+      = 35, donc <code>2A</code> = deux cellules de grain 10. Un nombre répète le symbole qui
+      suit, <code>$</code> termine une rangée, <code>!</code> termine le motif.</td>
+    </tr>
+    <tr>
+      <td><b>Texte <code>.cells</code></b></td>
+      <td>une ligne par rangée, <code>.</code> et <code>O</code> (ou <code>o</code>),
+      commentaires commençant par <code>!</code>, nom après <code>!Name:</code></td>
+      <td>le format n'a que deux états : une cellule vivante désigne le <b>premier grain</b> du
+      modèle (identifiant 0).</td>
+    </tr>
+    <tr>
+      <td><b>Matrice multi-agents</b></td>
+      <td>un caractère par cellule ; virgules, espaces et tabulations sont ignorés ; les lignes
+      <code>!</code> et <code>#</code> sont des commentaires</td>
+      <td><code>.</code> = cellule vide, <code>0</code>-<code>9</code> puis <code>a</code>-<code>f</code>
+      (ou <code>A</code>-<code>F</code>) pour les grains d'identifiant 0 à 15.</td>
+    </tr>
+    <tr>
+      <td><b>Projet <code>.nbd2</code></b></td>
+      <td>un fichier de projet NetBioDyn</td>
+      <td>l'<b>environnement peuplé</b> enregistré dans le fichier est extrait avec le grain de
+      chaque cellule, puis recadré sur la <b>boîte englobante</b> des agents : les lignes et les
+      colonnes entièrement vides autour du motif sont abandonnées.</td>
+    </tr>
+  </table>
+  <p><b>Identifiants inconnus.</b> Si le motif désigne un grain que le modèle courant ne possède
+  pas, la cellule devient <b>vide</b> — il n'y a rien à y coller. Le <b>journal</b> signale alors,
+  une seule fois par chargement, le nombre de cellules ignorées et la liste des identifiants en
+  cause. Un motif qui perd ainsi <b>toutes</b> ses cellules n'est pas chargé du tout : un
+  presse-papiers entièrement transparent effacerait la zone qu'il recouvre quand « Écraser ? » est
+  actif.</p>
+  <p><b>Comportement du collage.</b> Un stencil ne suit aucune règle propre : il obéit
+  <b>exactement</b> aux interrupteurs de la barre d'édition, comme un collage manuel.</p>
+  <ul>
+    <li><b>Écraser ?</b> actif, le collage du stencil <b>remplace</b> les agents rencontrés
+    cellule par cellule ; inactif, il ne remplit que les <b>cellules vides</b> de sa cible — les
+    autres cellules du motif restent transparentes et laissent les agents en place.</li>
+    <li><b>Torique ?</b> actif, les cellules du motif qui débordent de la grille se <b>replient</b>
+    sur le côté opposé ; inactif, elles sont <b>perdues</b>.</li>
+  </ul>
+  <p>Un motif collé avec « Écraser ? » actif efface donc les cellules qu'il laisse vides : c'est la
+  règle du collage manuel, pas une règle du stencil.</p>
 
   <section id="boucle">
   <h2>8. Méta-actions de la boucle de simulation</h2>

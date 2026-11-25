@@ -41,7 +41,10 @@ import kotlin.random.Random
  * selection (shift + drag) that can be copied, cut, pasted, erased and transformed with the edit
  * toolbar or Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+Delete / Ctrl+R / Ctrl+F / Ctrl+Shift+F. A copy
  * waits for its paste as a preview: it floats under the mouse until a left click anchors it on a
- * cell (a right click detaches it).
+ * cell (a right click detaches it). The "Stencil" button of the edit bar fills the very same
+ * clipboard from a pattern — RLE, `.cells`, character matrix or the environment of a `.nbd2`
+ * project (see [StencilDialog] and [loadStencil]) — so a stencil is anchored, turned, mirrored
+ * and pasted exactly like a copy.
  */
 class SimulatorViewController(
     simulator: Simulator, val page: BulmaPage, readOnly: Boolean = true,
@@ -1175,6 +1178,44 @@ class SimulatorViewController(
         return true
     }
 
+    /**
+     * Loads a stencil into the clipboard, exactly as a Copy would: the extraction floats under
+     * the mouse, is anchored with a left click, turns and mirrors with the existing buttons and
+     * paste shortcuts, and writes with the current "Écraser" and "Torique ?" rules — the stencil
+     * brings no rule of its own.
+     *
+     * The cells designating a grain the model does not have become empty (the paste then leaves
+     * them alone, unless "Écraser" is on) and are reported once in the journal, with the number
+     * of cells and the ids in cause. A pattern that loses every cell is not loaded at all: an
+     * extraction that is entirely transparent would erase what it covers under "Écraser".
+     */
+    fun loadStencil(stencil: Stencil): Boolean {
+        if (readOnly) return false
+        val filtering = stencil.restrictTo(data.model)
+        if (filtering.hasIgnoredCells) page.journal(
+            JournalLevel.WARNING,
+            STENCIL_IGNORED_KEY,
+            filtering.ignoredCells,
+            filtering.unknownIds.joinToString(", ")
+        )
+        val pattern = filtering.stencil
+        if (pattern.isEmpty) {
+            page.journal(JournalLevel.WARNING, STENCIL_ALL_UNKNOWN_KEY)
+            return false
+        }
+        clipboard = pattern.cells.toIntArray()
+        clipboardWidth = pattern.width
+        clipboardHeight = pattern.height
+        // a fresh extraction waits for its paste: the preview must float again, as after a Copy
+        clipboardPasted = false
+        anchor = null
+        page.journal(JournalLevel.INFO, STENCIL_LOADED_KEY, pattern.width, pattern.height)
+        refreshEditButtons()
+        // the paste preview must show up without waiting for the next mouse move
+        render()
+        return true
+    }
+
     /** Copies then clears the visible agents of the selection; masked agents stay in place. */
     fun cutSelection(): Boolean {
         if (readOnly) return false
@@ -1549,6 +1590,24 @@ class SimulatorViewController(
         "Paste (Ctrl+V)"
     )
 
+    /** The stencil window: a text zone and a file chooser that fill the clipboard like a Copy. */
+    private val stencilDialog = StencilDialog(page) { stencil -> loadStencil(stencil) }
+
+    /**
+     * Opens the stencil window ([StencilDialog]): the pattern it reads lands in the floating
+     * clipboard, so nothing is written until it is anchored and pasted.
+     */
+    val stencilButton = withTooltip(
+        Button(page.i18n("Stencil"), Icon("stamp"), color = ElementColor.Info, rounded = true) { stencilDialog.show() },
+        "Stencil (load a pattern)"
+    )
+
+    /** Contextual help of the edit bar: the stencil formats and the paste rules they follow. */
+    val stencilHelpButton = withTooltip(
+        iconButton(Icon("question-circle"), ElementColor.Info, rounded = true) { stencilDialog.showHelp() },
+        "Stencil help (formats and paste)"
+    )
+
     /** Erases the content of the selection in the grid, then deselects (see [eraseSelection]). */
     val eraseButton = withTooltip(
         Button(page.i18n("Erase"), Icon("eraser"), color = ElementColor.Danger, rounded = true) { eraseSelection() },
@@ -1645,7 +1704,8 @@ class SimulatorViewController(
 
     private val editButtonsField = Field(addons = true).apply {
         body = listOf(
-            Control(copyButton), Control(cutButton), Control(pasteButton), Control(eraseButton),
+            Control(copyButton), Control(cutButton), Control(pasteButton),
+            Control(stencilButton), Control(stencilHelpButton), Control(eraseButton),
             Control(rotateButton), Control(flipHorizontalButton), Control(flipVerticalButton),
             Control(deselectButton)
         )
@@ -1666,6 +1726,9 @@ class SimulatorViewController(
         copyButton.disabled = !selected
         cutButton.disabled = !selected || readOnly
         pasteButton.disabled = !filled || readOnly
+        // the stencil window only fills the clipboard: it is available without any selection
+        stencilButton.disabled = readOnly
+        stencilHelpButton.disabled = false
         eraseButton.disabled = !selected || readOnly
         // the three transformations of the extraction need a filled clipboard, nothing else
         rotateButton.disabled = !filled || readOnly

@@ -465,6 +465,39 @@ les mêmes fonctions pures que les méta-actions `AddRect`/`AddCircle`/`EraseRec
 (`rectangleRows`, `circleRows`) ; une cellule qui déborde de la grille est **repliée** du côté
 opposé si « Torique ? » est actif, **perdue** sinon.
 
+### 4.6bis Charger un stencil (« Stencil » dans la barre d'édition)
+
+Le bouton **Stencil** (icône tampon), à droite de Coller dans la barre d'édition, ouvre une
+fenêtre qui lit un **motif** et le place dans le **presse-papiers en sélection flottante** : rien
+n'est écrit sur la grille, le motif flotte sous la souris exactement comme après un Copier, puis
+s'ancre d'un clic gauche, se tourne avec les boutons existants (Ctrl+R, Ctrl+F, Ctrl+Maj+F) et se
+colle avec Ctrl+V.
+
+Le format est **détecté tout seul**, sans sélecteur ; quatre formats sont acceptés :
+
+| Format | Reconnaissance | Identifiants |
+|---|---|---|
+| RLE (Golly) | une ligne `x = L, y = H`, puis éventuellement `rule = …`, commentaires `#N` `#C` `#r` `#c` | `b`/`.` vide, `o` grain 1, `A`…`Z` états 10 à 35 (`2A` = deux cellules de grain 10) |
+| `.cells` | lignes de `.` et `O` (`o`), commentaires `!`, nom après `!Name:` | le format n'a que deux états : `O` désigne le **premier grain** du modèle (id 0) |
+| matrice | un caractère par cellule, `,` espace et tabulation ignorés, lignes `!` et `#` ignorées | `.` vide, `0`-`9` puis `a`-`f` (`A`-`F`) pour les grains 0 à 15 |
+| projet `.nbd2` | l'objet JSON du fichier | l'environnement peuplé est extrait avec le grain de chaque cellule, puis **recadré sur la boîte englobante** des agents |
+
+Tout autre contenu est **refusé** : la fenêtre affiche alors la liste des formats acceptés et
+rien n'est chargé.
+
+Un identifiant de grain **absent du modèle courant** laisse la cellule **vide** ; le journal
+signale une seule fois par chargement le nombre de cellules ignorées et la liste des identifiants
+en cause. Un motif qui perd toutes ses cellules n'est pas chargé du tout (un presse-papiers
+entièrement transparent effacerait sa cible sous « Écraser »).
+
+Le collage d'un stencil suit **exactement** les règles du collage manuel : « Écraser ? » actif, il
+remplace les agents rencontrés ; inactif, il ne remplit que les cellules vides du motif, les
+autres cellules du motif restant transparentes. « Torique ? » décide du débordement. L'analyse est
+pure et vit dans le noyau (`core/.../model/stencil.kt`, `parseStencil` / `Stencil.restrictTo`),
+testée sans navigateur ; la fenêtre (`controller/model/StencilDialog.kt`) ne fait qu'appeler
+`loadStencil` de la vue, qui remplit le presse-papiers comme `copySelection`. Détails : aide
+intégrée §7.5, et bouton **?** à côté de Stencil.
+
 ### 4.7 Visibilité des agents et des champs
 
 Dans le panneau latéral (liste des agents, comportements et champs), chaque grain et
@@ -583,6 +616,8 @@ Tests couvrant :
 - Mise à jour parallèle vs séquentielle (`testParallelUpdate`)
 - Validation des formules (`FormulaTest`)
 - Journal de la simulation : bornage à 200 entrées, ordre, format d'export (`JournalTest`)
+- Lecture des stencils : RLE (commentaires, `rule`, multi-états), `.cells`, matrice et séparateurs,
+  `.nbd2` recadré, refus explicites et identifiants de grains inconnus (`StencilTest`)
 
 ---
 

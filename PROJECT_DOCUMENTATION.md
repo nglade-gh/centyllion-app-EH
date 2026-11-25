@@ -841,6 +841,64 @@ des captures) : `journal/NOM__journal.txt` créé dans le dossier de travail qua
 autorisé, sinon téléchargement du même texte ; le résultat est lui-même une ligne du journal. Le
 bouton est désactivé tant que le journal est vide et l'export ne le vide jamais.
 
+### 8.4ter Charger un stencil (motif) dans le presse-papiers
+
+Un **stencil** est un motif de cellules collé dans la vue de simulation sans passer par une
+sélection : un planeur RLE, un dessin `.cells`, une petite matrice multi-agents ou l'environnement
+peuplé d'un projet `.nbd2`.
+
+**Noyau** — `core/src/commonMain/kotlin/com/centyllion/model/stencil.kt`, entièrement pur et testé
+sans navigateur :
+
+- `Stencil(name, width, height, cells)` : cellules **rangée par rangée** (`row * width + column`),
+  exactement l'ordre du presse-papiers de la vue (`SimulatorViewController.clipboard`), donc une
+  rotation ou un retournement existant s'applique sans conversion. `STENCIL_EMPTY` (`-1`) est la
+  cellule transparente, `idAt`, `filledCells`, `isEmpty` et `cropped()` (boîte englobante) sont des
+  fonctions pures.
+- `parseStencil(text): StencilParse` : détection **automatique**, sans sélecteur. Un texte
+  commençant par `{` est un projet `.nbd2` (`Json.parseToJsonElement`, puis
+  `simulation.agents` lu sur la taille du fichier — `width`/`height` s'ils existent, sinon la
+  taille personnalisée, sinon le préréglage carré `settings.size` — puis recadrage sur la boîte
+  englobante des agents). Sinon, l'en-tête `x = L, y = H` (suivi éventuellement de `rule = …`,
+  précédé de commentaires `#`) désigne un RLE : `b`/`.` vide, `o` grain 1, `A`…`Z` états 10 à 35
+  (`2A` = deux cellules de l'état 10), un nombre répétant le symbole suivant, `$` fin de rangée
+  (`3$` = trois rangées), `!` fin du motif. Sinon les lignes de `.`/`O`/`o` et `!` donnent un
+  `.cells` (`!Name:` pour le nom, `O` désignant le **premier grain**, id 0, faute d'identifiants
+  dans ce format à deux états). Sinon un caractère par cellule (`.` vide, `0`-`9` puis `a`-`f`
+  ou `A`-`F` pour les grains 0 à 15, virgules/espaces/tabulations ignorés, lignes `!` et `#`
+  ignorées) donne une **matrice**. Tout le reste est refusé avec `StencilProblem.UNKNOWN_FORMAT`,
+  dont le message énumère les formats acceptés (`StencilProblem.message(locale)`).
+- Refus explicites, tous traduits FR/EN : contenu vide, format inconnu, motif vide (aucune
+  cellule peuplée), projet sans environnement peuplé, RLE illisible (avec le **caractère** où la
+  lecture s'est arrêtée), JSON qui n'est pas un projet.
+- `Stencil.restrictTo(model): StencilFiltering` : les cellules qui désignent un grain **absent du
+  modèle** deviennent vides ; `ignoredCells` et `unknownIds` (triés, une fois chacun) sont
+  rapportés, et `stencilIgnoredMessage(locale, filtering)` construit la ligne du journal
+  (`STENCIL_IGNORED_KEY`). Aucune autre règle n'est ajoutée : le collage reste celui de
+  `pasteAt`.
+
+**Vue** — `web/src/jsMain/kotlin/com/centyllion/client/controller/model/` :
+
+- `StencilDialog.kt` : fenêtre du bouton **Stencil** de la barre d'édition (zone de texte
+  monospace, `FileInput` dont le contenu est lu par `FileReader` et versé dans la zone, boutons
+  **Aide**, **Fermer**, **Valider**). « Valider » analyse la zone : un refus affiche le message
+  **dans la fenêtre** et ne charge rien ; un succès ferme la fenêtre et remplit le presse-papiers.
+  L'aide contextuelle (bouton de la fenêtre **et** bouton `?` de la barre d'édition) décrit les
+  quatre formats, les grains inconnus et les règles de collage.
+- `SimulatorViewController.loadStencil(stencil)` : applique `restrictTo(data.model)`, journalise
+  une ligne `WARNING` par chargement s'il y a des cellules ignorées, refuse un motif devenu
+  entièrement vide (`STENCIL_ALL_UNKNOWN_KEY`), puis écrit `clipboard`/`clipboardWidth`/
+  `clipboardHeight` en remettant `clipboardPasted = false` et `anchor = null` : l'aperçu flotte,
+  s'ancre, se tourne et se colle par les chemins existants. « Écraser ? » et « Torique ? » ne sont
+  pas touchés — le stencil suit à cent pour cent la règle du collage manuel.
+
+**Tests** : `core/src/commonTest/.../StencilTest.kt` — RLE simple, commentaires et `rule`, RLE
+multi-états, compte de répétition et de rangées, RLE illisible et RLE vide ; `.cells` nommé,
+minuscules et lignes inégales ; matrice avec chaque séparateur, matrice hexadécimale, matrice
+commentée, matrice vide ; identifiants inconnus (comptés, listés, cellule vide) et motif devenu
+entièrement vide ; texte quelconque refusé, contenu vide refusé, messages FR/EN ; projet `.nbd2`
+recadré, préréglage carré, projet vide et projet illisible ; ordre rangée par rangée.
+
 ### 8.5 Galerie personnelle : disque et repli navigateur
 
 La galerie personnelle (les modèles ajoutés par le visiteur, par opposition à la galerie
