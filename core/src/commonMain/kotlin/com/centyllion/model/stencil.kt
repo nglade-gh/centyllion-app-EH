@@ -163,7 +163,9 @@ fun StencilProblem.message(locale: Locale, position: Int = -1): String = when (t
  * 1. a text starting with `{` is a NetBioDyn project (`.nbd2`), read as the populated
  *    environment of the grid it stores, cropped on its bounding box;
  * 2. an RLE header `x = <width>, y = <height>` (optionally followed by `, rule = B3/S23`,
- *    preceded by `#` comments) makes the text an RLE pattern;
+ *    preceded by `#` comments) makes the text an RLE pattern — a body without any uppercase
+ *    letter is two-state, so its `o` designates grain 0 like the `O` of a `.cells` file,
+ *    while the first uppercase letter brings back the multi-state rule (state = grain id);
  * 3. lines of `.`, `O`/`o` and `!` comments make it a plain text `.cells` pattern;
  * 4. one character per cell — `.` empty, `0`-`9` then `a`-`f` (or `A`-`F`) for the grains,
  *    with commas, spaces and tabs ignored — makes it a multi-agent matrix;
@@ -218,15 +220,20 @@ private fun rleHeader(lines: List<String>): RleHeader? {
 /**
  * Body of an RLE pattern, following the Golly encoding:
  *
- * - `b` (or `.`) is an empty cell, `o` a cell of grain 1;
+ * - `b` (or `.`) is an empty cell, `o` a live one;
  * - an uppercase letter is a state of its own: `A` is state 10, `B` 11 … `Z` 35, so that
  *   `2A` is two cells of grain 10 — the multi-state rule of Golly;
  * - a number before a symbol repeats it, `$` ends a row (`3$` ends three rows) and `!` ends
  *   the pattern.
  *
- * The state number *is* the grain id of the model, as written in the file: `o` therefore
- * addresses grain 1, and a model whose first grain is 0 shows nothing until its own ids are
- * used (the unknown ids are reported by [restrictTo]).
+ * How a live cell is numbered depends on the body, because RLE serves two very different
+ * files. As long as the body uses no uppercase letter it is a **two-state** pattern (`b`/`o`
+ * only), and the two binary formats then read alike: `o` designates the **first grain** of the
+ * model (id 0), exactly like `O` in a `.cells` file, so that a Game of Life pattern drops into
+ * a one-grain model whose only grain is 0. The first uppercase letter makes the pattern
+ * multi-state, and the Golly rule comes back: the state number *is* the grain id, so `o` is
+ * then grain 1 — a pattern mixing `o` and `A` has to number its cells as it did before, and
+ * the unknown ids are reported by [restrictTo].
  */
 private fun parseRle(lines: List<String>, header: RleHeader): StencilParse {
     val width = header.width
@@ -246,6 +253,10 @@ private fun parseRle(lines: List<String>, header: RleHeader): StencilParse {
     }
 
     val cells = IntArray(width * height) { STENCIL_EMPTY }
+    // an uppercase letter is the only way an RLE body leaves the two-state alphabet: its
+    // absence means a binary pattern, whose live cells designate the first grain of the model
+    val twoState = body.none { it in 'A'..'Z' }
+    val liveId = if (twoState) 0 else 1
     var row = 0
     var column = 0
     var run = 0
@@ -275,7 +286,7 @@ private fun parseRle(lines: List<String>, header: RleHeader): StencilParse {
             }
 
             symbol == 'b' || symbol == '.' -> put(STENCIL_EMPTY, position)?.let { return it }
-            symbol == 'o' -> put(1, position)?.let { return it }
+            symbol == 'o' -> put(liveId, position)?.let { return it }
             symbol in 'A'..'Z' -> put(10 + (symbol - 'A'), position)?.let { return it }
             symbol == '$' -> {
                 val length = if (hasRun) run else 1

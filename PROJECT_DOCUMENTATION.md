@@ -860,9 +860,13 @@ sans navigateur :
   `simulation.agents` lu sur la taille du fichier — `width`/`height` s'ils existent, sinon la
   taille personnalisée, sinon le préréglage carré `settings.size` — puis recadrage sur la boîte
   englobante des agents). Sinon, l'en-tête `x = L, y = H` (suivi éventuellement de `rule = …`,
-  précédé de commentaires `#`) désigne un RLE : `b`/`.` vide, `o` grain 1, `A`…`Z` états 10 à 35
-  (`2A` = deux cellules de l'état 10), un nombre répétant le symbole suivant, `$` fin de rangée
-  (`3$` = trois rangées), `!` fin du motif. Sinon les lignes de `.`/`O`/`o` et `!` donnent un
+  précédé de commentaires `#`) désigne un RLE : `b`/`.` vide, `o` cellule vivante, `A`…`Z` états
+  10 à 35 (`2A` = deux cellules de l'état 10), un nombre répétant le symbole suivant, `$` fin de
+  rangée (`3$` = trois rangées), `!` fin du motif. Un corps **sans majuscule** est à deux états :
+  `o` désigne alors le **premier grain** du modèle (id 0), exactement comme `O` dans `.cells`, si
+  bien qu'un motif du jeu de la vie se charge dans un modèle à un seul grain ; dès qu'une
+  majuscule apparaît la règle multi-états reprend (**état n = grain d'identifiant n**, `o`
+  redevient le grain 1). Sinon les lignes de `.`/`O`/`o` et `!` donnent un
   `.cells` (`!Name:` pour le nom, `O` désignant le **premier grain**, id 0, faute d'identifiants
   dans ce format à deux états). Sinon un caractère par cellule (`.` vide, `0`-`9` puis `a`-`f`
   ou `A`-`F` pour les grains 0 à 15, virgules/espaces/tabulations ignorés, lignes `!` et `#`

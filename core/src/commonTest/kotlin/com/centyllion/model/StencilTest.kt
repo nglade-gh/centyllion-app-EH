@@ -47,8 +47,27 @@ class StencilTest {
         val stencil = result.stencil
         assertEquals(3, stencil.width)
         assertEquals(3, stencil.height)
-        // state 1 of a two-state RLE is grain 1: the state number is the grain id
-        assertEquals(listOf(".1.", "..1", "111"), shapeOf(stencil, '1'))
+        // a body with only b and o is two-state: the state number is not written, so a live
+        // cell designates the first grain of the model
+        assertEquals(listOf(".0.", "..0", "000"), shapeOf(stencil, '0'))
+    }
+
+    /**
+     * The two binary formats must read alike: the same glider written as `.cells` and as a
+     * two-state RLE has to produce the very same pattern, so that a Game of Life pattern
+     * loads in a model whose only grain is 0.
+     */
+    @Test
+    fun testABinaryRleAndACellsPatternProduceTheSamePattern() {
+        val rle = parsed("x = 3, y = 3\nbob\$2bo\$3o!").stencil
+        val cells = parsed(".O.\n..O\nOOO").stencil
+        assertEquals(cells.cells, rle.cells, "o and O designate the same grain, id 0")
+        assertEquals(listOf(0, 0, 0, 0, 0), rle.cells.filter { it != STENCIL_EMPTY })
+        // a one-grain model keeps every cell: nothing is dropped as an unknown id
+        val filtering = rle.restrictTo(modelOf(0))
+        assertEquals(0, filtering.ignoredCells)
+        assertTrue(filtering.unknownIds.isEmpty())
+        assertEquals(rle.cells, filtering.stencil.cells)
     }
 
     @Test
@@ -64,7 +83,7 @@ class StencilTest {
         val result = parsed(text)
         assertEquals(StencilFormat.RLE, result.format)
         assertEquals("Glider", result.stencil.name, "the #N comment names the pattern")
-        assertEquals(listOf(".1.", "..1", "111"), shapeOf(result.stencil, '1'))
+        assertEquals(listOf(".0.", "..0", "000"), shapeOf(result.stencil, '0'))
         assertFalse(result.stencil.isEmpty)
     }
 
@@ -75,7 +94,7 @@ class StencilTest {
         val stencil = result.stencil
         assertEquals(4, stencil.width)
         assertEquals(3, stencil.height)
-        assertEquals(listOf("11..", "....", ".1.."), shapeOf(stencil, '1'))
+        assertEquals(listOf("00..", "....", ".0.."), shapeOf(stencil, '0'))
     }
 
     @Test
@@ -84,6 +103,50 @@ class StencilTest {
         val result = parsed("x = 4, y = 1\n2ABo!")
         assertEquals(StencilFormat.RLE, result.format)
         assertEquals(listOf(10, 10, 11, 1), result.stencil.cells)
+        // one uppercase letter is enough: the body leaves the two-state alphabet, so `o` is
+        // grain 1 again, as in Golly
+        assertEquals(listOf(10, 1, 1), parsed("x = 3, y = 1\nAoo!").stencil.cells)
+    }
+
+    @Test
+    fun testRleCountsBeforeUppercaseLettersStayMultiState() {
+        // a count before anything other than b, o or $ is a state: "3C" is three cells of
+        // grain 12, and the whole body follows the multi-state rule
+        assertEquals(listOf(12, 12, 12, 1), parsed("x = 4, y = 1\n3Co!").stencil.cells)
+    }
+
+    /**
+     * A real binary RLE file: 50P92.1 (catereron), from the Conway Life wiki. The reference
+     * shape was decoded independently — 32 x 45, 66 live cells — and the pattern must load as
+     * is in a model whose grains are 0: with `o` meaning grain 1 not a single cell would
+     * survive the check against that model.
+     */
+    @Test
+    fun testALargeBinaryRleLoadsInAOneGrainModel() {
+        val text = """
+            #N catereron50p92.1.rle
+            #C https://conwaylife.com/wiki/50P92.1
+            #C https://www.conwaylife.com/patterns/catereron50p92.1.rle
+            x = 32, y = 45, rule = B3/S23
+            2bo${'$'}bobo2${'$'}3bo${'$'}2b2o${'$'}2b5o${'$'}2b2ob2o${'$'}3bo4${'$'}13b3o14b2o${'$'}13bo3bo12b2o${'$'}13bo4bo${'$'}14bo3bo
+            2${'$'}14bo3bo${'$'}13bo4bo${'$'}13bo3bo12b2o${'$'}13b3o14b2o6${'$'}b3o3b3o${'$'}o2bo3bo2bo${'$'}2obo3bob2o16${'$'}b
+            2o5b2o${'$'}b2o5b2o!
+        """.trimIndent()
+        val result = parsed(text)
+        assertEquals(StencilFormat.RLE, result.format)
+        val stencil = result.stencil
+        assertEquals("catereron50p92.1.rle", stencil.name)
+        assertEquals(32, stencil.width)
+        assertEquals(45, stencil.height)
+        assertEquals(66, stencil.filledCells)
+        assertTrue(stencil.cells.all { it == 0 || it == STENCIL_EMPTY }, "every live cell is grain 0")
+        // the reference shape, read independently: row 0 is "..#", row 11 ends with "##"
+        assertEquals("..#.............................", shapeOf(stencil).first())
+        assertEquals(".............###..............##", shapeOf(stencil)[11])
+        assertEquals(".##.....##......................", shapeOf(stencil).last())
+        val filtering = stencil.restrictTo(modelOf(0))
+        assertEquals(0, filtering.ignoredCells, "a one-grain model accepts the whole pattern")
+        assertEquals(66, filtering.stencil.filledCells)
     }
 
     @Test

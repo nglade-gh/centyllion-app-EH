@@ -477,7 +477,7 @@ Le format est **détecté tout seul**, sans sélecteur ; quatre formats sont acc
 
 | Format | Reconnaissance | Identifiants |
 |---|---|---|
-| RLE (Golly) | une ligne `x = L, y = H`, puis éventuellement `rule = …`, commentaires `#N` `#C` `#r` `#c` | `b`/`.` vide, `o` grain 1, `A`…`Z` états 10 à 35 (`2A` = deux cellules de grain 10) |
+| RLE (Golly) | une ligne `x = L, y = H`, puis éventuellement `rule = …`, commentaires `#N` `#C` `#r` `#c` | `b`/`.` vide, `o` cellule vivante : un corps **sans majuscule** est à deux états et `o` désigne le **premier grain** (id 0), comme `O` dans `.cells` ; une majuscule (`A`…`Z` = états 10 à 35) rétablit la règle **état n = grain n** (`2A` = deux cellules de grain 10) |
 | `.cells` | lignes de `.` et `O` (`o`), commentaires `!`, nom après `!Name:` | le format n'a que deux états : `O` désigne le **premier grain** du modèle (id 0) |
 | matrice | un caractère par cellule, `,` espace et tabulation ignorés, lignes `!` et `#` ignorées | `.` vide, `0`-`9` puis `a`-`f` (`A`-`F`) pour les grains 0 à 15 |
 | projet `.nbd2` | l'objet JSON du fichier | l'environnement peuplé est extrait avec le grain de chaque cellule, puis **recadré sur la boîte englobante** des agents |

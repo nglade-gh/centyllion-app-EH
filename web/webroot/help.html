@@ -757,10 +757,15 @@ EraseCircle(0, 50, 50, 20, false)
       <td>une ligne <code>x = L, y = H</code>, éventuellement suivie de <code>rule = B3/S23</code>,
       puis les cellules sur les lignes suivantes ; les lignes <code>#</code> sont des commentaires
       (<code>#N</code> nomme le motif, <code>#C</code>, <code>#r</code>, <code>#c</code> aussi)</td>
-      <td><code>b</code> ou <code>.</code> = cellule vide, <code>o</code> = grain 1, lettre
-      majuscule = état à part entière : <code>A</code> = 10, <code>B</code> = 11 … <code>Z</code>
-      = 35, donc <code>2A</code> = deux cellules de grain 10. Un nombre répète le symbole qui
-      suit, <code>$</code> termine une rangée, <code>!</code> termine le motif.</td>
+      <td><code>b</code> ou <code>.</code> = cellule vide, <code>o</code> = cellule vivante. Un
+      corps composé uniquement de <code>b</code> et de <code>o</code> est <b>à deux états</b> :
+      <code>o</code> désigne le <b>premier grain</b> du modèle (identifiant 0), exactement comme
+      <code>O</code> dans un fichier <code>.cells</code> — un motif du jeu de la vie se charge
+      donc dans un modèle à un seul grain. Une lettre majuscule introduit un état à part entière
+      (<code>A</code> = 10, <code>B</code> = 11 … <code>Z</code> = 35) : le corps est alors
+      <b>multi-états</b>, le numéro d'état <b>est</b> l'identifiant du grain — <code>o</code>
+      redevient le grain 1 et <code>2A</code> = deux cellules de grain 10. Un nombre répète le
+      symbole qui suit, <code>$</code> termine une rangée, <code>!</code> termine le motif.</td>
     </tr>
     <tr>
       <td><b>Texte <code>.cells</code></b></td>
@@ -784,6 +789,17 @@ EraseCircle(0, 50, 50, 20, false)
       colonnes entièrement vides autour du motif sont abandonnées.</td>
     </tr>
   </table>
+  <p><b>Exemple — un RLE binaire complet.</b> Le motif ci-dessous est celui que colle le
+  tutoriel « Charger un stencil » : il ne contient que <code>b</code> et <code>o</code>, donc
+  ses 66 cellules désignent le <b>grain 0</b>, et il se charge en <b>32 × 45</b>. Les retours à
+  la ligne du corps n'ont aucun effet : ils ne servent qu'à couper les longues lignes.</p>
+  <pre><code>#N catereron50p92.1.rle
+#C https://conwaylife.com/wiki/50P92.1
+#C https://www.conwaylife.com/patterns/catereron50p92.1.rle
+x = 32, y = 45, rule = B3/S23
+2bo$bobo2$3bo$2b2o$2b5o$2b2ob2o$3bo4$13b3o14b2o$13bo3bo12b2o$13bo4bo$14bo3bo
+2$14bo3bo$13bo4bo$13bo3bo12b2o$13b3o14b2o6$b3o3b3o$o2bo3bo2bo$2obo3bob2o16$b
+2o5b2o$b2o5b2o!</code></pre>
   <p><b>Identifiants inconnus.</b> Si le motif désigne un grain que le modèle courant ne possède
   pas, la cellule devient <b>vide</b> — il n'y a rien à y coller. Le <b>journal</b> signale alors,
   une seule fois par chargement, le nombre de cellules ignorées et la liste des identifiants en

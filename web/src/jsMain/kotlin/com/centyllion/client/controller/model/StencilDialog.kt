@@ -64,6 +64,9 @@ class StencilDialog(
             // one character per cell: the pattern must be readable as a grid in the zone
             root.style.fontFamily = "monospace"
             root.style.fontSize = "12px"
+            // stable id: the tutorial "Load a stencil" points at this zone, which only exists
+            // while the window is open
+            root.id = TEXT_ID
         }
 
         val errorLine = p(classes = "help has-text-danger")
@@ -123,6 +126,8 @@ class StencilDialog(
         }
         val cancel = Button(page.i18n("Close")) { dialog?.active = false }
         val validateButton = Button(page.i18n("Validate"), Icon("check"), color = ElementColor.Primary) { validate() }
+        // stable id, as for the zone: the tutorial points at this button only while it exists
+        validateButton.root.id = VALIDATE_ID
 
         val body = listOf<BulmaElement>(
             Field(Label(page.i18n("Pattern")), Control(textInput)),
@@ -135,7 +140,7 @@ class StencilDialog(
             closed.root.parentNode?.removeChild(closed.root)
             if (dialog === closed) dialog = null
         }
-        card.root.classList.add("centy-stencil-dialog")
+        card.root.classList.add(CARD_CLASS)
         dialog = card
         page.root.appendChild(card.root)
         card.active = true
@@ -155,7 +160,7 @@ class StencilDialog(
             p(page.i18n("The format is detected on its own, without a selector. Four formats are accepted; anything else is refused and nothing is loaded.")),
             Table(
                 body = listOf(
-                    helpLine("RLE", page.i18n("RLE (Golly): a line x = width, y = height, optionally followed by rule = B3/S23, then the cells on the following lines. Lines starting with # are comments, #N naming the pattern. b is an empty cell, o a cell of grain 1, and an uppercase letter a state of its own (A = 10, B = 11 ... Z = 35), so that 2A is two cells of grain 10. A number repeats the symbol that follows, $ ends a row and ! ends the pattern.")),
+                    helpLine("RLE", page.i18n("RLE (Golly): a line x = width, y = height, optionally followed by rule = B3/S23, then the cells on the following lines. Lines starting with # are comments, #N naming the pattern. b (or .) is an empty cell and o a live one; a number repeats the symbol that follows, $ ends a row and ! ends the pattern. A body made of b and o only is two-state: o designates the first grain of the model, id 0, exactly like O in a .cells file, so a Game of Life pattern loads in a one-grain model. An uppercase letter introduces a state of its own (A = 10, B = 11 ... Z = 35): the body is then multi-state, 2A is two cells of grain 10, and o is grain 1 again.")),
                     helpLine(".cells", page.i18n("Plain text .cells: one line per row, . for an empty cell and O (or o) for a live one; ! starts a comment and !Name: gives the name of the pattern. The format has two states only, so a live cell designates the first grain of the model, id 0.")),
                     helpLine(page.i18n("Matrix"), page.i18n("Character matrix: one character per cell, . for an empty cell and 0-9 then a-f (or A-F) for the grains of id 0 to 15; commas, spaces and tabs are ignored, ! and # lines are comments.")),
                     helpLine(".nbd2", page.i18n(".nbd2 project: the populated environment stored in the file is extracted, with the grain of every cell, and cropped on the bounding box of the agents; the empty border of the grid is dropped."))
@@ -186,6 +191,21 @@ class StencilDialog(
         TableCell(name).apply { root.classList.add("has-text-weight-bold") },
         TableCell(description)
     )
+
+    companion object {
+
+        /**
+         * Ids of the two controls the tutorial "Load a stencil" points at. They carry no style:
+         * the window is rebuilt on every opening, so the tutorial cannot hold a reference to its
+         * elements and looks them up by id instead — an id, unlike a CSS shape, says exactly
+         * which control is meant.
+         */
+        const val TEXT_ID = "centy-stencil-text"
+        const val VALIDATE_ID = "centy-stencil-validate"
+
+        /** Class of the whole window, used by the tutorial as a fallback target. */
+        const val CARD_CLASS = "centy-stencil-dialog"
+    }
 
     // ----------------------------------------------------------------------- files
 
