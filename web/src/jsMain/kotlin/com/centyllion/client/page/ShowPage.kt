@@ -36,6 +36,9 @@ import bulma.Field as BField
 private const val FILE_NAME_KEY = "saveFileName"
 
 /** ShowPage is used to present and edit (if not read-only) a model and a simulation. */
+/** Violet of the gallery button, deeper than the blue of the model buttons. */
+private const val GALLERY_VIOLET = "#5b4bd6"
+
 class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     private var tutorialLayer: TutorialLayer<ShowPage>? = null
@@ -166,9 +169,10 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     /** The gallery window is created on first use and kept for the next openings. */
     private var galleryController: GalleryController? = null
 
+    /** Deeper violet than the creation, load and save buttons: the gallery is a place, not an action. */
     val galleryControl = Control(Button(
         i18n("Gallery"), Icon("images"), color = ElementColor.Primary
-    ) { showGallery() })
+    ) { showGallery() }.apply { root.style.backgroundColor = GALLERY_VIOLET })
 
     /**
      * Where the pictures of the `Capture()` meta-action go: a working folder chosen by the
@@ -184,15 +188,15 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
     val workFolderController = WorkFolderController(this)
 
     val tutorialControl = Control(Button(
-        i18n("Tutorial"), Icon("question-circle"), color = ElementColor.Primary
+        i18n("Tutorial"), Icon("question-circle"), color = ElementColor.Success
     ) { startTutorial() })
 
     val helpControl = Control(Button(
-        i18n("Help"), Icon("info-circle"), color = ElementColor.Primary
+        i18n("Help"), Icon("info-circle"), color = ElementColor.Success
     ) { window.open("help.html", "_blank") })
 
     val aboutControl = Control(Button(
-        i18n("About"), Icon("info"), color = ElementColor.Primary
+        i18n("About"), Icon("info"), color = ElementColor.Success
     ) { showAbout() })
 
     val expertModeSwitch = Switch(
