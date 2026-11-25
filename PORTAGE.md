@@ -13,7 +13,7 @@ Endless Bloom seulement.
 
 | | Endless Bloom | NetBioDyn Forever |
 |---|---|---|
-| Tests du noyau | 346 | 333 |
+| Tests du noyau | 376 | 363 |
 | Build web | vert | vert |
 
 L'écart de 13 tests est entièrement dû à `ExecutionBlockTest.kt`, propre à Endless
