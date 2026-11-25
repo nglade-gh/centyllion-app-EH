@@ -24,6 +24,9 @@ const val CAPTURE_NAME_MAX_LENGTH = 64
 /** Part used when the model has no name usable as a file name (empty, blank, `.` or `..`). */
 const val CAPTURE_NAME_FALLBACK = "model"
 
+/** Extension of a capture of the default format (JPEG), used when the caller does not choose one. */
+const val CAPTURE_DEFAULT_EXTENSION = "jpg"
+
 /** Characters refused by a file system (Windows refuses all of them) and awkward in a URL. */
 private val forbiddenNameChars = charArrayOf('/', '\\', ':', '*', '?', '"', '<', '>', '|')
 
@@ -82,11 +85,16 @@ fun sanitizeCaptureName(raw: String): String {
  * Name of the capture of [step]: the cleaned model name, two underscores and the step number,
  * for example `GoL_Modifiers__12.jpg`.
  *
+ * [extension] is the extension of the picture format chosen in the Records settings — `jpg` for
+ * JPEG, `png` for PNG — without the dot. Its default is the extension of the first captures, so a
+ * caller that does not care keeps the historical name.
+ *
  * [step] is the step counter displayed for the captured frame: the `Capture()` action runs at the
  * end of the step that emits it, so the image is the state that the interface then shows as step
  * `n + 1` when the condition was `step == n`.
  */
-fun captureFileName(modelName: String, step: Int): String = "${sanitizeCaptureName(modelName)}__$step.jpg"
+fun captureFileName(modelName: String, step: Int, extension: String = CAPTURE_DEFAULT_EXTENSION): String =
+    "${sanitizeCaptureName(modelName)}__$step.$extension"
 
 /**
  * Folder of the captures of [modelName], relative to the working folder: [CAPTURE_FOLDER] then the
@@ -102,8 +110,11 @@ fun captureFolder(modelName: String): String = "$CAPTURE_FOLDER/${sanitizeCaptur
  * Path of the capture of [step] relative to the working folder:
  * `captures/GoL_Modifiers/GoL_Modifiers__12.jpg` for a model named `GoL_Modifiers`.
  *
+ * [extension] follows the format chosen in the Records settings, exactly like [captureFileName].
+ *
  * It is the path the confirmation message announces; the writer creates the two directory levels
  * before writing the file.
  */
-fun captureRelativePath(modelName: String, step: Int): String =
-    "${captureFolder(modelName)}/${captureFileName(modelName, step)}"
+fun captureRelativePath(
+    modelName: String, step: Int, extension: String = CAPTURE_DEFAULT_EXTENSION
+): String = "${captureFolder(modelName)}/${captureFileName(modelName, step, extension)}"

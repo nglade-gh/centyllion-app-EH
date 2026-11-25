@@ -4,6 +4,8 @@ import bulma.*
 import kotlinx.browser.document
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.HTMLLabelElement
+import com.centyllion.client.capture.loadRecordingSettings
+import com.centyllion.client.capture.saveRecordingSettings
 import com.centyllion.client.controller.utils.SearchController
 import com.centyllion.client.controller.utils.filtered
 import com.centyllion.client.download
@@ -513,6 +515,13 @@ class ModelController(
     private var plotWindowMode = false
     private var plotWindowSize = 100
 
+    /**
+     * Settings of the Records tab, kept by this browser (localStorage, never in the project file):
+     * the format, the quality and the size of the pictures taken by `Capture()`, and the separator
+     * of the CSV files. A capture or an export always reads the current value.
+     */
+    private var recordingSettings: RecordingSettings = loadRecordingSettings()
+
     val settingsController = SimulationSettingsController(
         model.simulation.settings, page,
         initialUpdatePlan = model.model.updatePlan,
@@ -532,7 +541,14 @@ class ModelController(
         },
         initialSlidingWindow = plotWindowMode,
         initialWindowSize = plotWindowSize,
-        onSlidingWindow = { checked, size -> applyPlotWindow(checked, size) }
+        onSlidingWindow = { checked, size -> applyPlotWindow(checked, size) },
+        initialRecording = recordingSettings,
+        onRecording = { settings ->
+            recordingSettings = settings
+            // remembered for the next visit, and handed to the view that encodes the captures
+            saveRecordingSettings(settings)
+            simulationController.simulationViewController.recordingSettings = settings
+        }
     ) { _, new, _ ->
         data = data.copy(simulation = data.simulation.updateSettings(new))
     }
@@ -558,10 +574,15 @@ class ModelController(
     )
 
     var exportGrainCsvButton = iconButton(Icon("file-csv"), ElementColor.Info, true) {
-        val header = "step,${data.model.grains.map { it.name.ifBlank { it.id } }.joinToString(",")}"
+        // the separator chosen in the Records tab is written between the columns, and a name that
+        // holds it is quoted, so the header always has one column per agent type
+        val separator = recordingSettings.csvSeparator
+        val header = csvLine(
+            listOf("step") + data.model.grains.map { it.name.ifBlank { "${it.id}" } }, separator
+        )
         val content = (0 until simulationController.simulator.step).joinToString("\n") { step ->
-            val counts = data.model.grains.map { simulationController.simulator.grainCountHistory[it]?.get(step) ?: 0 }.joinToString(",")
-            "$step,$counts"
+            val counts = data.model.grains.map { simulationController.simulator.grainCountHistory[it]?.get(step) ?: 0 }
+            csvLine(listOf("$step") + counts.map { "$it" }, separator)
         }
         download("agents.csv", stringHref("$header\n$content"))
     }
@@ -571,10 +592,14 @@ class ModelController(
     }
 
     var exportFieldCsvButton = iconButton(Icon("file-csv"), ElementColor.Info, true) {
-        val header = "step,${data.model.fields.map { it.name.ifBlank { it.id } }.joinToString(",")}"
+        // same rule as the agents: the separator of the Records tab, and quoted names
+        val separator = recordingSettings.csvSeparator
+        val header = csvLine(
+            listOf("step") + data.model.fields.map { it.name.ifBlank { "${it.id}" } }, separator
+        )
         val content = (0 until simulationController.simulator.step).joinToString("\n") { step ->
-            val counts = data.model.fields.map { simulationController.simulator.fieldAmountHistory[it]?.get(step) ?: 0f }.joinToString(",")
-            "$step,$counts"
+            val amounts = data.model.fields.map { simulationController.simulator.fieldAmountHistory[it]?.get(step) ?: 0f }
+            csvLine(listOf("$step") + amounts.map { "$it" }, separator)
         }
         download("fields.csv", stringHref("$header\n$content"))
     }.apply {

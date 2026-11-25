@@ -105,8 +105,13 @@ de fichiers.
 
 #### Captures (`Capture()`) et dossier de travail
 
-La méta-action `Capture()` demande une image JPEG (qualité 0,92) de la vue de
-simulation ; le fichier s'appelle `NOM_MODELE__PAS.jpg` (ex. `GoL_Modifiers__12.jpg`).
+La méta-action `Capture()` demande une image de la vue de simulation ; le fichier
+s'appelle `NOM_MODELE__PAS.jpg` (ex. `GoL_Modifiers__12.jpg`). Le **format** (JPEG
+qualité 0,95 par défaut, ou PNG sans perte), la **qualité** et la **résolution** de
+cette image se règlent dans l'onglet **Enregistrements** des paramètres (§4.5bis et
+aide §9.6) ; en mode « taille de la grille », l'image fait `largeur × N` par
+`hauteur × N` pixels (N = 1 à 8, défaut 4), quelle que soit la fenêtre, et le
+fichier porte l'extension `.png` quand le format est PNG.
 Le **bouton maison** de la rangée du bouton « Informations sur le modèle »
 — icône `fa-home` pleine, infobulle et `aria-label` portant l'état (« Dossier de
 travail — Défini », « Dossier de travail — Non défini », « Dossier de travail —
@@ -324,8 +329,9 @@ fonctions de formule et les prédicats restent en **minuscules** (`abs`, `min`, 
 | `Rewind()` | revient à l'état initial **sans relancer** (même effet que le bouton de rembobinage) |
 | `Restart()` | revient à l'état initial **et relance** la course |
 
-**Captures** — `Capture()` (sans argument) demande une image **JPEG** (qualité 0,92) de la vue de
-simulation, prise à la fin du pas qui l'émet, après le rendu complet et avant le pas suivant. Le
+**Captures** — `Capture()` (sans argument) demande une image (JPEG qualité 0,95 par défaut, ou PNG
+sans perte) de la vue de simulation, prise à la fin du pas qui l'émet, après le rendu complet et
+avant le pas suivant. Le
 noyau ne dessine rien : il incrémente un simple compteur (`Simulator.captureRequestCount`, sur le
 modèle de `modifierPauseCount`), que la vue consomme (`consumeCaptureRequest()`) pour encoder le
 canevas. Le fichier s'appelle `NOM_MODELE__PAS.jpg` (`GoL_Modifiers__12.jpg`), le nom du modèle
@@ -339,6 +345,38 @@ renouvelable d'un clic), ou **téléchargé** quand aucun dossier n'est défini 
 toujours laquelle des deux voies a été suivie. Aucun octet d'image n'est stocké par le navigateur :
 la capture reste un `Blob` en mémoire jusqu'à l'écriture ou au téléchargement. Voir l'aide
 intégrée §9 pour les limites par navigateur.
+
+### 4.5quater Onglet **Enregistrements** (réglages de capture et de CSV)
+
+Le dernier onglet des paramètres, **après Modèle**, décide de ce que l'application écrit. Ses
+réglages sont des préférences **du navigateur** : ils vivent dans `localStorage`, sous la clé
+`centyllion-recording-settings` (une ligne `clé=valeur` par réglage), et **jamais** dans le fichier
+`.nbd2` — ouvrir un projet venu d'un autre poste ne change pas la façon dont ce poste enregistre.
+
+| Réglage | Valeurs | Défaut |
+|---|---|---|
+| Format des images | JPEG (avec perte) / PNG (sans perte) | JPEG |
+| Qualité JPEG | curseur 0,50 → 1,00, pas de 0,05 (désactivé en PNG) | 0,95 |
+| Résolution | « taille de l'écran » (le canevas affiché) / « taille de la grille » | taille de l'écran |
+| Pixels par cellule | 1 → 8 (n'agit qu'en taille de grille) | 4 |
+| Séparateur CSV | tabulation / virgule / point-virgule / espace | tabulation |
+
+**Taille de la grille** : la grille entière est redessinée **hors écran** à `N` pixels par cellule,
+puis encodée. L'image fait exactement `largeur × N` par `hauteur × N` pixels (grille 100 × 100 à
+4 pixels par cellule → 400 × 400), quel que soit la fenêtre, et ne contient que les cellules et les
+champs — la grille de dessin, la sélection et l'aperçu du pinceau sont des aides de l'écran. Les
+deux modes réutilisent le **même rendu** (`SimulatorViewController.paint`), paramétré par
+l'échelle : il n'existe pas de second moteur de rendu. C'est ce réglage, et non la qualité, qui
+change réellement le détail d'une capture : à qualité 0,50 comme à 1,00, les dimensions sont
+identiques et seul le poids du fichier change.
+
+**Séparateur CSV** : il est écrit entre les colonnes des **deux** exports de courbes
+(`agents.csv`, `fields.csv`), en-tête compris. Un nom qui contient le séparateur est **mis entre
+guillemets** (guillemets internes doublés) : `step,"Membrane, interne",Autre` en virgule, si bien
+que le nombre de colonnes reste celui du modèle. Les règles pures (bornes, conversions, échappement,
+sérialisation) sont dans `core/.../model/recording.kt` et testées par
+`core/src/commonTest/.../RecordingSettingsTest.kt` — une valeur absente, corrompue ou hors bornes
+retombe sur sa valeur par défaut (séparateur inconnu → tabulation).
 
 `Pause(t)` est une **pause de confort** (démonstration), pas une horloge de modèle : elle
 n'exécute aucun pas, donc la grille et la trajectoire des états ne dépendent pas du temps et

@@ -5,9 +5,21 @@ import bulma.extension.Switch
 import com.centyllion.client.controller.utils.EditableStringController
 import com.centyllion.client.controller.utils.editorBox
 import com.centyllion.client.page.BulmaPage
+import com.centyllion.model.CaptureFormat
+import com.centyllion.model.CaptureResolution
+import com.centyllion.model.CsvSeparator
 import com.centyllion.model.DEFAULT_SIMULATION_SEED
+import com.centyllion.model.JPEG_QUALITY_STEP
+import com.centyllion.model.MAX_JPEG_QUALITY
+import com.centyllion.model.MAX_PIXELS_PER_CELL
+import com.centyllion.model.MIN_JPEG_QUALITY
+import com.centyllion.model.MIN_PIXELS_PER_CELL
 import com.centyllion.model.PARALLEL_UPDATE_PLAN
+import com.centyllion.model.RecordingSettings
 import com.centyllion.model.SEQUENTIAL_UPDATE_PLAN
+import com.centyllion.model.clampJpegQuality
+import com.centyllion.model.clampPixelsPerCell
+import com.centyllion.model.jpegQualityLabel
 import com.centyllion.model.MAX_SIMULATION_SIZE
 import com.centyllion.model.MIN_SIMULATION_SIZE
 import com.centyllion.model.SIMULATION_SIZE_STEP
@@ -15,6 +27,7 @@ import com.centyllion.model.SimulationSettings
 import com.centyllion.model.availableSimulationSizes
 import com.centyllion.model.clampSimulationSize
 import kotlinx.browser.document
+import org.w3c.dom.HTMLAnchorElement
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.HTMLLabelElement
 import org.w3c.dom.HTMLElement
@@ -34,6 +47,8 @@ class SimulationSettingsController (
     initialSlidingWindow: Boolean = false,
     initialWindowSize: Int = 100,
     var onSlidingWindow: (Boolean, Int) -> Unit = { _, _ -> },
+    initialRecording: RecordingSettings = RecordingSettings(),
+    var onRecording: (RecordingSettings) -> Unit = { },
     var onUpdate: (old: SimulationSettings, new: SimulationSettings, controller: SimulationSettingsController) -> Unit = { _, _, _ -> }
 ) : NoContextController<SimulationSettings, Div>() {
 
@@ -66,6 +81,7 @@ class SimulationSettingsController (
             slidingWindowCheckbox.disabled = new
             warningsCheckbox.disabled = new
             windowSizeSelect.disabled = new
+            showRecording()
         }
     }
 
@@ -316,11 +332,189 @@ class SimulationSettingsController (
         ).spaced()
     )
 
+    // ------------------------------------------------------------- recordings
+
+    /** The settings of the Records tab: what the widgets below show and what the view applies. */
+    private var recording: RecordingSettings = initialRecording.normalized()
+
+    /** The quality slider, from [MIN_JPEG_QUALITY] to [MAX_JPEG_QUALITY] by [JPEG_QUALITY_STEP]. */
+    private val qualityInput = (document.createElement("input") as HTMLInputElement).apply {
+        type = "range"
+        min = "$MIN_JPEG_QUALITY"
+        max = "$MAX_JPEG_QUALITY"
+        step = "$JPEG_QUALITY_STEP"
+        value = jpegQualityLabel(recording.jpegQuality)
+        style.width = "100%"
+    }
+
+    /** The quality written next to its slider, two decimals whatever the locale of the browser. */
+    private val qualityValue = HtmlWrapper(
+        (document.createElement("span") as HTMLElement).apply { classList.add("help") }
+    )
+
+    val formatSelect = Select(
+        options = listOf(Option(page.i18n("JPEG")), Option(page.i18n("PNG"))),
+        rounded = true,
+        selectedIndex = if (recording.captureFormat == CaptureFormat.Png) 1 else 0
+    ) { _: Event, value: List<Option> ->
+        val format = if (value.firstOrNull()?.value == page.i18n("PNG")) CaptureFormat.Png else CaptureFormat.Jpeg
+        recording = recording.copy(captureFormat = format)
+        applyRecording()
+    }
+
+    /** A radio of the capture resolution: the two modes are explicit, never a single checkbox. */
+    private fun resolutionInput(mode: String, checked: Boolean): HTMLInputElement =
+        (document.createElement("input") as HTMLInputElement).apply {
+            type = "radio"
+            name = "centy-capture-resolution"
+            value = mode
+            this.checked = checked
+        }
+
+    private val screenResolutionInput = resolutionInput(
+        "screen", recording.captureResolution == CaptureResolution.Screen
+    )
+    private val gridResolutionInput = resolutionInput(
+        "grid", recording.captureResolution == CaptureResolution.Grid
+    )
+
+    val screenResolutionRadio = radioLabel(screenResolutionInput, page.i18n("Screen size"))
+    val gridResolutionRadio = radioLabel(gridResolutionInput, page.i18n("Grid size"))
+
+    private val pixelValues = (MIN_PIXELS_PER_CELL..MAX_PIXELS_PER_CELL).toList()
+
+    val pixelsSelect = Select(
+        options = pixelValues.map { Option("$it") },
+        rounded = true,
+        selectedIndex = pixelValues.indexOf(recording.pixelsPerCell).coerceAtLeast(0)
+    ) { _: Event, value: List<Option> ->
+        value.firstOrNull()?.value?.toIntOrNull()?.let { pixels ->
+            recording = recording.copy(pixelsPerCell = clampPixelsPerCell(pixels))
+            applyRecording()
+        }
+    }
+
+    /** Label of a separator in the language of the page. */
+    private fun separatorLabel(separator: CsvSeparator): String = when (separator) {
+        CsvSeparator.Tab -> page.i18n("Tabulation")
+        CsvSeparator.Comma -> page.i18n("Comma")
+        CsvSeparator.Semicolon -> page.i18n("Semicolon")
+        CsvSeparator.Space -> page.i18n("Space")
+    }
+
+    private val separators = CsvSeparator.entries.toList()
+
+    val separatorSelect = Select(
+        options = separators.map { Option(separatorLabel(it)) },
+        rounded = true,
+        selectedIndex = separators.indexOf(recording.csvSeparator)
+    ) { _: Event, value: List<Option> ->
+        val chosen = value.firstOrNull()?.value
+        separators.firstOrNull { separatorLabel(it) == chosen }?.let { separator ->
+            recording = recording.copy(csvSeparator = separator)
+            applyRecording()
+        }
+    }
+
+    /**
+     * Contextual help of the tab: where the settings are kept, and the section of the
+     * documentation that describes the captures and the CSV separator.
+     */
+    private val recordsHelp = HtmlWrapper(
+        (document.createElement("p") as HTMLElement).apply {
+            classList.add("help")
+            textContent = page.i18n("These settings are kept by this browser, not in the project file.")
+            appendChild(document.createElement("br"))
+            appendChild((document.createElement("a") as HTMLAnchorElement).apply {
+                href = "help.html#records"
+                target = "_blank"
+                textContent = page.i18n("Open the help")
+            })
+        }
+    )
+
+    /**
+     * Shows the settings in the widgets without telling anybody: the quality only matters for a
+     * JPEG, the pixels per cell only for a grid-sized capture, and a read-only page freezes all
+     * of them.
+     */
+    private fun showRecording() {
+        qualityInput.value = jpegQualityLabel(recording.jpegQuality)
+        qualityInput.disabled = !recording.usesQuality || readOnly
+        qualityValue.root.textContent = jpegQualityLabel(recording.jpegQuality)
+        formatSelect.disabled = readOnly
+        screenResolutionInput.disabled = readOnly
+        gridResolutionInput.disabled = readOnly
+        pixelsSelect.disabled = recording.captureResolution != CaptureResolution.Grid || readOnly
+        separatorSelect.disabled = readOnly
+    }
+
+    /** Applies what the visitor has just chosen: shows it, remembers it, tells the view. */
+    private fun applyRecording() {
+        recording = recording.normalized()
+        showRecording()
+        onRecording(recording)
+    }
+
+    private val recordsPage = TabPage(
+        TabItem(page.i18n("Records"), "database"),
+        Box(
+            SubTitle(page.i18n("Captures")),
+            Field(
+                Label(page.i18n("Picture format")),
+                Control(formatSelect)
+            ),
+            Div(
+                Label(page.i18n("JPEG quality")),
+                Div(HtmlWrapper(qualityInput)).apply { root.classList.add("control") },
+                qualityValue
+            ).apply { root.classList.add("field") },
+            Div(
+                Label(page.i18n("Resolution")),
+                Div(screenResolutionRadio, gridResolutionRadio)
+            ).apply { root.classList.add("field") },
+            Field(
+                Label(page.i18n("Pixels per cell")),
+                Control(pixelsSelect)
+            ),
+            SubTitle(page.i18n("Curves")),
+            Field(
+                Label(page.i18n("CSV column separator")),
+                Control(separatorSelect)
+            ),
+            recordsHelp
+        ).spaced()
+    )
+
+    init {
+        qualityInput.addEventListener("input", {
+            // the slider only gives values between its bounds, but a stored or scripted one does not
+            recording = recording.copy(
+                jpegQuality = clampJpegQuality(qualityInput.value.toDoubleOrNull() ?: recording.jpegQuality)
+            )
+            applyRecording()
+        })
+        screenResolutionInput.addEventListener("change", {
+            if (screenResolutionInput.checked) {
+                recording = recording.copy(captureResolution = CaptureResolution.Screen)
+                applyRecording()
+            }
+        })
+        gridResolutionInput.addEventListener("change", {
+            if (gridResolutionInput.checked) {
+                recording = recording.copy(captureResolution = CaptureResolution.Grid)
+                applyRecording()
+            }
+        })
+        // the initial state is shown and remembered: an absent or corrupt entry becomes explicit
+        applyRecording()
+    }
+
     private val tabs = Tabs(boxed = true).apply { root.classList.add("editor") }
 
     override val container = Div(
         tabs,
-        TabPages(simulationPage, environmentPage, curvesPage, modelPage, tabs = tabs),
+        TabPages(simulationPage, environmentPage, curvesPage, modelPage, recordsPage, tabs = tabs),
         classes = "editor"
     ).apply { root.style.display = "contents" }
 
@@ -331,5 +525,6 @@ class SimulationSettingsController (
         widthStepper.enabled(customSize && !readOnly)
         heightStepper.enabled(customSize && !readOnly)
         sizeController.disabled = customSize || readOnly
+        showRecording()
     }
 }

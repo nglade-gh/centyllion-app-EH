@@ -393,13 +393,14 @@ class SimulationRunController(
         // the name carries the step of the picture: the counter shown once the step is done
         val step = simulator.step
         repeat(count) {
-            val picture = simulationViewController.captureJpeg()
+            val settings = simulationViewController.recordingSettings
+            val picture = simulationViewController.capture(settings)
             if (picture == null) {
                 journalPanel.append(
                     JournalLevel.ERROR, page.i18n("The simulation view could not be captured.")
                 )
             } else {
-                WorkFolder.saveCapture(modelName, step, picture) { result -> reportCapture(result) }
+                WorkFolder.saveCapture(modelName, step, picture, settings) { result -> reportCapture(result) }
             }
         }
     }

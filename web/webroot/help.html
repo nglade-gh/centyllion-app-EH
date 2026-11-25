@@ -161,6 +161,7 @@ tr:hover td { background: var(--panel-2); }
   <a href="#dessin" class="sub">7.4 La barre de dessin</a>
   <a href="#boucle">8. Méta-actions de la boucle</a>
   <a href="#captures">9. Captures et dossier de travail</a>
+  <a href="#records" class="sub">9.6 Réglages d'enregistrement</a>
   <a href="#journal">10. Le journal de la simulation</a>
 </nav>
 
@@ -768,7 +769,7 @@ EraseCircle(0, 50, 50, 20, false)
       <td>Revient à l'état initial <b>et relance</b> la course : rembobinage suivi du bouton Run.</td>
     </tr>
   </table>
-  <p>Une septième méta-action ne touche ni la boucle ni la grille : <code>Capture()</code> demande une image JPEG de la vue de simulation, prise à la fin du même pas. Elle est décrite en détail au §9.</p>
+  <p>Une septième méta-action ne touche ni la boucle ni la grille : <code>Capture()</code> demande une image (JPEG par défaut) de la vue de simulation, prise à la fin du même pas. Elle est décrite en détail au §9.</p>
   <p>Deux exemples, à écrire dans la formule d'actions d'un modificateur :</p>
   <pre><code>Condition : step == 20
 Actions   : RunNStep(5)
@@ -794,7 +795,7 @@ Actions   : Pause(2)
 
   <section id="captures">
   <h2>9. Captures et dossier de travail</h2>
-  <p>La méta-action <code>Capture()</code> demande une <b>image JPEG</b> (qualité 0,92) de la vue de simulation. Elle s'écrit <b>sans argument</b>, en majuscule, dans la formule d'actions d'un modificateur : c'est une méta-action, une formule d'actions de comportement la refuse comme toutes les autres.</p>
+  <p>La méta-action <code>Capture()</code> demande une <b>image</b> de la vue de simulation — une <b>image JPEG</b> qualité 0,95 par défaut, ou un <b>PNG</b> sans perte selon l'onglet <a href="#records">9.6</a>. Elle s'écrit <b>sans argument</b>, en majuscule, dans la formule d'actions d'un modificateur : c'est une méta-action, une formule d'actions de comportement la refuse comme toutes les autres.</p>
   <pre><code>Condition : step == 20
 Actions   : Capture()
 # au pas 20, l'image de la vue de simulation est enregistrée</code></pre>
@@ -837,6 +838,30 @@ Actions   : Capture()
   <p>Dans tous les autres cas — aucun dossier, dossier oublié, permission non renouvelée, navigateur sans accès aux dossiers — la galerie reste dans le <b>stockage du navigateur</b> (IndexedDB), comme avant. Les deux emplacements ne sont jamais actifs en même temps, et la galerie dit toujours lequel elle utilise.</p>
   <p>Ce partage ne change rien aux captures : leur handle et la galerie restent dans deux bases distinctes (<code>centyllion-home</code> et <code>centyllion-gallery</code>). Les images de la galerie, elles, suivent la galerie : fichiers JPEG dans <code>galerie/</code> sur le disque, data URLs dans IndexedDB quand le repli du navigateur est actif — jamais de base64 dans <code>galerie.json</code>.</p>
   <p>Le dossier se partage par simple copie : <code>galerie/</code> copié dans le dossier de travail d'un autre poste restitue les modèles et leurs images, et son <code>galerie.json</code> peut aussi être importé par <b>Importer ma galerie</b>.</p>
+
+  <h3 id="records">9.6 Les réglages d'enregistrement (onglet Enregistrements)</h3>
+  <p>L'onglet <b>Enregistrements</b> — le dernier de <b>Paramètres</b>, après <b>Modèle</b> — décide de ce que l'application écrit : les images demandées par <code>Capture()</code> et les fichiers CSV exportés depuis les courbes. Il porte deux sections, <b>Captures</b> et <b>Courbes</b>.</p>
+
+  <p><b>Format des images</b> : <b>JPEG</b> (par défaut) ou <b>PNG</b>. Le JPEG compresse : le fichier est petit, et le réglage de qualité suivant décide du compromis. Le PNG est <b>sans perte</b> : chaque cellule est exactement la couleur dessinée, et le fichier est plus gros. L'extension du fichier écrit suit le format — <code>NOM_MODELE__PAS.jpg</code> ou <code>NOM_MODELE__PAS.png</code>.</p>
+
+  <p><b>Qualité JPEG</b> : un curseur de <b>0,50 à 1,00</b>, par pas de <b>0,05</b>, à <b>0,95</b> par défaut (la valeur 0,92 des premières versions laissait un halo visible autour des cellules d'une grille agrandie à l'écran). La valeur choisie s'affiche à côté du curseur. Le contrôle est <b>désactivé</b> quand le format est PNG : un encodage sans perte n'a pas de qualité à régler.</p>
+
+  <p><b>Résolution</b> : deux choix explicites.</p>
+  <ul>
+    <li><b>Taille de l'écran</b> (par défaut) : l'image est le canevas affiché, tel qu'il est — c'est le comportement des captures d'origine. Sa taille suit la fenêtre et le zoom, donc elle change d'un poste à l'autre ; la grille, la sélection et l'aperçu du pinceau y figurent quand ils sont affichés.</li>
+    <li><b>Taille de la grille</b> : la grille entière est <b>redessinée hors écran</b>, à <b>N pixels par cellule</b> (1 à 8, <b>4</b> par défaut). L'image fait alors exactement <code>largeur × N</code> par <code>hauteur × N</code> pixels — une grille 100 × 100 à 4 pixels par cellule donne une image 400 × 400 — quelle que soit la taille de la fenêtre, et elle ne contient que les cellules et les champs : la grille de dessin, la sélection et l'aperçu du pinceau sont des aides de l'écran, pas des données du modèle. C'est ce réglage — et non la qualité — qui change réellement le détail d'une capture.</li>
+  </ul>
+  <p>Les deux modes réutilisent le <b>même rendu</b> : le tampon d'un pixel par cellule et les couches de champs de l'écran, agrandis à la taille demandée. Une capture et l'écran ne peuvent donc pas se contredire sur une couleur. Le curseur de qualité n'agit que sur l'encodage JPEG : à 0,50 et à 1,00, l'image a exactement les mêmes dimensions, seul le poids du fichier change (souvent d'un facteur dix).</p>
+
+  <p><b>Séparateur de colonnes CSV</b> : <b>tabulation</b> (par défaut), <b>virgule</b>, <b>point-virgule</b> ou <b>espace</b>. Il est écrit entre les colonnes des <b>deux</b> exports de courbes, <code>agents.csv</code> et <code>fields.csv</code>, en-tête compris :</p>
+  <pre><code>step&lt;TAB&gt;A&lt;TAB&gt;B   (tabulation : &lt;TAB&gt; est une tabulation)
+step,A,B          (virgule)
+step;A;B          (point-virgule)</code></pre>
+  <p>La tabulation est le défaut parce qu'elle n'apparaît jamais dans un nom de modèle, d'agent ou de champ : l'en-tête tient toujours sur une seule ligne. Une valeur qui <b>contient</b> le séparateur — un agent nommé <code>Membrane, interne</code> avec la virgule — est <b>entourée de guillemets</b>, et ses guillemets internes sont doublés :</p>
+  <pre><code>step,"Membrane, interne",Autre</code></pre>
+  <p>Le nombre de colonnes du fichier reste donc celui du modèle, quel que soit le séparateur choisi.</p>
+
+  <p><b>Où ces réglages sont gardés</b> : dans le <code>localStorage</code> du navigateur, sous la clé <code>centyllion-recording-settings</code> (un texte court, une ligne <code>clé=valeur</code> par réglage). Ils <b>ne sont pas</b> écrits dans le fichier du projet : ouvrir un <code>.nbd2</code> venu d'un autre poste ne change pas la façon dont ce poste enregistre. Une valeur absente, illisible ou hors bornes est remplacée par sa valeur par défaut (qualité ramenée entre 0,50 et 1,00 par pas de 0,05, pixels par cellule entre 1 et 8, séparateur inconnu remplacé par la tabulation) : un réglage corrompu ne peut pas empêcher une capture.</p>
   </section>
 
 <section id="journal">

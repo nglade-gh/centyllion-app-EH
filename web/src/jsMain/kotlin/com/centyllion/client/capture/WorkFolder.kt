@@ -4,6 +4,7 @@ import com.centyllion.client.blobHref
 import com.centyllion.client.download
 import com.centyllion.model.CAPTURE_FOLDER
 import com.centyllion.model.JOURNAL_FOLDER
+import com.centyllion.model.RecordingSettings
 import com.centyllion.model.captureFileName
 import com.centyllion.model.captureRelativePath
 import com.centyllion.model.journalFileName
@@ -398,11 +399,20 @@ object WorkFolder {
      * the working folder, the two directory levels being created when needed, or downloaded when
      * there is no folder, when the permission is gone or when the write fails.
      *
+     * [settings] carries the format chosen in the Records tab: the extension of the written file
+     * (`jpg` or `png`) is the one of that format, so the name of a file always tells what the
+     * bytes are.
+     *
      * [onDone] always says what happened, so the interface can tell the visitor which of the two
      * paths was taken and why — a capture never switches to a download silently.
      */
-    fun saveCapture(modelName: String, step: Int, payload: Blob, onDone: (CaptureResult) -> Unit) {
-        val fileName = captureFileName(modelName, step)
+    fun saveCapture(
+        modelName: String, step: Int, payload: Blob,
+        settings: RecordingSettings = RecordingSettings(),
+        onDone: (CaptureResult) -> Unit
+    ) {
+        val extension = settings.captureFormat.extension
+        val fileName = captureFileName(modelName, step, extension)
         val current = handle
         if (!isSupported()) {
             downloadCapture(fileName, payload)
@@ -421,7 +431,7 @@ object WorkFolder {
                 onDone(CaptureResult(CaptureDestination.DOWNLOAD, fileName, fallback = CaptureFallback.PERMISSION))
                 return@queryPermission
             }
-            writeInFolder(current, modelName, step, fileName, payload, onDone)
+            writeInFolder(current, modelName, step, fileName, extension, payload, onDone)
         }
     }
 
@@ -486,11 +496,11 @@ object WorkFolder {
     }
 
     private fun writeInFolder(
-        folder: dynamic, modelName: String, step: Int, fileName: String, payload: Blob,
-        onDone: (CaptureResult) -> Unit
+        folder: dynamic, modelName: String, step: Int, fileName: String, extension: String,
+        payload: Blob, onDone: (CaptureResult) -> Unit
     ) {
         val modelFolder = sanitizeCaptureName(modelName)
-        val relativePath = captureRelativePath(modelName, step)
+        val relativePath = captureRelativePath(modelName, step, extension)
         try {
             val promise = directoryAccess.writeIn(
                 folder, CAPTURE_FOLDER, modelFolder, fileName, payload

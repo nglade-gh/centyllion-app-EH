@@ -16,7 +16,7 @@
 | **Compteurs de voisins** | `agentCountPredicates` : conditions sur le nombre de voisins d'un type (`Agent_B > 3`) |
 | **Prédicats graphiques** | En mode normal : lignes « Âge de la simulation » (`agePredicates`), « Seuils des champs » (`fieldPredicates`) et « Nb voisins » (`agentCountPredicates`, avec choix du type), toutes combinées en **ET** ; chaque groupe a son bouton `Aide` (voir §8.3bis) |
 | **Actions de comportement** | `actions` : `Add`, `Remove`, `Move`, `SetField`, `AddField`, `ClearField`, exécutées après les réactions (voir §6.5) |
-| **Captures** | `Capture()` : image JPEG de la vue de simulation (`NOM_MODELE__PAS.jpg`), écrite dans `captures/NOM_MODELE/` du **dossier de travail** ou téléchargée (voir §6.5bis) |
+| **Captures** | `Capture()` : image de la vue de simulation (`NOM_MODELE__PAS.jpg`, ou `.png` en PNG ; format, qualité 0,50-1,00 et résolution réglables dans l'onglet **Enregistrements**, §6.5quater), écrite dans `captures/NOM_MODELE/` du **dossier de travail** ou téléchargée (voir §6.5bis) |
 | **Journal de la simulation** | Panneau sous la grille (niveaux META/INFO/WARNING/ERROR, repliable, mémorisé), alimenté par le noyau ; export `journal/NOM_MODELE__journal.txt` ou téléchargement (voir §8.4bis) |
 | **Formules de comportement** | `formula` avec `step` (étape courante), `age(n)` (âge du réactif n), `count`, `field`, `agent` (voir §6.4) |
 | **Expressions de condition** | `formula` : expressions logiques avec parenthèses et opérateurs (`count(1) > 2 && count(2) == 1`) |
@@ -461,9 +461,11 @@ sens. `EraseRect(x1, y1, x2, y2, false)` reste distinguishable de la forme typé
 incrémente `Simulator.captureRequestCount` (même forme que `modifierPauseCount`, remis à zéro par
 `reset()`), et la vue consomme le compteur juste après le pas (`consumeCaptureRequest()`, appelé par
 `SimulationRunController.takeCaptures()`, après le rendu du pas et avant le pas suivant). L'encodage
-est **synchrone** (`SimulatorViewController.captureJpeg()`, JPEG qualité 0,92 par `toDataURL` :
-`toBlob` rendrait la main après que le pas suivant a repeint le canevas). Le nom,
-`NOM_MODELE__PAS.jpg`, vient des fonctions pures `captureFileName()` / `sanitizeCaptureName()`
+est **synchrone** (`SimulatorViewController.capture(settings)`, `toDataURL` du format choisi :
+`toBlob` rendrait la main après que le pas suivant a repeint le canevas). Les réglages de
+l'onglet **Enregistrements** (§6.5quater) décident du format MIME et de la qualité, et de la
+résolution : le canevas affiché, ou la grille redessinée hors écran à N pixels par cellule par le
+même `paint()`. Le nom, `NOM_MODELE__PAS.<jpeg|png>`, vient des fonctions pures `captureFileName()` / `sanitizeCaptureName()`
 (`core/.../model/capture.kt`) : caractères interdits (`/ \ : * ? " < > |`) remplacés par `_`,
 espaces et points de bord retirés, longueur bornée à `CAPTURE_NAME_MAX_LENGTH` (64), repli explicite
 `model`, préfixe `_` pour un nom de périphérique Windows. Le chemin relatif, `captures/NOM_MODELE/`,
@@ -590,6 +592,56 @@ bords de grille, contour = plein − intérieur) et `ShapeActionsTest.kt` (parse
 
 ---
 
+### 6.5quater Onglet **Enregistrements** : réglages de capture et de CSV
+
+Le dernier onglet du panneau de paramètres (après **Modèle**) décide de ce que l'application écrit :
+les images demandées par `Capture()` et les fichiers CSV exportés par les courbes. Ce sont des
+**préférences d'interface**, jamais des données du modèle : elles vivent dans le `localStorage` du
+navigateur (clé `centyllion-recording-settings`) et **jamais** dans le fichier `.nbd2`.
+
+| Réglage | Valeurs | Défaut | Effet |
+|---|---|---|---|
+| `captureFormat` | `jpeg` / `png` | `jpeg` | type MIME de l'encodage et extension du fichier (`CaptureFormat.mimeType` / `.extension`) |
+| `jpegQuality` | 0,50 → 1,00 par pas de 0,05 | 0,95 | second argument de `toDataURL` ; sans effet en PNG (curseur désactivé) |
+| `captureResolution` | `screen` / `grid` | `screen` | canevas affiché, ou grille redessinée hors écran |
+| `pixelsPerCell` | 1 → 8 | 4 | taille d'une cellule dans l'image « taille de la grille » |
+| `csvSeparator` | `tab` / `comma` / `semicolon` / `space` | `tab` | caractère écrit entre les colonnes de `agents.csv` et `fields.csv` |
+
+**Noyau** (`core/.../model/recording.kt`) : les trois énumérations (`CaptureFormat`,
+`CaptureResolution`, `CsvSeparator`), l'objet `RecordingSettings`, les bornes
+(`clampJpegQuality`, `clampPixelsPerCell`, `jpegQualityLabel`) et la sérialisation
+(`encodeRecordingSettings` / `decodeRecordingSettings`, un `clé=valeur` par ligne, sans JSON) sont
+des fonctions **pures**. `decodeRecordingSettings()` ne rejette jamais : une valeur absente,
+illisible ou d'un autre type retombe sur le défaut de **son** champ, un séparateur inconnu sur la
+tabulation, un nombre hors bornes sur la borne la plus proche, et `NaN` sur `DEFAULT_JPEG_QUALITY`.
+`csvField()` / `csvLine()` appliquent la règle d'échappement CSV (guillemets autour d'une valeur qui
+contient le séparateur, un guillemet ou un saut de ligne, guillemets internes doublés) — un modèle
+nommé `Membrane, interne` exporté en virgule donne `step,"Membrane, interne",Autre`. Le nom d'une
+capture suit le format : `captureFileName(nom, pas, extension)`.
+
+**Vue** (`SimulatorViewController`) : un seul moteur de rendu. `render()` et la capture appellent la
+même fonction `paint(ctx, ratio, largeur, hauteur, cellPx, offX, offY, aids)` ; l'écran lui passe le
+`devicePixelRatio` et `aids = true` (grille de dessin, sélection, aperçu du pinceau), la capture
+« taille de la grille » lui passe `cellPx = N` et `aids = false` dans un canevas **jamais attaché au
+document**, de `largeur × N` par `hauteur × N` pixels. `capture(settings)` encode ensuite ce canevas
+en `toDataURL(mime, qualité)` et le décode en `Blob` de façon synchrone. `WorkFolder.saveCapture()`
+reçoit les mêmes réglages et écrit `captures/NOM_MODELE/NOM_MODELE__PAS.jpg|png`.
+
+**Contrôleur** (`SimulationSettingsController`) : `recordsPage` (onglet « Enregistrements »,
+`TabItem(..., "database")`), deux sections `SubTitle` — **Captures** (format, curseur de qualité,
+deux radios de résolution, pixels par cellule) et **Courbes** (séparateur CSV) —, une aide
+contextuelle qui renvoie à `help.html#records`. Chaque changement appelle `applyRecording()` :
+normalisation, affichage, puis `onRecording(settings)` ; `ModelController` enregistre le texte dans
+`localStorage` (`capture/RecordingPreferences.kt`) et le pousse dans la vue
+(`simulationViewController.recordingSettings`). Les deux exports CSV (`ModelController`) lisent
+`recordingSettings.csvSeparator` et composent leurs lignes avec `csvLine()`.
+
+Tests : `core/src/commonTest/.../RecordingSettingsTest.kt` (bornes de qualité et de pixels par
+cellule, séparateur inconnu → tabulation, valeur corrompue → défauts, aller-retour de sérialisation,
+échappement CSV, extension du nom de capture).
+
+---
+
 ### 6.6 Persistance : contrat de sauvegarde et compatibilité
 
 La sauvegarde (`.netbiodyn`) sérialise le **modèle**, indépendamment du mode d'édition : tout ce qui est saisi en mode normal (prédicat d'âge, seuils de champs, nb voisins avec grain, influences, héritage d'âge, réactions, `toric`, `boundaryConditions`) et en mode expert (formule de prédicat, liste d'actions) est écrit et relu à l'identique.
@@ -688,7 +740,7 @@ Le code Kotlin/JS est compilé en **AMD modules** (`moduleKind = "amd"`), charge
 | `SimulationRunController.kt` | Contrôleur de la simulation : lecture complète, lecture, pas, settings, répercussion sur les charts. |
 | `PlotterController.kt` | Graphique via **data2viz** (LinePlotter) + Legende; `push(x, ys)`, `reset()`. |
 | `BulmaPage.kt` | Interface commune pour les écrans Bulma (modal, notification, erreur). |
-| `capture/WorkFolder.kt` / `capture/WorkFolderController.kt` | Dossier de travail des captures : base IndexedDB propre (`centyllion-home`/`handles`/`home`, ancienne clé `workFolder` de `centyllion-files` supprimée sans migration), picker (`startIn` sur le dossier courant), permission (`queryPermission`/`requestPermission`), écriture dans `<dossier>/captures/<modèle>/` ou téléchargement ; bouton maison plein (`fa-home`) dans la rangée du bouton « Informations sur le modèle » : magenta (`ElementColor.Danger`, `#d24193`) quand aucun dossier n'est défini, bleu (`ElementColor.Primary`, `#9595f8`) quand il l'est, même bleu atténué quand la permission doit être renouvelée ; infobulle `title`/`aria-label` portant l'état, aucune note adjacente. Aucune image en stockage navigateur. |
+| `capture/WorkFolder.kt` / `capture/WorkFolderController.kt` | Dossier de travail des captures : base IndexedDB propre (`centyllion-home`/`handles`/`home`, ancienne clé `workFolder` de `centyllion-files` supprimée sans migration), picker (`startIn` sur le dossier courant), permission (`queryPermission`/`requestPermission`), écriture dans `<dossier>/captures/<modèle>/` (extension `.jpg` ou `.png` selon le format de l'onglet Enregistrements, §6.5quater) ou téléchargement ; `RecordingPreferences.kt` (même dossier) porte les deux fonctions de `localStorage` des réglages d'enregistrement ; bouton maison plein (`fa-home`) dans la rangée du bouton « Informations sur le modèle » : magenta (`ElementColor.Danger`, `#d24193`) quand aucun dossier n'est défini, bleu (`ElementColor.Primary`, `#9595f8`) quand il l'est, même bleu atténué quand la permission doit être renouvelée ; infobulle `title`/`aria-label` portant l'état, aucune note adjacente. Aucune image en stockage navigateur. |
 | `TutorialLayer.kt` | Tour du tutorial (étapes, validation, navigation, conclusion) ; supprime ses widgets au redémarrage. |
 | `BacteriasTutorial.kt` / `FieldTutorial.kt` | Tutoriels débutants pas-à-pas (bactéries, champs). |
 | `GameOfLifeTutorial.kt` / `ActionsTutorial.kt` / `FieldFormulaTutorial.kt` | Tutoriels experts : `count(0)`, actions + `age(1)`, formule de champ animée. |
@@ -698,7 +750,7 @@ Le code Kotlin/JS est compilé en **AMD modules** (`moduleKind = "amd"`), charge
 
 Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base, et gère un élément UI bulma (input, button, slider, etc.) généré à partir d'un élément du modèle. Ils utilisent le pattern : "observer vers `data` (valeur du modèle)", "modifier `data` via `onUpdate`".
 
-- `ModelController.kt` : racine de la page modèle ; orchestre les contrôleurs enfants ; gère la recherche (`SearchController`), l'export CSV, les graphiques, et le repli indépendant des trois sections (`sectionHeader`) — ajouter un élément déplie sa section.
+- `ModelController.kt` : racine de la page modèle ; orchestre les contrôleurs enfants ; gère la recherche (`SearchController`), l'export CSV (séparateur et échappement de l'onglet Enregistrements), les graphiques, et le repli indépendant des trois sections (`sectionHeader`) — ajouter un élément déplie sa section.
 - `SimulationRunController.kt` : contrôle la lecture complète (play/stop, pas, slider de vitesse, settings), appelle `simulator.oneStep()` et met à jour les graphs.
 - `GrainEditController.kt`, `FieldEditController.kt`, `BehaviourEditController.kt` : édition détaillée des grains, champs et comportements.
 - `FieldSelectController.kt`, `FieldChangeController.kt`, `FieldDisplayController.kt` : sélection/affichage/suppression de champs.
@@ -733,7 +785,7 @@ Chaque contrôleur (`*.kt`) est une classe descendante d'un contrôleur de base,
 ### 8.4 Graphiques (Plotter) et vue de simulation 2D
 
 - **data2viz** (`plotter/`) : tracé des courbes (nombre de grains, quantité de champs) dans `Plotter` (Canvas Skia) avec axes, ticks et courbes coloriées.
-- **Vue de simulation** (`controller/model/SimulatorViewController.kt`) : vue de dessus en canvas 2D, **sans 3D ni éclairage**. Un buffer hors écran de la taille de la grille (1 pixel = 1 cellule) reçoit les agents (couleur du grain, aplats stricts) puis la couche des champs (alpha identique à l'ancienne texture 3D) ; il est ensuite agrandi en `imageSmoothingEnabled = false` dans le canvas affiché (backing store en pixels de périphérique, `devicePixelRatio`), sur lequel sont tracés la grille et l'aperçu du pinceau. Outils : stylo, ligne, **rectangle**, **cercle**, spray, gomme, déplacement (panoramique) ; le rectangle et le cercle sont ancrés sur la cellule d'appui et tracés au relâchement, le rayon du cercle étant la distance au point d'appui. L'interrupteur **« Fill ? » / « Remplir ? »**, à côté des outils et dans le style de « Torique ? » et « Écraser ? », décide pour les deux formes entre plein et contour ; leurs cellules viennent des fonctions pures du noyau (`rectangleRows`, `circleRows`, `shapes.kt`), et non d'un tracé propre à la vue, avec repli torique des cellules qui débordent quand « Torique ? » est actif. Zoom molette ×0,25 à ×16 ; bouton plein écran ; vignettes/captures par `canvas.toDataURL` / `toBlob`. `captureJpeg()` fournit l'image de la méta-action `Capture()` (JPEG 0,92, `toDataURL` synchrone décodé en `Blob`, pour lire le canevas avant le pas suivant). Les grains masqués (case à cocher) et les champs masqués sont rendus en couleur de fond. Les clés `simulation.assets` et `settings.gridTextureUrl` restent dans le modèle (compatibilité) mais ne sont plus rendues.
+- **Vue de simulation** (`controller/model/SimulatorViewController.kt`) : vue de dessus en canvas 2D, **sans 3D ni éclairage**. Un buffer hors écran de la taille de la grille (1 pixel = 1 cellule) reçoit les agents (couleur du grain, aplats stricts) puis la couche des champs (alpha identique à l'ancienne texture 3D) ; il est ensuite agrandi en `imageSmoothingEnabled = false` dans le canvas affiché (backing store en pixels de périphérique, `devicePixelRatio`), sur lequel sont tracés la grille et l'aperçu du pinceau. Outils : stylo, ligne, **rectangle**, **cercle**, spray, gomme, déplacement (panoramique) ; le rectangle et le cercle sont ancrés sur la cellule d'appui et tracés au relâchement, le rayon du cercle étant la distance au point d'appui. L'interrupteur **« Fill ? » / « Remplir ? »**, à côté des outils et dans le style de « Torique ? » et « Écraser ? », décide pour les deux formes entre plein et contour ; leurs cellules viennent des fonctions pures du noyau (`rectangleRows`, `circleRows`, `shapes.kt`), et non d'un tracé propre à la vue, avec repli torique des cellules qui débordent quand « Torique ? » est actif. Zoom molette ×0,25 à ×16 ; bouton plein écran ; vignettes/captures par `canvas.toDataURL` / `toBlob`. `capture(settings)` fournit l'image de la méta-action `Capture()` : format et qualité de l'onglet Enregistrements, `toDataURL` synchrone décodé en `Blob` (pour lire le canevas avant le pas suivant) ; en résolution « taille de la grille », le même rendu `paint()` est rejoué dans un canevas hors écran à N pixels par cellule (voir §6.5quater). Les grains masqués (case à cocher) et les champs masqués sont rendus en couleur de fond. Les clés `simulation.assets` et `settings.gridTextureUrl` restent dans le modèle (compatibilité) mais ne sont plus rendues.
 - Coût mesuré sur `coeur` (8 694 agents, grille 100×100) : ~0,5 ms par repeint, contre ~31 ms par rendu de scène Babylon et 17 404 maillages ; débit en lecture ≈ 7 pas/s contre ≈ 1,8 pas/s (même modèle, même machine). Bundle JS : 806 Ko contre 3,5 Mo.
 
 ### 8.4bis Journal de la simulation
@@ -1083,6 +1135,7 @@ Les tests couvrent notamment les nouvelles fonctionnalités de l'extension :
 - `testParallelUpdate` : mise à jour parallèle vs séquentielle
 - `GameOfLifeTest` : recettes du jeu de la vie (clignotant, bloc, planeur, formule sans naissance)
 - `ExpertRecipesTest` : piste de miettes qui s'efface (`Add(1, 0, 1)` + `age(1) > 5`) et gradient de champ animé
+- `RecordingSettingsTest` : réglages de l'onglet Enregistrements — bornes et pas de la qualité JPEG, pixels par cellule 1-8, séparateur inconnu → tabulation, valeur stockée corrompue → défauts, aller-retour de sérialisation, échappement CSV, extension `.jpg`/`.png` du nom de capture
 
 ---
 

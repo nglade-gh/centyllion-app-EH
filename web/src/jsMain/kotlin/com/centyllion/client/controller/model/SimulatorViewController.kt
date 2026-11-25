@@ -378,13 +378,35 @@ class SimulatorViewController(
         val ctx = displayCtx ?: return
         if (display.width == 0 || display.height == 0 || cssWidth <= 0.0) return
         renderBuffer()
+        paint(
+            ctx, display.width / cssWidth, cssWidth, cssHeight,
+            cellScale, offsetX, offsetY, aids = true
+        )
+        display.classList.toggle("is-danger", data.step > 0)
+    }
 
-        val ratio = display.width / cssWidth
+    /**
+     * Paints the grid of the current state into [ctx], the one renderer of the view: the display
+     * calls it every frame, and the grid-sized capture calls it into an off-screen canvas.
+     *
+     * [ratio] is the number of device pixels per CSS pixel (the backing store of the display, or
+     * the pixels per cell of a capture); [viewWidth] and [viewHeight] are the CSS size of the
+     * target; [cellPx] is the size of a cell there, and [offX]/[offY] its origin.
+     *
+     * [aids] draws what only helps the editing — the grid lines, the selection rectangle, the
+     * paste preview and the brush preview under the mouse. A picture written for the record is
+     * painted without them: they belong to the screen, not to the model.
+     */
+    private fun paint(
+        ctx: CanvasRenderingContext2D,
+        ratio: Double, viewWidth: Double, viewHeight: Double,
+        cellPx: Double, offX: Double, offY: Double, aids: Boolean
+    ) {
         ctx.setTransform(ratio, 0.0, 0.0, ratio, 0.0, 0.0)
-        ctx.clearRect(0.0, 0.0, cssWidth, cssHeight)
+        ctx.clearRect(0.0, 0.0, viewWidth, viewHeight)
         ctx.imageSmoothingEnabled = false
         val simulation = data.simulation
-        ctx.drawImage(buffer, offsetX, offsetY, simulation.width * cellScale, simulation.height * cellScale)
+        ctx.drawImage(buffer, offX, offY, simulation.width * cellPx, simulation.height * cellPx)
 
         // fields: one layer each, blended by the compositor (no per-pixel CPU blend)
         ctx.imageSmoothingEnabled = true
@@ -393,49 +415,52 @@ class SimulatorViewController(
             if (field.opacity <= 0) return@forEach
             val layer = fieldLayer(field) ?: return@forEach
             ctx.drawImage(
-                layer, offsetX, offsetY,
-                simulation.width * cellScale, simulation.height * cellScale
+                layer, offX, offY,
+                simulation.width * cellPx, simulation.height * cellPx
             )
         }
         ctx.imageSmoothingEnabled = false
+        if (!aids) return
 
-        drawGrid(ctx)
+        drawGrid(ctx, cellPx, offX, offY, viewWidth, viewHeight)
         drawSelection(ctx)
         drawPastePreview(ctx)
         drawPointer(ctx)
-        display.classList.toggle("is-danger", data.step > 0)
     }
 
     private var gridPath: Path2D? = null
     private var gridKey: String = ""
 
-    private fun drawGrid(ctx: CanvasRenderingContext2D) {
+    private fun drawGrid(
+        ctx: CanvasRenderingContext2D,
+        cellPx: Double, offX: Double, offY: Double,
+        viewWidth: Double, viewHeight: Double
+    ) {
         val simulation = data.simulation
         if (!simulation.settings.showGrid) return
-        val cellPx = cellScale
         if (cellPx < 4.0) return
 
         // only the cells currently visible are stroked: a zoomed grid can be far larger
-        val left = max(0.0, offsetX)
-        val top = max(0.0, offsetY)
-        val right = min(cssWidth, offsetX + simulation.width * cellPx)
-        val bottom = min(cssHeight, offsetY + simulation.height * cellPx)
-        val firstX = max(1, ceil((left - offsetX) / cellPx).toInt())
-        val lastX = min(simulation.width - 1, floor((right - offsetX) / cellPx).toInt())
-        val firstY = max(1, ceil((top - offsetY) / cellPx).toInt())
-        val lastY = min(simulation.height - 1, floor((bottom - offsetY) / cellPx).toInt())
+        val left = max(0.0, offX)
+        val top = max(0.0, offY)
+        val right = min(viewWidth, offX + simulation.width * cellPx)
+        val bottom = min(viewHeight, offY + simulation.height * cellPx)
+        val firstX = max(1, ceil((left - offX) / cellPx).toInt())
+        val lastX = min(simulation.width - 1, floor((right - offX) / cellPx).toInt())
+        val firstY = max(1, ceil((top - offY) / cellPx).toInt())
+        val lastY = min(simulation.height - 1, floor((bottom - offY) / cellPx).toInt())
 
         // the path only changes when the view changes (zoom, pan, size), not every frame
-        val key = "$firstX:$lastX:$firstY:$lastY:$cellPx:$offsetX:$offsetY:$left:$top:$right:$bottom"
+        val key = "$firstX:$lastX:$firstY:$lastY:$cellPx:$offX:$offY:$left:$top:$right:$bottom"
         if (key != gridKey || gridPath == null) {
             val path = Path2D()
             for (x in firstX..lastX) {
-                val px = offsetX + x * cellPx
+                val px = offX + x * cellPx
                 path.moveTo(px, top)
                 path.lineTo(px, bottom)
             }
             for (y in firstY..lastY) {
-                val py = offsetY + y * cellPx
+                val py = offY + y * cellPx
                 path.moveTo(left, py)
                 path.lineTo(right, py)
             }
@@ -1853,32 +1878,72 @@ class SimulatorViewController(
     // ---------------------------------------------------------------- captures
 
     /**
-     * Encodes the display canvas as a JPEG picture (quality [CAPTURE_JPEG_QUALITY]) and returns it,
-     * or null when the view is not laid out yet or the browser cannot encode it.
+     * Settings of the Records tab, applied by [capture]: the format, the quality and where the
+     * size of the picture comes from. Set by the model controller when the tab is built and every
+     * time a settings is changed, so a `Capture()` written by a model follows the interface
+     * without the core knowing anything about it.
+     */
+    var recordingSettings: RecordingSettings = RecordingSettings()
+
+    /**
+     * Encodes the current state as a picture, following [settings], and returns it — or null when
+     * the view is not laid out yet or the browser cannot encode it.
+     *
+     * The format is the one of the settings (JPEG, with its quality, or lossless PNG) and the size
+     * follows the resolution: `Screen` encodes the displayed canvas, exactly like the first
+     * captures, while `Grid` paints the grid again off screen at
+     * [RecordingSettings.pixelsPerCell] pixels per cell — that is what changes the detail of the
+     * picture, not the quality of the encoder.
      *
      * The encoding is synchronous on purpose: `toBlob` would hand the picture back after the next
      * step has repainted the canvas, while a `data:` URL is read at the moment of the call. Called
      * right after [render] by the run controller, this is the complete image of the step that
      * asked for a capture.
      */
-    fun captureJpeg(): Blob? {
-        if (display.width <= 0 || display.height <= 0 || cssWidth <= 0.0) return null
-        return try {
-            val url = display.toDataURL("image/jpeg", CAPTURE_JPEG_QUALITY)
-            if (url.startsWith("data:image/jpeg")) dataUrlToBlob(url) as Blob else null
-        } catch (t: Throwable) {
-            console.warn("Capture: the simulation view cannot be encoded.", t)
-            null
+    fun capture(settings: RecordingSettings = recordingSettings): Blob? = try {
+        val canvas = when (settings.captureResolution) {
+            CaptureResolution.Screen -> {
+                if (display.width <= 0 || display.height <= 0 || cssWidth <= 0.0) return null
+                display
+            }
+            CaptureResolution.Grid -> gridCanvas(settings.pixelsPerCell) ?: return null
         }
+        val mime = settings.captureFormat.mimeType
+        val url = canvas.toDataURL(mime, settings.jpegQuality)
+        if (url.startsWith("data:$mime")) dataUrlToBlob(url) as Blob else null
+    } catch (t: Throwable) {
+        console.warn("Capture: the simulation view cannot be encoded.", t)
+        null
+    }
+
+    /**
+     * Paints the whole grid into a canvas that is never attached to the page, one cell being
+     * [pixelsPerCell] pixels wide: the picture then has exactly `width * pixelsPerCell` by
+     * `height * pixelsPerCell` pixels, whatever the size of the window.
+     *
+     * The buffer and the field layers are the ones of the display, so a capture and the screen
+     * never disagree about a colour; only the editing aids are left out (see [paint]).
+     */
+    private fun gridCanvas(pixelsPerCell: Int): HTMLCanvasElement? {
+        val simulation = data.simulation
+        val cellsW = simulation.width.coerceAtLeast(1)
+        val cellsH = simulation.height.coerceAtLeast(1)
+        val cellPx = clampPixelsPerCell(pixelsPerCell)
+        val canvas = (document.createElement("canvas") as HTMLCanvasElement).apply {
+            width = cellsW * cellPx
+            height = cellsH * cellPx
+        }
+        val ctx = canvas.getContext("2d") as? CanvasRenderingContext2D ?: return null
+        renderBuffer()
+        // the canvas is measured in cells and painted with cellPx device pixels per cell
+        paint(ctx, cellPx.toDouble(), cellsW.toDouble(), cellsH.toDouble(), cellPx.toDouble(), 0.0, 0.0, aids = false)
+        return canvas
     }
 }
 
-/** JPEG quality of the pictures taken by the `Capture()` meta-action. */
-private const val CAPTURE_JPEG_QUALITY = 0.92
-
 /**
  * Decodes a `data:` URL into a Blob, in ES5 JavaScript: the synchronous counterpart of
- * `canvas.toBlob`, used by [SimulatorViewController.captureJpeg].
+ * `canvas.toBlob`, used by [SimulatorViewController.capture].
  */
 private val dataUrlToBlob: dynamic = js("""
 function (dataUrl) {
