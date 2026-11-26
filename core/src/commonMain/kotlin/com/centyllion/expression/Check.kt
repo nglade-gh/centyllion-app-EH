@@ -62,6 +62,10 @@ class CheckVisitor(val evaluator: Evaluator): Visitor {
         }
     }
 
+    override fun visitListLiteral(node: ListLiteral) {
+        visitChildren(node)
+    }
+
     override fun visitBooleanLiteral(node: BooleanLiteral) {
         visitChildren(node)
     }

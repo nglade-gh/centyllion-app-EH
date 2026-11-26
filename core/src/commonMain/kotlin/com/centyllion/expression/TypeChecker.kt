@@ -32,12 +32,19 @@ private val booleanFunctions = setOf(
     "IsToricSelectionOn", "IsOverwritingOn", "IsVisible",
     // neighbourhood tests of a behaviour or of a field, over the eight neighbours
     // (onAgent(id)) or over a single offset cell (onAgent(id, dx, dy))
-    "onAgent"
+    "onAgent",
+    // set predicates over the agent types present in the eight neighbours
+    // (see model.neighbourSetFunctions)
+    "hasAnyOf", "hasAllOf", "hasOnly", "hasExactly"
 )
 
 fun Expression.inferType(): ExprType = when (this) {
     is BooleanLiteral -> ExprType.Boolean
     is NumberLiteral -> ExprType.Number
+    // a grain list is an argument, not a value: no context makes it a number or a boolean
+    is ListLiteral -> throw IllegalStateException(
+        "A list {…} is only valid as the argument of hasAnyOf, hasAllOf, hasOnly or hasExactly"
+    )
     is ParenthesisExpression -> child.inferType()
     is UnaryExpression -> when (operator) {
         UnaryOperator.Not -> ExprType.Boolean
@@ -110,6 +117,8 @@ fun Expression.constantNumberOrNull(): Double? = when (this) {
         }
     }
     is BooleanLiteral, is VariableCall, is FunctionCall -> null
+    // a list holds ids, not a value
+    is ListLiteral -> null
 }
 
 /** True when the expression tree contains a call to the function [name]. */
@@ -123,6 +132,7 @@ fun Expression.containsFunctionCall(name: String): Boolean = when (this) {
         condition.containsFunctionCall(name) ||
                 ifThen.containsFunctionCall(name) ||
                 orElse.containsFunctionCall(name)
+    is ListLiteral -> elements.any { it.containsFunctionCall(name) }
     is VariableCall -> false
     is BooleanLiteral -> false
     is NumberLiteral -> false

@@ -177,7 +177,7 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `halfLife` (0 = pas de décroissance) → décroissance naturelle du champ
 - `allowedDirection` → directions de diffusion
 - `toric` : `Boolean` (défaut `true`) → bordure torique du champ ; `false` = bordure **imperméable** : la diffusion ne traverse pas les bords de la grille (« best effort », sans solveur numérique dédié). Éditable dans les deux modes (interrupteur *Toric*).
-- `formula` → chaîne d'expression permettant de **calculer la valeur du champ** à partir de `step`, `x`, `y`, `z`, `current` et des fonctions `field(id)`, `field(id, dx, dy)`, `agent(x, y)`, `count(grainId)`, `onAgent(id)` / `onAgent(id, dx, dy)` (test booléen : les huit voisins, ou une seule case avec `(0, 0)` = la case elle-même). La formule doit renvoyer un nombre (vérifié par `validateNumericFormula`). Exemple : `count(0) > 2 ? current * 0.95 : current`.
+- `formula` → chaîne d'expression permettant de **calculer la valeur du champ** à partir de `step`, `x`, `y`, `z`, `current` et des fonctions `field(id)`, `field(id, dx, dy)`, `agent(x, y)`, `count(grainId)`, `onAgent(id)` / `onAgent(id, dx, dy)` (test booléen : les huit voisins, ou une seule case avec `(0, 0)` = la case elle-même) et `hasAnyOf({ids})` / `hasAllOf` / `hasOnly` / `hasExactly` (ensemble des types d'agents présents dans les huit voisins, au plus 30 types). La formule doit renvoyer un nombre (vérifié par `validateNumericFormula`). Exemple : `count(0) > 2 ? current * 0.95 : current`.
 
 ### 4.3 Behaviour (comportement)
 
@@ -360,6 +360,11 @@ La sous-classe `NetbioDynEvaluator` étend `Evaluator` avec des variables et fon
 | `count(grainId)` | nombre de voisins du type `grainId` (conditions de comportement) |
 | `onAgent(grainId)` | vrai si l'un des **huit voisins** est du type `grainId` (la case centrale n'est pas comptée) → booléen |
 | `onAgent(grainId, dx, dy)` | vrai si la **case unique** à l'offset (dx, dy) est du type `grainId` ; `(0, 0)` désigne la case elle-même. `dx`/`dy` ∈ {-1, 0, 1} → booléen |
+| `hasAnyOf({ids})` | vrai si **au moins un** des types listés est présent parmi les huit voisins → booléen |
+| `hasAllOf({ids})` | vrai si **tous** les types listés sont présents parmi les huit voisins → booléen |
+| `hasOnly({ids})` | vrai si **aucun type hors de la liste** n'est présent (les types listés peuvent être absents : une case isolée vérifie `hasOnly({0})`) → booléen |
+| `hasExactly({ids})` | vrai si les huit voisins portent **exactement** les types listés, ni plus ni moins → booléen |
+| `{0,1,3}` | **liste de types** : uniquement comme argument des quatre fonctions ci-dessus, jamais comme valeur |
 
 | Fonction | Signification |
 |----------|---------------|
@@ -381,15 +386,21 @@ sum          → factor ("-" | "+" factor)*
 factor       → unary ("/" | "*" | "%") unary*
 unary        → ("!" | "-" | "+") unary | exponent
 exponent     → terminal ("^" unary)*
-terminal     → function | variable | number | boolean | parenthesis
+terminal     → function | variable | number | boolean | parenthesis | list
 function     → name "(" (expr ("," expr)*) ")"
+list         → "{" (expr ("," expr)*)? "}"
 ```
+
+La liste n'est admise que comme argument de `hasAnyOf`, `hasAllOf`, `hasOnly` et
+`hasExactly` : le parseur l'accepte partout pour rapporter le bon message, et les validateurs
+(`Expression.neighbourSetError()`) la refusent partout ailleurs.
 
 ### 6.3 Validation et évaluation
 
-- `validateFormula(formula)` : parse et vérifie les références (variables/fonctions) **et** évalue sans contexte ; retourne `null` si OK, sinon le message d'erreur.
-- `validatePredicateFormula(formula)` : comme `validateFormula`, mais exige en plus que la formule soit un **prédicat logique** (type booléen, via `inferType()`) et interdit `field(...)`/`agent(...)`. Utilisé pour les formules de comportement.
-- `validateNumericFormula(formula)` : comme `validateFormula`, mais exige que la formule renvoie un **nombre**. Utilisé pour les formules de champ.
+- `validateFormula(formula, allowStateTests = false, grainIds = null)` : parse et vérifie les références (variables/fonctions) **et** évalue sans contexte ; retourne `null` si OK, sinon le message d'erreur. `grainIds` contrôle les identifiants des listes `{…}` contre les grains du modèle.
+- `validatePredicateFormula(formula, grainIds = null)` : comme `validateFormula`, mais exige en plus que la formule soit un **prédicat logique** (type booléen, via `inferType()`). Utilisé pour les formules de comportement.
+- `validateNumericFormula(formula, grainIds = null)` : comme `validateFormula`, mais exige que la formule renvoie un **nombre**. Utilisé pour les formules de champ.
+- `validateModifierCondition(formula)` : comme `validateFormula` avec les tests d'état, mais **refuse les prédicats d'ensemble** (un modificateur s'évalue hors de toute case, donc sans voisinage).
 - `inferType()` (`TypeChecker.kt`) : infère statiquement le type du résultat d'une expression (`Number`/`Boolean`) ; `containsFunctionCall(name)` : détecte un appel à une fonction dans l'arbre.
 - `createEvaluator(simulator)` : crée un `NetbioDynEvaluator` attaché au simulateur (variables `step`, `x`, `y`, `z`, `current`, fonctions `agent`, `field` et `count`).
 - `SimpleFieldEvaluator` : champ sans formule = identité (`evaluateField(c) = c`).
@@ -409,6 +420,8 @@ count(1) > 2 && (count(2) == 1 || count(3) == 0)
 - `age(n)` renvoie l'âge du réactif `n` : `1` = agent principal, `2` à `N+1` = voisins des réactions, même numérotation que la colonne "Sources" (héritage d'âge) ; `0` si le réactif n'existe pas
 - Les fonctions `field(id)` / `field(id, dx, dy)` (valeur du champ sur la case courante ou à un offset) et `agent(x, y)` (ID de l'agent en une position) sont disponibles : le simulateur passe l'état de la grille à `applicable()`
 - `onAgent(id)` est vrai si **au moins un des huit voisins** contient un agent du grain `id` (la case centrale n'est pas comptée, comme pour `count()`), et `onAgent(id, dx, dy)` teste une **case unique** à l'offset (dx, dy), la case centrale étant cette fois **incluse** pour `(0, 0)`. Les offsets sont limités à -1, 0 et 1 : `onAgent(0, 5, 5)` est refusé par la validation (`Expression.onAgentError()` dans `evaluator.kt`, appelée par `validateFormula`) et par l'évaluateur à l'exécution, au lieu de lire une case arbitraire. Les deux formes renvoient un booléen (`booleanFunctions` de `TypeChecker.kt`, `Boolean.v` dans l'évaluateur) : elles se composent avec `&&`, `||` et `!`
+- **Prédicats d'ensemble** `hasAnyOf({0,1})`, `hasAllOf({0,1})`, `hasOnly({0,1})`, `hasExactly({0,1})` : ils portent sur l'**ensemble des types d'agents présents dans les huit voisins** (même périmètre que `count()`, case centrale exclue, bords toriques). La liste `{…}` est transformée en **masque d'entiers** (bit `id` par type) et comparée au masque du voisinage : `hasAnyOf` = intersection non vide, `hasAllOf` = tous les bits demandés présents, `hasOnly` = aucun bit hors de la liste, `hasExactly` = égalité des deux masques. Les noms disent la direction de la comparaison, contrairement à `isSubsetOf`/`isSupersetOf`. Ce sont des booléens (`booleanFunctions` de `TypeChecker.kt`, `Boolean.v` dans `NetbioDynEvaluator.neighbourSet`) : `hasAnyOf({0,1}) && hasOnly({0,1}) && step > 3` est accepté et exécuté. Une liste n'est acceptée **que** comme argument de ces quatre fonctions (`Expression.neighbourSetError()`, `validateFormula`) ; `{}` est refusée (deux conventions s'opposeraient), ainsi qu'un identifiant inexistant (`neighbourSetGrainIds()` comparé aux grains du modèle dans `validation.kt`) et un identifiant ≥ 30.
+- **Limite : 30 types d'agents** (`NEIGHBOUR_SET_MAX_TYPES` dans `evaluator.kt`). Le masque est un entier 32 bits dont le bit 31 est le signe : les identifiants 0 à 29 sont représentables. Un modèle qui déclare **plus de 30 grains** ne peut pas être décrit par ces quatre fonctions ; le **diagnostic** de la formule (`addNeighbourSetLimitProblem` dans `validation.kt`, propriété `Predicate` ou `Formula`, message traduit FR/EN) le signale explicitement, parce qu'un masque débordé répondrait un résultat faux **sans aucun signe** à l'exécution. Utiliser `count(grainId)` dans ce cas.
 - Le résultat doit être un **prédicat logique** (`true`/`false`) : `validatePredicateFormula` rejette toute formule non booléenne (par ex. `sin(step)`), ainsi que les ternaires aux branches de types différents
 - Validation automatique dans l'interface (champ "Predicate" + aide "Help") et dans `validation.kt` (propriété du problème : `Predicate`)
 

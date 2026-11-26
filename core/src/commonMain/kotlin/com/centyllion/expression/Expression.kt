@@ -139,7 +139,7 @@ private fun Parser.readExponent(): Expression {
 
 /**
  * ```
- * terminal -> function | variable | number | boolean | parenthesis
+ * terminal -> function | variable | number | boolean | parenthesis | list
  *
  * parenthesis -> '(' expression ')'
  * function   -> name "(" ( arguments )* ")"
@@ -148,13 +148,29 @@ private fun Parser.readExponent(): Expression {
  * name       -> CHAR ( CHAR | DIGIT )*
  * boolean    -> "true" | "false"   (matched in the identifier branch)
  * number     -> DIGIT ( DIGIT )*
+ * list       -> '{' ( expression ( ',' expression )* )? '}'
  * ```
+ *
+ * The list is parsed wherever a value is expected, so that a misplaced one is reported by the
+ * validators with a message naming the four set predicates instead of a generic parse error.
  */
 fun Parser.readTerminal(): Expression = when {
     lexer.peekToken("(") -> buildNode(ParenthesisExpressionBuilder()) {
         add(readToken("("))
         child = readExpression()
         add(readToken(")"))
+    }
+
+    lexer.peekToken("{") -> buildNode(ListLiteralBuilder()) {
+        add(readToken("{"))
+        if (!lexer.peekToken("}")) {
+            element(readExpression())
+            while (lexer.peekToken(",")) {
+                add(readToken(","))
+                element(readExpression())
+            }
+        }
+        add(readToken("}"))
     }
 
     peekIdentifier() -> {

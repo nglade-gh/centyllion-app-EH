@@ -235,6 +235,24 @@ data class VariableCall(
     }
 }
 
+/**
+ * `{0,1,3}`: a list of agent ids.
+ *
+ * It is a **syntax for one argument only**: the four set predicates over the neighbourhood
+ * (`hasAnyOf`, `hasAllOf`, `hasOnly`, `hasExactly`), which turn it into a bit mask of agent
+ * types. It has no value of its own, so the parser accepts it anywhere (to report a precise
+ * error) but the validators and the evaluator refuse it everywhere else: a list in the middle
+ * of a formula (`count(0) + {1}`) or as a value on its own would silently be read as the mask.
+ */
+data class ListLiteral(
+    override val children: List<Node>,
+    val elements: List<Expression>,
+): Expression {
+    override fun accept(visitor: Visitor) {
+        visitor.visitListLiteral(this)
+    }
+}
+
 data class BooleanLiteral(
     override val children: List<Node>,
     val literal: TokenNode,
@@ -264,6 +282,7 @@ interface Visitor {
     fun visitParenthesis(node: ParenthesisExpression)
     fun visitFunctionCall(node: FunctionCall)
     fun visitVariableCall(node: VariableCall)
+    fun visitListLiteral(node: ListLiteral)
     fun visitBooleanLiteral(node: BooleanLiteral)
     fun visitNumberLiteral(node: NumberLiteral)
 }

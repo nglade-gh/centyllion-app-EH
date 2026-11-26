@@ -34,7 +34,7 @@ class NetbioDynEvaluator(
     /** Names of functions provided by this evaluator (in addition to [functions]) */
     private val dynamicFunctions = setOf(
         "agent", "field", "count", "countEmpty", "age", "onAgent"
-    )
+    ) + neighbourSetFunctions
 
     /**
      * True while evaluating the condition of a simulation modifier: the only place where the
@@ -46,6 +46,24 @@ class NetbioDynEvaluator(
 
     /** True when x, y, z are not the cell of a behaviour (simulation modifier). */
     var absoluteCoordinates: Boolean = false
+
+    /**
+     * Mask of the agent types present among the eight neighbours of the current cell: bit `id`
+     * is set when at least one neighbour holds the grain `id`.
+     *
+     * It comes from [agentCounts], the same table as `count(grainId)`: the cell itself is not
+     * counted, the boundary conditions of the behaviour are already applied, and the edges wrap
+     * around the grid. Ids 0 to [NEIGHBOUR_SET_MAX_TYPES] - 1 are represented; the sentinels
+     * `-1` (all agents) and `-2` (empty cells) are not types and are skipped.
+     */
+    val neighbourTypesMask: Int
+        get() {
+            var mask = 0
+            for ((id, count) in agentCounts) {
+                if (count > 0 && id in 0 until NEIGHBOUR_SET_MAX_TYPES) mask = mask or (1 shl id)
+            }
+            return mask
+        }
 
     /** Names of variables provided by this evaluator (in addition to [variables]) */
     private val dynamicVariables = setOf("step", "x", "y", "z", "current")
@@ -63,6 +81,18 @@ class NetbioDynEvaluator(
         "z" -> z
         "current" -> current
         else -> super.variable(name)
+    }
+
+    /**
+     * The four set predicates over the neighbourhood take a list as their only argument, and a
+     * list has no value of its own: they are answered from the expression tree, before the
+     * arguments are evaluated. Every other node is handled by [Evaluator.evaluate], which also
+     * refuses a list used as a value.
+     */
+    override fun evaluate(node: Expression): Value = when {
+        node is FunctionCall && node.name.content in neighbourSetFunctions ->
+            neighbourSet(node.name.content, node)
+        else -> super.evaluate(node)
     }
 
     override fun function(name: String, args: List<Value>): Value = when (name) {
@@ -208,6 +238,34 @@ class NetbioDynEvaluator(
     }
 
     /**
+     * `hasAnyOf({0,1})`, `hasAllOf({0,1})`, `hasOnly({0,1})`, `hasExactly({0,1})`: set predicates
+     * over the agent **types** present in the eight neighbours of the current cell.
+     *
+     * The list is turned into a bit mask (bit `id` for the type `id`), and so is the
+     * neighbourhood ([neighbourTypesMask]); the four answers are then plain bit tests over two
+     * ordinary numbers. The cell itself is not counted, like `count()`, and the edges wrap
+     * around the grid.
+     *
+     * The empty list is refused by the validator: `hasAnyOf({})` would always be false and
+     * `hasAllOf({})` always true, two conventions for the same notation. A list used anywhere
+     * else, a computed id or an id outside 0..[NEIGHBOUR_SET_MAX_TYPES] - 1 is refused too, at
+     * run time as well as in the validation.
+     */
+    private fun neighbourSet(name: String, call: FunctionCall): Value {
+        neighbourSetCallError(call)?.let { throw EvaluationException(it) }
+        val requested = (call.arguments[0] as ListLiteral).grainMask()
+        val present = neighbourTypesMask
+        return when (name) {
+            "hasAnyOf" -> ((present and requested) != 0).v
+            "hasAllOf" -> ((present and requested) == requested).v
+            // no type outside the list: the listed ones may all be absent
+            "hasOnly" -> ((present and requested) == present).v
+            "hasExactly" -> (present == requested).v
+            else -> throw EvaluationException("unknown set predicate: $name")
+        }
+    }
+
+    /**
      * Offset argument of `onAgent(id, dx, dy)`: -1, 0 or 1.
      *
      * A dynamic function is never checked for arity by [Evaluator.check]: a wrong call reaches
@@ -305,6 +363,122 @@ private fun onAgentCallError(arguments: List<Expression>): String? {
 }
 
 /**
+ * Number of agent types the set predicates can represent: one bit per type in a 32-bit integer,
+ * bit 31 being the sign bit. Ids 0 to 29 are therefore usable, and a model that declares more
+ * than [NEIGHBOUR_SET_MAX_TYPES] grains cannot be described by `hasAnyOf`, `hasAllOf`, `hasOnly`
+ * or `hasExactly` — the model diagnostic says so ([com.centyllion.model.GrainModel.diagnose]),
+ * because a mask that silently drops a type would answer a wrong result without any sign of it.
+ */
+const val NEIGHBOUR_SET_MAX_TYPES: Int = 30
+
+/**
+ * Names of the four set predicates over the agent types present in the eight neighbours of the
+ * current cell. They are lower case, like every other formula function (the upper case is
+ * reserved for the meta-commands and the state tests).
+ *
+ * The names say the direction of the comparison instead of `isSubsetOf`/`isSupersetOf`, whose
+ * subject is ambiguous: `hasAnyOf` = at least one listed type is there, `hasAllOf` = every listed
+ * type is there, `hasOnly` = no type outside the list is there, `hasExactly` = both.
+ */
+val neighbourSetFunctions: Set<String> = setOf("hasAnyOf", "hasAllOf", "hasOnly", "hasExactly")
+
+/** Name of the first set predicate called by this expression, `null` when it calls none. */
+fun Expression.neighbourSetName(): String? = neighbourSetFunctions.firstOrNull { containsFunctionCall(it) }
+
+/** Name of the first set predicate called by this formula, `null` when none (or when it does not parse). */
+fun String.neighbourSetUsedName(): String? =
+    try { parseExpression().neighbourSetName() } catch (e: Exception) { null }
+
+/** True when this expression calls one of the set predicates (see [neighbourSetFunctions]). */
+fun Expression.neighbourSetUsed(): Boolean = neighbourSetName() != null
+
+/**
+ * Mask of the agent ids of a grain list already accepted by [neighbourSetCallError]: bit `id`
+ * is set for every listed id, and two listings of the same id are one bit.
+ *
+ * The ids are limited to 0..[NEIGHBOUR_SET_MAX_TYPES] - 1: `1 shl 31` is the sign bit of the
+ * 32-bit integer used at run time, so an id past the limit would wrap into a type that is not
+ * the one written — a wrong answer with no sign of it. Refused here, and by the validation.
+ */
+private fun ListLiteral.grainMask(): Int {
+    var mask = 0
+    for (element in elements) {
+        val value = element.constantNumberOrNull()
+            ?: throw EvaluationException("A grain list holds constant agent ids only, e.g. {0,1}")
+        if (value != floor(value)) throw EvaluationException("A grain list holds whole agent ids only, got $value")
+        val id = value.toInt()
+        if (id < 0 || id >= NEIGHBOUR_SET_MAX_TYPES) throw EvaluationException(
+            "Agent id $id cannot be represented in a grain list (ids 0 to ${NEIGHBOUR_SET_MAX_TYPES - 1})"
+        )
+        mask = mask or (1 shl id)
+    }
+    return mask
+}
+
+/**
+ * Error message of the first malformed set predicate call of this expression, `null` when all of
+ * them are well formed.
+ *
+ * Two rules are enforced here, both impossible to recover from at run time:
+ * - a list `{0,1,3}` is accepted **only** as the single argument of [neighbourSetFunctions]; used
+ *   as a value it would be read as its mask (`count(0) + {1}` would add 2), and the type checker
+ *   has nothing to say about it since a mask is an ordinary number;
+ * - the list is neither empty nor made of non-existent ids. `{}` is refused because the two
+ *   conventions collide (`hasAnyOf({})` always false, `hasAllOf({})` always true), and a computed
+ *   or out-of-range id would silently answer about another type.
+ */
+fun Expression.neighbourSetError(): String? {
+    if (this is FunctionCall && name.content in neighbourSetFunctions) {
+        // the single argument is a list, checked as a whole: it is not walked into again
+        return neighbourSetCallError(this)
+    }
+    if (this is ListLiteral) {
+        return "A list {…} may only be the argument of hasAnyOf, hasAllOf, hasOnly or hasExactly"
+    }
+    for (child in children) {
+        if (child is Expression) child.neighbourSetError()?.let { return it }
+    }
+    return null
+}
+
+private fun neighbourSetCallError(call: FunctionCall): String? {
+    val name = call.name.content
+    if (call.arguments.size != 1) return "$name expects one grain list, e.g. $name({0,1}), got ${call.arguments.size} arguments"
+    val list = call.arguments[0] as? ListLiteral
+        ?: return "$name expects a grain list literal, e.g. $name({0,1}), not a computed value"
+    if (list.elements.isEmpty()) return "$name: the empty list {} is not allowed (write at least one id, e.g. $name({0}))"
+    for (element in list.elements) {
+        if (element is ListLiteral) return "$name: a grain list cannot contain another list"
+        val value = element.constantNumberOrNull()
+            ?: return "$name: a grain list holds constant agent ids only, e.g. {0,1}"
+        if (value != floor(value)) return "$name: a grain list holds whole agent ids only, got $value"
+        val id = value.toInt()
+        if (id < 0) return "$name: a grain list names agent types, not the sentinels -1 (all agents) and -2 (empty cells) of count(), got $id"
+        if (id >= NEIGHBOUR_SET_MAX_TYPES) return "$name: agent id $id cannot be represented in a grain list (ids 0 to ${NEIGHBOUR_SET_MAX_TYPES - 1})"
+    }
+    return null
+}
+
+/** Ids named by the grain lists of this expression, in the order they appear. */
+fun Expression.neighbourSetGrainIds(): List<Int> {
+    val ids = mutableListOf<Int>()
+    fun collect(expression: Expression) {
+        if (expression is FunctionCall && expression.name.content in neighbourSetFunctions) {
+            val list = expression.arguments.singleOrNull() as? ListLiteral
+            if (list != null) {
+                for (element in list.elements) {
+                    element.constantNumberOrNull()?.let { ids.add(it.toInt()) }
+                }
+            }
+            return
+        }
+        for (child in expression.children) if (child is Expression) collect(child)
+    }
+    collect(this)
+    return ids
+}
+
+/**
  * Validates a formula: it must parse, reference only known functions and variables, and
  * evaluate without error. Returns an error message, or null when valid.
  *
@@ -312,8 +486,12 @@ private fun onAgentCallError(arguments: List<Expression>): String? {
  * refused by default because the only place they belong to is the condition of a simulation
  * modifier: see [validateModifierCondition], [validatePredicateFormula] and
  * [validateActionFormula].
+ *
+ * [grainIds] lets the caller check the ids of the grain lists (`hasAnyOf({0,1})`) against the
+ * model: without it (a formula edited before the model is known) the syntax is checked but an
+ * id that no grain carries is only caught by the model diagnostic, which knows the grains.
  */
-fun validateFormula(formula: String, allowStateTests: Boolean = false): String? {
+fun validateFormula(formula: String, allowStateTests: Boolean = false, grainIds: Set<Int>? = null): String? {
     // the state tests are evaluable during the check: the context rule is applied below, with a
     // message that names the function instead of a generic "function doesn't exist"
     val evaluator = createEvaluator().also { it.stateTestsAllowed = true }
@@ -322,6 +500,13 @@ fun validateFormula(formula: String, allowStateTests: Boolean = false): String? 
         // onAgent takes one argument or three, and its offsets are limited to [-1, 1]: the
         // dynamic functions have no arity check of their own, so the call is verified here
         parsed.onAgentError()?.let { return it }
+        // a grain list is an argument of the four set predicates and nothing else
+        parsed.neighbourSetError()?.let { return it }
+        if (grainIds != null) {
+            parsed.neighbourSetGrainIds().firstOrNull { it !in grainIds }?.let {
+                return "Grain with id $it doesn't exist for this grain list"
+            }
+        }
         val errors = evaluator.check(parsed)
         if (errors.isNotEmpty()) return errors.first().message
         if (!allowStateTests) parsed.stateTestName()?.let { return misplacedStateTest(it, "a formula") }
@@ -335,8 +520,17 @@ fun validateFormula(formula: String, allowStateTests: Boolean = false): String? 
 /**
  * Validates the condition of a simulation modifier: the state tests are accepted there, and
  * only there. Returns an error message, or null when valid.
+ *
+ * The set predicates over the neighbourhood are refused: they read the eight neighbours of a
+ * cell, and a modifier runs once per step, outside any cell — the counts are not filled, so the
+ * test would answer false without any sign of it.
  */
-fun validateModifierCondition(formula: String): String? = validateFormula(formula, allowStateTests = true)
+fun validateModifierCondition(formula: String): String? {
+    formula.neighbourSetUsedName()?.let {
+        return "$it reads the eight neighbours of a cell: it belongs to the formula of a behaviour or of a field, not to the condition of a simulation modifier"
+    }
+    return validateFormula(formula, allowStateTests = true)
+}
 
 
 /**
@@ -347,10 +541,10 @@ fun validateModifierCondition(formula: String): String? = validateFormula(formul
  * they read the simulation as a whole and belong to the condition of a modifier.
  * Returns an error message, or null when valid.
  */
-fun validatePredicateFormula(formula: String): String? {
+fun validatePredicateFormula(formula: String, grainIds: Set<Int>? = null): String? {
     // explicit message: a state test here is a mistake, not an unknown function
     formula.stateTestUsedName()?.let { return misplacedStateTest(it, "the condition of a behaviour") }
-    val error = validateFormula(formula)
+    val error = validateFormula(formula, grainIds = grainIds)
     if (error != null) return error
     return try {
         if (formula.parseExpression().inferType() != ExprType.Boolean) {
@@ -366,8 +560,8 @@ fun validatePredicateFormula(formula: String): String? {
  * and variables, and evaluate to a number.
  * Returns an error message, or null when valid.
  */
-fun validateNumericFormula(formula: String): String? {
-    val error = validateFormula(formula)
+fun validateNumericFormula(formula: String, grainIds: Set<Int>? = null): String? {
+    val error = validateFormula(formula, grainIds = grainIds)
     if (error != null) return error
     return try {
         if (formula.parseExpression().inferType() != ExprType.Number) {
@@ -393,12 +587,13 @@ class FormulaFieldEvaluator(
 
     /**
      * True when the formula reads the neighbour agents of the cell (the counts published by the
-     * simulator): `count()`, `countEmpty()` and `onAgent`, whose one-argument form answers about
-     * the eight neighbours.
+     * simulator): `count()`, `countEmpty()`, `onAgent`, whose one-argument form answers about
+     * the eight neighbours, and the four set predicates over the agent types present there.
      */
     val usesCount: Boolean = expression.containsFunctionCall("count") ||
             expression.containsFunctionCall("countEmpty") ||
-            expression.containsFunctionCall("onAgent")
+            expression.containsFunctionCall("onAgent") ||
+            expression.neighbourSetUsed()
 
     override fun evaluateField(/*step: Int, position: Position, */current: Float): Float {
         evaluator.current = current.v

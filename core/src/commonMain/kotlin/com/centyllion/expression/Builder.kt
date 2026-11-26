@@ -114,6 +114,22 @@ class ExponentExpressionBuilder: Builder<ExponentExpression>, MutableList<Node> 
     )
 }
 
+class ListLiteralBuilder: Builder<ListLiteral>, MutableList<Node> by mutableListOf() {
+
+    val elementList: MutableList<Expression> = mutableListOf()
+
+    fun element(value: Expression): Boolean {
+        elementList.add(value)
+        add(value)
+        return true
+    }
+
+    override fun build(): ListLiteral = ListLiteral(
+        children = ArrayList(this),
+        elements = elementList
+    )
+}
+
 class ParenthesisExpressionBuilder: Builder<ParenthesisExpression>, MutableList<Node> by mutableListOf() {
 
     var child by property<Expression>()

@@ -520,9 +520,55 @@ Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
     <tr><td><code>agent(x, y)</code></td><td>ID de l'agent à la position (x, y), ou <code>-1</code> si vide.</td><td>Champs et comportements</td></tr>
     <tr><td><code>onAgent(id)</code></td><td>Vrai si <strong>au moins un des huit voisins</strong> contient un agent du grain <code>id</code> (la case centrale n'est pas comptée, comme pour <code>count()</code>).</td><td>Champs et comportements</td></tr>
     <tr><td><code>onAgent(id, dx, dy)</code></td><td>Vrai si la <strong>case unique</strong> à l'offset (dx, dy) contient un agent du grain <code>id</code> ; la case centrale est ici <strong>incluse</strong> pour <code>(0, 0)</code>. <code>dx</code> et <code>dy</code> valent -1, 0 ou 1 (toute autre valeur est refusée par la validation).</td><td>Champs et comportements</td></tr>
+    <tr><td><code>hasAnyOf({ids})</code></td><td>Vrai si <strong>au moins un</strong> des types d'agents listés est présent parmi les huit voisins (la case centrale n'est pas comptée).</td><td>Champs et comportements</td></tr>
+    <tr><td><code>hasAllOf({ids})</code></td><td>Vrai si <strong>tous</strong> les types d'agents listés sont présents parmi les huit voisins.</td><td>Champs et comportements</td></tr>
+    <tr><td><code>hasOnly({ids})</code></td><td>Vrai si <strong>aucun type autre</strong> que ceux de la liste n'est présent parmi les huit voisins : les types listés peuvent être absents (une case isolée vérifie <code>hasOnly({0})</code>).</td><td>Champs et comportements</td></tr>
+    <tr><td><code>hasExactly({ids})</code></td><td>Vrai si les huit voisins portent <strong>exactement</strong> les types listés, ni plus ni moins.</td><td>Champs et comportements</td></tr>
     <tr><td><code>field(id)</code></td><td>Valeur du champ <code>id</code> sur la case courante.</td><td>Champs et comportements</td></tr>
     <tr><td><code>field(id, dx, dy)</code></td><td>Valeur du champ <code>id</code> à l'offset (dx, dy) depuis la case courante (ex. <code>1, 0</code> = case à l'est).</td><td>Champs et comportements</td></tr>
   </table>
+  <h3>Prédicats d'ensemble sur le voisinage</h3>
+  <p>
+    Les quatre fonctions <code>hasAnyOf</code>, <code>hasAllOf</code>, <code>hasOnly</code> et
+    <code>hasExactly</code> portent sur l'<strong>ensemble des types d'agents présents dans les
+    huit voisins</strong> de la case (la case centrale est exclue, les bords sont toriques). Leur
+    argument est une <strong>liste d'identifiants entre accolades</strong>, par exemple
+    <code>{0,1,3}</code>.
+  </p>
+  <table>
+    <tr><th>Voisinage</th><th><code>hasAnyOf({0,1})</code></th><th><code>hasAllOf({0,1})</code></th><th><code>hasOnly({0,1})</code></th><th><code>hasExactly({0,1})</code></th></tr>
+    <tr><td><code>{0}</code> (un voisin de type 0, rien d'autre)</td><td>vrai</td><td>faux</td><td>vrai</td><td>faux</td></tr>
+    <tr><td><code>{0,1}</code></td><td>vrai</td><td>vrai</td><td>vrai</td><td>vrai</td></tr>
+    <tr><td><code>{0,2}</code></td><td>vrai</td><td>faux</td><td>faux</td><td>faux</td></tr>
+    <tr><td><code>{}</code> (aucun voisin occupé)</td><td>faux</td><td>faux</td><td>vrai</td><td>faux</td></tr>
+  </table>
+  <p>
+    Exemple concret : un agent ne se divise que s'il est entouré d'un type 0 ou 1 depuis le
+    pas 4, et qu'aucun autre type ne le touche.
+  </p>
+  <pre><code>hasAnyOf({0,1}) &amp;&amp; hasOnly({0,1}) &amp;&amp; step &gt; 3</code></pre>
+  <div class="card tip">
+    <h4>La liste <code>{…}</code> n'est pas une valeur</h4>
+    <p>
+      Une liste n'est acceptée que comme argument de ces quatre fonctions : <code>{0,1}</code>
+      seule, <code>count(0) + {1}</code> ou <code>field({0})</code> sont refusés par la
+      validation. La liste vide <code>{}</code> est refusée elle aussi (deux conventions
+      s'opposeraient : <code>hasAnyOf({})</code> toujours faux, <code>hasAllOf({})</code>
+      toujours vrai), ainsi qu'un identifiant qui ne correspond à aucun type d'agent.
+    </p>
+  </div>
+  <div class="card tip">
+    <h4>Limite : 30 types d'agents</h4>
+    <p>
+      L'ensemble des types présents est encodé dans un entier de 32 bits, un bit par type, le
+      bit 31 étant le bit de signe : les identifiants <strong>0 à 29</strong> sont représentables.
+      Si le modèle déclare <strong>plus de 30 types de grains</strong>, ces quatre fonctions ne
+      peuvent pas décrire tous les types ; la formule est alors <strong>signalée par le
+      diagnostic du modèle</strong> (« les prédicats d'ensemble codent au plus 30 types… »), et
+      non à l'exécution, où un masque débordé répondrait un résultat faux sans aucun signe.
+      Dans ce cas, utiliser <code>count(grainId)</code>.
+    </p>
+  </div>
 </section>
 
 <section id="variables">
@@ -606,6 +652,13 @@ Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
     (<code>onAgent(1)</code>, la case centrale n'est pas comptée) et si le voisin immédiat à
     l'ouest n'est pas un agent de type 2 (<code>onAgent(2, -1, 0)</code>, qui porte sur cette
     seule case).</p>
+  <h4>Exemple 8 : ensemble des types présents autour de la case</h4>
+  <pre><code>hasAnyOf({0,1}) &amp;&amp; hasOnly({0,1}) &amp;&amp; step &gt; 3</code></pre>
+  <p>
+    Le comportement s'applique si au moins un voisin est de type 0 ou 1, qu'aucun type
+    étranger (2, 3…) ne touche la case et qu'on est au-delà du pas 3. Pour n'autoriser que
+    ces deux types et exiger les deux, remplacer la fin par <code>hasExactly({0,1})</code>.
+  </p>
 </section>
 
 <section id="exemples-complets">

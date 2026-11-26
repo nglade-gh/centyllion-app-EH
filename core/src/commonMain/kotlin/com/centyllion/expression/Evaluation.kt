@@ -259,7 +259,12 @@ open class Evaluator(
     open fun variable(name: String): Value =
         variables[name] ?: throw EvaluationException("Can't find variable '$name'")
 
-    fun evaluate(node: Expression): Value {
+    /**
+     * Evaluates [node]. Open so that a model evaluator can answer the calls that need the
+     * expression tree itself rather than the values of their arguments (the set predicates
+     * over the neighbourhood take a list, which has no value of its own).
+     */
+    open fun evaluate(node: Expression): Value {
         return when (node) {
             is TernaryExpression -> {
                 val condition = evaluate(node.condition)
@@ -311,6 +316,10 @@ open class Evaluator(
 
             is BooleanLiteral -> node.value
             is NumberLiteral -> node.value
+            // a list is a syntax for one argument of the set predicates, never a value
+            is ListLiteral -> throw EvaluationException(
+                "A list {…} has no value of its own: it may only be the argument of a set predicate over the neighbourhood"
+            )
         }
     }
 }

@@ -97,7 +97,7 @@ class FieldEditController (
         initialData = data.formula,
         placeHolder = page.i18n("Formula"),
         columns = 40,
-        isValid = { validateNumericFormula(it) },
+        isValid = { validateNumericFormula(it, context.grains.mapTo(mutableSetOf()) { grain -> grain.id }) },
         onUpdate =  { _, new, _ ->
             data = data.copy(formula = new)
         }
@@ -125,6 +125,11 @@ class FieldEditController (
         helpLine("agent(x, y)", "Agent id at position (x, y), -1 if none"),
         helpLine("onAgent(id)", "True when at least one of the eight neighbours holds that grain (the cell itself is not counted)"),
         helpLine("onAgent(id, dx, dy)", "True when the single cell at that offset holds that grain: dx and dy are -1, 0 or 1, (0, 0) being the cell itself"),
+        helpLine("hasAnyOf({ids})", "True when at least one of the listed agent types is present among the eight neighbours (the cell itself is not counted)"),
+        helpLine("hasAllOf({ids})", "True when all the listed agent types are present among the eight neighbours (the cell itself is not counted)"),
+        helpLine("hasOnly({ids})", "True when no agent type other than the listed ones is present among the eight neighbours: the listed ones may be absent or present"),
+        helpLine("hasExactly({ids})", "True when the eight neighbours hold exactly the listed agent types, neither more nor fewer"),
+        helpLine("{0,1,3}", "Agent type list, e.g. {0,1,3}: accepted only as the argument of the four set predicates. The empty list {} is refused and so is an unknown id. At most 30 types (ids 0 to 29)."),
     )
 
     val functionsTable = Table(body = helpBody(), fullWidth = true, striped = true)
