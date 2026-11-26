@@ -547,6 +547,12 @@ Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
     pas 4, et qu'aucun autre type ne le touche.
   </p>
   <pre><code>hasAnyOf({0,1}) &amp;&amp; hasOnly({0,1}) &amp;&amp; step &gt; 3</code></pre>
+  <p>
+    Ces quatre fonctions décrivent un voisinage : elles ne sont donc pas disponibles dans la
+    <strong>condition d'un modificateur</strong>, qui s'évalue hors de toute case, donc sans voisin.
+    Une formule de modificateur qui les emploie est refusée à la validation plutôt que de répondre
+    faux en silence. Même remarque pour <code>onAgent(...)</code>.
+  </p>
   <div class="card tip">
     <h4>La liste <code>{…}</code> n'est pas une valeur</h4>
     <p>
