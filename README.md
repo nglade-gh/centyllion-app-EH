@@ -816,3 +816,33 @@ affiché dans la galerie, et l'export (`ma-galerie.json`) ou la copie du dossier
 Ce n'est pas une publication : ajouter un modèle ne le rend pas visible des autres.
 Ce n'est pas un dépôt partagé : il n'y a ni compte, ni modération, ni synchronisation
 entre postes. C'est un écrin personnel, adossé à une sélection distribuée.
+
+## 10. Synchronisation Git sur un réseau instable
+
+Certains points d'accès, en particulier le partage de connexion depuis un téléphone,
+laissent la **négociation d'objets** se bloquer : `git fetch` reste suspendu au lieu
+d'échouer ou d'aboutir. Git accepte alors un algorithme plus simple, qui ne demande pas
+au serveur de répondre à la liste des objets déjà possédés :
+
+```bash
+git -c fetch.negotiationAlgorithm=skipping fetch
+```
+
+Pour rendre le réglage permanent, le poser **par dépôt** — il vit dans `.git/config`,
+n'est donc ni versionné ni partagé, et ne concerne que la copie locale :
+
+```bash
+cd Endless_Bloom            && git config fetch.negotiationAlgorithm skipping
+cd ../NetBioDyn_Forever     && git config fetch.negotiationAlgorithm skipping
+```
+
+Vérification, dans chaque dépôt :
+
+```bash
+git config --get fetch.negotiationAlgorithm     # doit répondre : skipping
+```
+
+Le script `Centyllion/sync_from_chouette.sh` passe l'option **explicitement** sur son
+`git fetch`, donc il fonctionne même sur une machine où le réglage local n'a pas été
+posé. Un `git fetch` tapé à la main en bénéficie en revanche seulement si la clé est
+configurée.
