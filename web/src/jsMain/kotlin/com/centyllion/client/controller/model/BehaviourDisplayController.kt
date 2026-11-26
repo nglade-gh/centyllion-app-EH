@@ -4,6 +4,7 @@ import bulma.*
 import com.centyllion.client.controller.utils.DeleteCallbackProperty
 import com.centyllion.client.page.BulmaPage
 import com.centyllion.client.toFixed
+import com.centyllion.model.ANY_AGENT
 import com.centyllion.model.Behaviour
 import com.centyllion.model.GrainModel
 import com.centyllion.model.diagnose
@@ -113,8 +114,15 @@ class BehaviourDisplayController(val page: BulmaPage, behaviour: Behaviour, mode
 
     override val container = Box(header, grains)
 
-    fun grainIcon(id: Int) = context.grainForId(id).let {
-        if (it != null) Icon(it.icon).apply { root.style.color = it.color } else Icon("times-circle")
+    fun grainIcon(id: Int) = when {
+        // a wildcard reactive has no grain: show it distinctly from an empty cell
+        id == ANY_AGENT -> Icon("asterisk").apply {
+            root.style.color = "#7a7a7a"
+            root.title = page.i18n("Any agent")
+        }
+        else -> context.grainForId(id).let {
+            if (it != null) Icon(it.icon).apply { root.style.color = it.color } else Icon("times-circle")
+        }
     }
 
     fun grainIcons(mainId: Int, reactionIds: List<Int>) = (listOf(mainId) + reactionIds)

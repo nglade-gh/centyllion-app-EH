@@ -16,7 +16,7 @@ class ReactionEditController(
 
     override var data: Reaction by observable(reaction) { _, old, new ->
         if (old != new) {
-            reactiveController.data = context.second.grainForId(data.reactiveId)
+            reactiveController.data = data.reactiveId
             directionController.data = data.allowedDirection
             productController.data = context.second.grainForId(data.productId)
             sourceReactiveController.data = data.sourceReactive
@@ -28,7 +28,7 @@ class ReactionEditController(
     override var context: Pair<Behaviour, GrainModel> by observable(behaviour to model)
     { _, old, new ->
         if (old.second != new.second) {
-            reactiveController.data = context.second.grainForId(data.reactiveId)
+            reactiveController.data = data.reactiveId
             reactiveController.context = new.second.grains
             productController.data = context.second.grainForId(data.productId)
             productController.context = new.second.grains
@@ -52,9 +52,11 @@ class ReactionEditController(
 
     val separator = HtmlWrapper(createHr()).apply { root.style.margin = "0.2rem" }
 
-    val reactiveController = GrainSelectController(context.second.grainForId(data.reactiveId), context.second.grains, page)
+    // the reactive column offers "no agent" (empty neighbour), "any agent" and then the grains;
+    // the product column below stays a grain list: "any agent" never applies to a product
+    val reactiveController = ReactiveSelectController(data.reactiveId, context.second.grains, page)
     { _, new, _ ->
-        this.data = this.data.copy(reactiveId = new?.id ?: -1)
+        this.data = this.data.copy(reactiveId = new)
     }
 
     val directionController = DirectionController(
@@ -64,6 +66,7 @@ class ReactionEditController(
         onUpdate = { _, new, _ -> this.data = this.data.copy(allowedDirection = new) }
     )
 
+    // a wildcard reactive has no colour of its own: only the main reactive colours the row
     fun directionColors(): Pair<String?, String?> =
         context.second.grainForId(data.reactiveId)?.color to
             context.second.grainForId(context.first.mainReactiveId)?.color

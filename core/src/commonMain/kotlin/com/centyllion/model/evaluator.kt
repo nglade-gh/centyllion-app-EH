@@ -1,6 +1,7 @@
 package com.centyllion.model
 
 import com.centyllion.expression.*
+import kotlin.math.floor
 
 interface FieldEvaluator {
     fun evaluateField(current: Float): Float
@@ -32,7 +33,7 @@ class NetbioDynEvaluator(
 
     /** Names of functions provided by this evaluator (in addition to [functions]) */
     private val dynamicFunctions = setOf(
-        "agent", "field", "count", "countEmpty", "age"
+        "agent", "field", "count", "countEmpty", "age", "onAgent"
     )
 
     /**
@@ -105,6 +106,7 @@ class NetbioDynEvaluator(
             }
         }
         "countEmpty" -> emptyCount.v
+        "onAgent" -> onAgent(args)
         // state tests: 1 when the test holds, 0 otherwise. Only the condition of a simulation
         // modifier may use them, hence the flag checked by stateTest().
         "IsBehaviourActive", "IsModifierActive",
@@ -176,6 +178,57 @@ class NetbioDynEvaluator(
         if (value is BooleanValue) throw EvaluationException("$name expects an integer id, not a boolean")
         return value.int
     }
+
+    /**
+     * `onAgent(id)`: true when at least one of the eight neighbours of the current cell holds an
+     * agent of that grain. The cell itself is not counted, exactly like `count(grainId)`: it
+     * reads the same neighbour counts, which already exclude it and already respect the boundary
+     * conditions of the behaviour.
+     *
+     * `onAgent(id, dx, dy)`: the same test on a single cell, at the offset (dx, dy) from the
+     * current cell, the cell itself included for (0, 0). The offsets are limited to -1, 0 and 1
+     * (an out-of-range offset is a formula error, rejected by [onAgentError]) and they wrap
+     * around the grid like every other coordinate of this evaluator.
+     *
+     * A formula without a simulator (validation) answers false: the arguments are still checked.
+     */
+    private fun onAgent(args: List<Value>): Value {
+        if (args.size != 1 && args.size != 3) throw EvaluationException(
+            "onAgent expects 1 argument (onAgent(id), the eight neighbours) or 3 (onAgent(id, dx, dy), a single cell), got ${args.size}"
+        )
+        val grainId = args[0].int
+        if (args.size == 1) return ((agentCounts[grainId] ?: 0) > 0).v
+        val dx = onAgentOffset("dx", args[1])
+        val dy = onAgentOffset("dy", args[2])
+        val sim = simulator ?: return false.v
+        val simulation = sim.simulation
+        val px = wrapCoordinate(x.int + dx, simulation.width)
+        val py = wrapCoordinate(y.int + dy, simulation.height)
+        return (sim.agents[simulation.toIndex(px, py)] == grainId).v
+    }
+
+    /**
+     * Offset argument of `onAgent(id, dx, dy)`: -1, 0 or 1.
+     *
+     * A dynamic function is never checked for arity by [Evaluator.check]: a wrong call reaches
+     * the run time, where the simulator silently ignores the formula. An offset outside [-1, 1]
+     * is refused here rather than reading an arbitrary cell: two cells away, the offset wraps
+     * around a small grid and answers about the wrong neighbour without any sign of error.
+     */
+    private fun onAgentOffset(label: String, value: Value): Int {
+        if (value is BooleanValue) throw EvaluationException(
+            "onAgent: $label must be -1, 0 or 1, not a boolean"
+        )
+        val amount = value.float
+        if (amount != floor(amount)) throw EvaluationException(
+            "onAgent: $label must be a whole number (-1, 0 or 1), got $amount"
+        )
+        val offset = amount.toInt()
+        if (offset < -1 || offset > 1) throw EvaluationException(
+            "onAgent: $label must be -1, 0 or 1, got $offset"
+        )
+        return offset
+    }
 }
 
 /**
@@ -217,6 +270,41 @@ fun createEvaluator() = NetbioDynEvaluator(null)
 fun wrapCoordinate(v: Int, n: Int): Int = if (n <= 0) 0 else ((v % n) + n) % n
 
 /**
+ * Error message of the first malformed `onAgent(...)` call of this expression, `null` when all
+ * of them are well formed.
+ *
+ * The dynamic functions (`count`, `field`, `agent`...) have no arity check of their own: only
+ * the name of a function is checked by [Evaluator.check], and a wrong call fails at run time —
+ * silently for the simulator, which makes the behaviour simply never apply. `onAgent` also
+ * restricts its two offsets to [-1, 1], so the check is done here, in the formula validation:
+ * without it `onAgent(0, 5, 5)` would be accepted and would then read an arbitrary cell of the
+ * grid (and, on a grid of 5 cells wide, wrap back to a plausible-looking neighbour).
+ *
+ * A constant offset is checked; a computed one (`onAgent(0, step, 0)`) is only checked when the
+ * formula runs, where [NetbioDynEvaluator] throws the same kind of message.
+ */
+fun Expression.onAgentError(): String? {
+    if (this is FunctionCall && name.content == "onAgent") onAgentCallError(arguments)?.let { return it }
+    for (child in children) {
+        if (child is Expression) child.onAgentError()?.let { return it }
+    }
+    return null
+}
+
+private fun onAgentCallError(arguments: List<Expression>): String? {
+    if (arguments.size == 1) return null
+    if (arguments.size != 3) return "onAgent expects 1 argument (onAgent(id), the eight neighbours) or 3 (onAgent(id, dx, dy), a single cell), got ${arguments.size}"
+    for ((label, argument) in listOf("dx" to arguments[1], "dy" to arguments[2])) {
+        val value = argument.constantNumberOrNull() ?: continue
+        if (value != floor(value) || value < -1.0 || value > 1.0) {
+            val shown = if (value == floor(value)) value.toInt().toString() else value.toString()
+            return "onAgent: the offset $label must be -1, 0 or 1, got $shown"
+        }
+    }
+    return null
+}
+
+/**
  * Validates a formula: it must parse, reference only known functions and variables, and
  * evaluate without error. Returns an error message, or null when valid.
  *
@@ -231,6 +319,9 @@ fun validateFormula(formula: String, allowStateTests: Boolean = false): String? 
     val evaluator = createEvaluator().also { it.stateTestsAllowed = true }
     return try {
         val parsed = formula.parseExpression()
+        // onAgent takes one argument or three, and its offsets are limited to [-1, 1]: the
+        // dynamic functions have no arity check of their own, so the call is verified here
+        parsed.onAgentError()?.let { return it }
         val errors = evaluator.check(parsed)
         if (errors.isNotEmpty()) return errors.first().message
         if (!allowStateTests) parsed.stateTestName()?.let { return misplacedStateTest(it, "a formula") }
@@ -300,8 +391,14 @@ class FormulaFieldEvaluator(
 
     private val expression = formula.parseExpression()
 
-    /** True when the formula uses the count() function (needs neighbour agent counts). */
-    val usesCount: Boolean = expression.containsFunctionCall("count") || expression.containsFunctionCall("countEmpty")
+    /**
+     * True when the formula reads the neighbour agents of the cell (the counts published by the
+     * simulator): `count()`, `countEmpty()` and `onAgent`, whose one-argument form answers about
+     * the eight neighbours.
+     */
+    val usesCount: Boolean = expression.containsFunctionCall("count") ||
+            expression.containsFunctionCall("countEmpty") ||
+            expression.containsFunctionCall("onAgent")
 
     override fun evaluateField(/*step: Int, position: Position, */current: Float): Float {
         evaluator.current = current.v

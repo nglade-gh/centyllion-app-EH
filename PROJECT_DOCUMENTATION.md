@@ -177,7 +177,7 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `halfLife` (0 = pas de décroissance) → décroissance naturelle du champ
 - `allowedDirection` → directions de diffusion
 - `toric` : `Boolean` (défaut `true`) → bordure torique du champ ; `false` = bordure **imperméable** : la diffusion ne traverse pas les bords de la grille (« best effort », sans solveur numérique dédié). Éditable dans les deux modes (interrupteur *Toric*).
-- `formula` → chaîne d'expression permettant de **calculer la valeur du champ** à partir de `step`, `x`, `y`, `z`, `current` et des fonctions `field(id)`, `field(id, dx, dy)`, `agent(x, y)`, `count(grainId)`. La formule doit renvoyer un nombre (vérifié par `validateNumericFormula`). Exemple : `count(0) > 2 ? current * 0.95 : current`.
+- `formula` → chaîne d'expression permettant de **calculer la valeur du champ** à partir de `step`, `x`, `y`, `z`, `current` et des fonctions `field(id)`, `field(id, dx, dy)`, `agent(x, y)`, `count(grainId)`, `onAgent(id)` / `onAgent(id, dx, dy)` (test booléen : les huit voisins, ou une seule case avec `(0, 0)` = la case elle-même). La formule doit renvoyer un nombre (vérifié par `validateNumericFormula`). Exemple : `count(0) > 2 ? current * 0.95 : current`.
 
 ### 4.3 Behaviour (comportement)
 
@@ -191,13 +191,43 @@ Le cœur du simulateur repose sur **trois abstractions** :
 - `mainReactiveId` / `mainProductId` → grain principal (réactif → produit)
 - `sourceReactive` (0 = l'âge du grain lui-même ; >0 = âge du voisin de réactif `sourceReactive`) → pour "éclosion" avec âge différent
 - `fieldInfluences` : `Map<Int, Float>` → influence pondérée des champs voisins
-- `reaction` : `List<Reaction>` → réactions secondaires : `reactiveId`, `productId`, `sourceReactive`, `allowedDirection`
+- `reaction` : `List<Reaction>` → réactions secondaires : `reactiveId`, `productId`, `sourceReactive`, `allowedDirection`. `reactiveId` vaut un id de grain, `-1` (case voisine vide) ou `ANY_AGENT = -3` (n'importe quel agent, voir 4.3bis) ; `productId` vaut un id de grain ou `-1` (aucun), jamais `-3`
 - `formula` : chaîne (libellée **Predicate** dans l'interface) → condition logique d'application (voir 6.4)
 - `actions` : chaîne → liste d'actions exécutées après les réactions (voir 6.5)
 - `agentCountPredicates` : `List<AgentCountPredicate(grainId, op, count)>` → conditions sur le nombre de voisins ; `grainId < 0` = tout agent voisin occupé (8 directions, valeur 0-8) (voir 6bis)
 - `boundaryConditions` : `BoundaryConditions(left, right, top, bottom)` → parois du **voisinage visible** du comportement (même classe et même forme JSON que pour un grain) ; une paroi `false` rend invisibles les voisins situés au-delà (aucun repliement, aucune lecture), les 4 parois `true` (défaut) étant le cas torique (voir 4.5)
 
 Une **réaction** s'exécute lorsque un grain voisin (dans `allowedDirection`) possède le `reactiveId` spécifié.
+
+### 4.3bis Réactif « n'importe quel agent » (`ANY_AGENT`)
+
+Une ligne de réaction peut accepter **n'importe quel agent** comme réactif : elle s'applique dès qu'une case voisine
+autorisée est occupée, quelle que soit l'espèce de l'agent, et le produit le remplace sur place.
+
+- Sentinelle `ANY_AGENT = -3`, définie dans `core/.../model/model.kt` à côté de `Reaction`.
+- **Réactifs seulement.** Un produit est toujours un grain précis (ou `-1` = aucun) : `productId == ANY_AGENT` est
+  refusé par `Reaction.diagnose` avec un message explicite, et la liste déroulante des produits ne le propose jamais.
+  `mainReactiveId == ANY_AGENT` est également refusé (« disponible seulement pour les réactions »).
+- L'éditeur de comportement propose, pour le réactif d'une ligne, l'ordre : aucun agent (case vide), Any, puis les
+  agents (`ReactiveSelectController`). Les autres colonnes (produit, source de l'âge) ne changent pas.
+- L'héritage de l'âge est **inchangé** : il vient de `sourceReactive` (0 = agent principal, k = voisin de la ligne k),
+  donc du numéro de ligne et non du type d'agent ; avec Any, l'âge hérité est celui du voisin réellement choisi.
+- Moteur : `ApplicableBehavior.apply` appariait voisins et lignes par `sortedBy { reactiveId }`. Une sentinelle
+  négative casserait cet appariement (elle trie avant tous les ids de grain et décale toutes les paires). Les
+  comportements contenant `ANY_AGENT` (`Behaviour.hasAnyReactive`) sont donc appariés par **index de ligne** — les
+  voisins choisis sont déjà dans l'ordre des réactions — et tous les autres gardent l'appariement trié historique :
+  `ReactionTrajectoryTest` verrouille la trajectoire des modèles de référence qui n'utilisent pas la sentinelle.
+- Les trois sites de correspondance (`Behaviour.applicable` pour les comptages d'âge `age(n)`, la vérification
+  d'applicabilité des réactions, et `Simulator.applyBehaviour`) passent tous par `Reaction.acceptsNeighbour(id)`,
+  pour que les deux chemins (applicabilité et application) donnent le même résultat.
+
+**Ambiguïté préexistante de `-1`, conservée telle quelle.** `-1` vaut « case vide » dans une ligne de réaction (et
+« aucun » comme `productId`) **mais** « tous les agents » dans `count(-1)` / `agentCountPredicates.grainId` ; `-2`
+appartient au seul espace des prédicats de comptage (« cases vides »). C'est donc une valeur déjà chargée de deux sens
+que « n'importe quel agent » évite soigneusement de réutiliser : il prend `-3`, inutilisé partout ailleurs. Corriger
+l'ambiguïté (renommer la sentinelle de comptage) casserait les fichiers `.nbd2` existants et reste hors périmètre de
+cette évolution.
+
 
 ### 4.4 Modèle et simulation
 
@@ -328,6 +358,8 @@ La sous-classe `NetbioDynEvaluator` étend `Evaluator` avec des variables et fon
 | `agent(ix, iy)` | id du grain à la position (int, int) → int |
 | `field(id, ix, iy)` | valeur du champ `id` à la position (int, int, int) → float |
 | `count(grainId)` | nombre de voisins du type `grainId` (conditions de comportement) |
+| `onAgent(grainId)` | vrai si l'un des **huit voisins** est du type `grainId` (la case centrale n'est pas comptée) → booléen |
+| `onAgent(grainId, dx, dy)` | vrai si la **case unique** à l'offset (dx, dy) est du type `grainId` ; `(0, 0)` désigne la case elle-même. `dx`/`dy` ∈ {-1, 0, 1} → booléen |
 
 | Fonction | Signification |
 |----------|---------------|
@@ -376,10 +408,11 @@ count(1) > 2 && (count(2) == 1 || count(3) == 0)
 - Les variables `step` (étape courante de la simulation) et `x`, `y`, `z` (coordonnées de la case) sont disponibles
 - `age(n)` renvoie l'âge du réactif `n` : `1` = agent principal, `2` à `N+1` = voisins des réactions, même numérotation que la colonne "Sources" (héritage d'âge) ; `0` si le réactif n'existe pas
 - Les fonctions `field(id)` / `field(id, dx, dy)` (valeur du champ sur la case courante ou à un offset) et `agent(x, y)` (ID de l'agent en une position) sont disponibles : le simulateur passe l'état de la grille à `applicable()`
+- `onAgent(id)` est vrai si **au moins un des huit voisins** contient un agent du grain `id` (la case centrale n'est pas comptée, comme pour `count()`), et `onAgent(id, dx, dy)` teste une **case unique** à l'offset (dx, dy), la case centrale étant cette fois **incluse** pour `(0, 0)`. Les offsets sont limités à -1, 0 et 1 : `onAgent(0, 5, 5)` est refusé par la validation (`Expression.onAgentError()` dans `evaluator.kt`, appelée par `validateFormula`) et par l'évaluateur à l'exécution, au lieu de lire une case arbitraire. Les deux formes renvoient un booléen (`booleanFunctions` de `TypeChecker.kt`, `Boolean.v` dans l'évaluateur) : elles se composent avec `&&`, `||` et `!`
 - Le résultat doit être un **prédicat logique** (`true`/`false`) : `validatePredicateFormula` rejette toute formule non booléenne (par ex. `sin(step)`), ainsi que les ternaires aux branches de types différents
 - Validation automatique dans l'interface (champ "Predicate" + aide "Help") et dans `validation.kt` (propriété du problème : `Predicate`)
 
-> **Remarque** : les formules de comportement sont évaluées avec l'état de la grille au début du pas (double buffering en mode parallèle). `field(id, dx, dy)` est relatif à la case de l'agent ; `field(...)` et `agent(...)` utilisent des **coordonnées toriques** (modulo de la taille de la grille), comme `count()`/`moveIndex` : un offset qui sort de la grille ressort de l'autre côté.
+> **Remarque** : les formules de comportement sont évaluées avec l'état de la grille au début du pas (double buffering en mode parallèle). `field(id, dx, dy)` est relatif à la case de l'agent ; `field(...)`, `agent(...)` et `onAgent(...)` utilisent des **coordonnées toriques** (modulo de la taille de la grille), comme `count()`/`moveIndex` : un offset qui sort de la grille ressort de l'autre côté.
 
 ### 6.5 Actions de comportement (`actions`)
 
@@ -1062,6 +1095,7 @@ que les fichiers sauvegardés soient **autodescriptifs** :
 | `fields[].toric` | omis si `true` ; `false` est écrit | absent = `true` (torique) |
 | `behaviours[].agentCountPredicates` | omis si liste vide ; chaque prédicat présent **écrit toujours** `grainId`, `op` et `count` (`@EncodeDefault(ALWAYS)`), même aux valeurs par défaut | liste absente = vide |
 | `behaviours[].reaction[].sourceReactive` | écrite si ≥ 0, omise si < 0 (convention antérieure) | absente = -1 |
+| `behaviours[].reaction[].reactiveId` | écrite telle quelle : id de grain (≥ 0), `-1` = case vide cible, `ANY_AGENT = -3` = n'importe quel agent | -1 (`productId` `-3` refusé par la validation) |
 
 Exemple de grain non torique sauvegardé :
 

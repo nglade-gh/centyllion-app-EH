@@ -256,6 +256,8 @@ class BehaviourEditController(
                 helpLine("field(id)", "Value of field id at the current cell"),
                 helpLine("field(id, dx, dy)", "Value of field id at offset (dx, dy) from the current cell (e.g. 1, 0 = east neighbour)"),
                 helpLine("agent(x, y)", "Agent id at position (x, y), -1 if none"),
+                helpLine("onAgent(id)", "True when at least one of the eight neighbours holds that grain (the cell itself is not counted)"),
+                helpLine("onAgent(id, dx, dy)", "True when the single cell at that offset holds that grain: dx and dy are -1, 0 or 1, (0, 0) being the cell itself"),
             ),
             fullWidth = true, striped = true
         ),
@@ -368,6 +370,17 @@ class BehaviourEditController(
         actionsController.container
     ).apply { hidden = !expertMode }
 
+
+    /**
+     * Contextual help of the reaction lines, including the reactive column: the only place where
+     * "any agent" appears, and why it never appears on the product side.
+     */
+    val reactionsHelp = Section(
+        p(page.i18n("Each line adds a neighbour to the behaviour: the reactive column names the neighbour cell to look at, the directions column the directions where it is looked for, and the product column the agent left in that cell.")),
+        p(page.i18n("The reactive column proposes, in this order: none (an empty neighbour cell, where the product is then created), Any agent (any occupied neighbour cell, whatever its agent, which the product replaces in place), then the agents of the model. The directions, the age source and the product never offer Any agent.")),
+        p(page.i18n("Any agent exists only on the reactive side: it names the neighbour to transform, so a single line covers every species. A product, on the contrary, is always one precise agent: 'any agent' would mean 'any of them at random', which has no meaning in a grid cell.")),
+        p(page.i18n("Age inheritance is unchanged: the source column designates the main agent (1) or the neighbour of a reaction line (2 to N+1), whatever its agent. With Any agent, the inherited age is the one of the neighbour actually chosen.")),
+    )
 
     val mainReactiveController = GrainSelectController(
         context.grainForId(data.mainReactiveId), context.grains, page, allowNone = true
@@ -557,7 +570,11 @@ class BehaviourEditController(
         blockTitle("Reactions"),
         HorizontalField(Label(page.i18n("Speed")), probabilityController.container),
         fieldInfluencesGroup,
-        Label(page.i18n("Reactions")), reactionsController,
+        Level(
+            left = listOf(Label(page.i18n("Reactions"))),
+            right = listOf(helpButton("Reactions", listOf(reactionsHelp)))
+        ),
+        reactionsController,
         actionsLine
     )
 

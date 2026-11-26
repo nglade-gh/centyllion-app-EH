@@ -29,7 +29,10 @@ enum class ExprType {
 private val booleanFunctions = setOf(
     // state tests (condition of a simulation modifier only, see model.stateTestFunctions)
     "IsBehaviourActive", "IsModifierActive",
-    "IsToricSelectionOn", "IsOverwritingOn", "IsVisible"
+    "IsToricSelectionOn", "IsOverwritingOn", "IsVisible",
+    // neighbourhood tests of a behaviour or of a field, over the eight neighbours
+    // (onAgent(id)) or over a single offset cell (onAgent(id, dx, dy))
+    "onAgent"
 )
 
 fun Expression.inferType(): ExprType = when (this) {

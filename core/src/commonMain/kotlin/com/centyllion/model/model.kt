@@ -190,6 +190,22 @@ data class Grain(
         else null
 }
 
+/**
+ * Reactive of a [Reaction] line that accepts **any occupied neighbour cell**, whatever its grain:
+ * the product replaces that neighbour in place, exactly as a reactive naming a grain does.
+ *
+ * The value is -3 on purpose. Three id spaces coexist in this model and a new negative number
+ * must not be readable as one of the existing ones:
+ * - grain ids are >= 0;
+ * - in a reaction line, -1 means an empty neighbour cell (and -1 as a product means "no product");
+ * - in a count predicate, -1 means "all agents" ([COUNT_ALL_AGENTS]) and -2 means "empty cells"
+ *   ([COUNT_EMPTY_CELLS]).
+ * So -1 must not be reused (it already carries two different meanings, which is a pre-existing
+ * ambiguity kept for the compatibility of the saved files), -2 belongs to the count predicates,
+ * and -3 is used nowhere else. A test locks this choice.
+ */
+const val ANY_AGENT: Int = -3
+
 @Serializable
 data class Reaction(
     val reactiveId: Int = -1,
@@ -197,6 +213,17 @@ data class Reaction(
     val sourceReactive: Int = -1,
     val allowedDirection: Set<Direction> = Direction.default
 )
+
+/**
+ * True when the neighbour cell holding agent [neighbourId] (-1 for an empty cell) satisfies this
+ * reaction line: [ANY_AGENT] accepts any occupied cell, -1 matches an empty cell, and a grain id
+ * matches that grain only.
+ */
+fun Reaction.acceptsNeighbour(neighbourId: Int): Boolean = when (reactiveId) {
+    ANY_AGENT -> neighbourId >= 0
+    else -> reactiveId == neighbourId
+}
+
 
 /**
  * Predicate on the number of neighbours.
@@ -351,6 +378,17 @@ data class Behaviour(
 
     @Transient
     val fieldInfluenced = fieldInfluences.any { it.value != 0f }
+
+    /**
+     * True when a [reaction] line accepts [ANY_AGENT] as its reactive.
+     *
+     * The reaction engine used to pair each reaction with a chosen neighbour by sorting both
+     * lists on the grain id, which a wildcard breaks (a negative sentinel sorts outside the
+     * grain id range and shifts every pair). Such a behaviour is paired by reaction index
+     * instead; every other behaviour keeps the historical sorted pairing.
+     */
+    val hasAnyReactive: Boolean = reaction.any { it.reactiveId == ANY_AGENT }
+
 
     fun reactionIndex(reaction: Reaction) = this.reaction.identityFirstIndexOf(reaction)
 
@@ -527,7 +565,7 @@ data class Behaviour(
                     var found = 0
                     for (k in c.neighbourIds.indices) {
                         if (hidden > 0 && c.hiddenDirections[k]) continue
-                        if (c.neighbourIds[k] == r.reactiveId &&
+                        if (r.acceptsNeighbour(c.neighbourIds[k]) &&
                             r.allowedDirection.contains(CellContext.DIRECTIONS[k])
                         ) {
                             found = c.neighbourAges[k]
@@ -553,15 +591,15 @@ data class Behaviour(
         // a reaction with reactiveId == -1 places the product agent into an
         // EMPTY neighbour cell: when that cell lies across a wall, the move is
         // only allowed if the product grain authorises crossing that wall
-        // (missing product grain -> no restriction). Reactions with
-        // reactiveId >= 0 transform an agent in place: never restricted.
+        // (missing product grain -> no restriction). Reactions whose reactive is
+        // a grain id, or ANY_AGENT, transform an agent in place: never restricted.
         // In both cases a neighbour hidden by a closed wall of this behaviour is
         // invisible: it can be neither a reactive nor the target of a product.
         for (r in reaction) {
             val bc = if (r.reactiveId == -1) c.simulator.model.grainForId(r.productId)?.boundaryConditions else null
             if (r.allowedDirection.none { d ->
                     val k = CellContext.DIRECTIONS.indexOf(d)
-                    k >= 0 && c.neighbourIds[k] == r.reactiveId &&
+                    k >= 0 && r.acceptsNeighbour(c.neighbourIds[k]) &&
                             (hidden == 0 || !c.hiddenDirections[k]) &&
                             (bc == null || !bc.crossed(c.position, d, c.simulator.simulation.width, c.simulator.simulation.height))
                 }) return false
@@ -996,6 +1034,15 @@ class CellContext(val simulator: Simulator) {
     }
 }
 
+/**
+ * [AgentCountPredicate.grainId] (and `count(grainId)` in a formula) counting every occupied
+ * neighbour cell, whatever its grain.
+ *
+ * Do not confuse it with [ANY_AGENT] (-3): both mean "any agent", but this one is a *count*
+ * sentinel and [ANY_AGENT] is a *reaction line* sentinel naming a single neighbour. They live in
+ * different id spaces; -1 also means an empty cell in a reaction line, which is the historical
+ * ambiguity of this model (kept as is for the compatibility of the saved files).
+ */
 const val COUNT_ALL_AGENTS: Int = -1
 
 /** [AgentCountPredicate.grainId] counting the empty neighbour cells. */

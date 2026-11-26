@@ -123,6 +123,8 @@ class FieldEditController (
         helpLine("field(id)", "Value of field id at the current cell"),
         helpLine("field(id, dx, dy)", "Value of field id at offset (dx, dy) from the current cell (e.g. 1, 0 = east neighbour)"),
         helpLine("agent(x, y)", "Agent id at position (x, y), -1 if none"),
+        helpLine("onAgent(id)", "True when at least one of the eight neighbours holds that grain (the cell itself is not counted)"),
+        helpLine("onAgent(id, dx, dy)", "True when the single cell at that offset holds that grain: dx and dy are -1, 0 or 1, (0, 0) being the cell itself"),
     )
 
     val functionsTable = Table(body = helpBody(), fullWidth = true, striped = true)

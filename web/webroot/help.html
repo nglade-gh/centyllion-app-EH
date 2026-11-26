@@ -257,6 +257,34 @@ Voisin (C)   : C → C</code></pre>
   <p>
     Un agent <code>A</code> se transforme en <code>B</code> en présence d'un catalyseur <code>C</code>.
   </p>
+
+  <h3>Le réactif « n'importe quel agent » (Any)</h3>
+  <p>
+    La colonne des <strong>réactifs</strong> d'une ligne de réaction propose, dans cet ordre :
+    <code>aucun</code> (une case voisine vide, où le produit est alors créé),
+    <strong>n'importe quel agent</strong> (une case voisine occupée, quel que soit l'agent qu'elle
+    contient, que le produit remplace sur place), puis les agents du modèle. La ligne s'applique
+    donc dès qu'un voisin autorisé est occupé, quelle que soit son espèce.
+  </p>
+  <pre><code>Case centrale : A → A
+Voisin (Any) : Any → D</code></pre>
+  <p>
+    « N'importe quel agent » n'existe que du côté des <strong>réactifs</strong> : il désigne le
+    voisin à transformer, si bien qu'une seule ligne couvre toutes les espèces. Un
+    <strong>produit</strong> est toujours un agent précis — sur une case de la grille, « n'importe
+    quel agent » ne désignerait rien de déterminé — la liste des produits ne le propose donc
+    jamais, et un fichier qui l'y placerait est refusé à la validation avec un message explicite.
+  </p>
+  <p>
+    L'héritage de l'âge ne change pas : la colonne <strong>Avec l'âge de</strong> désigne l'agent
+    principal (1) ou le voisin d'une ligne de réaction (2 à N+1), quel que soit son type. Avec
+    « n'importe quel agent », l'âge hérité est celui du voisin réellement choisi.
+  </p>
+  <p>
+    Dans le fichier <code>.nbd2</code>, la sentinelle vaut <code>-3</code> : <code>-1</code>
+    désigne déjà une case vide dans une ligne de réaction, et <code>-2</code> les cases vides dans
+    les prédicats de comptage.
+  </p>
   <h3>Conditions aux limites du comportement</h3>
 
   <p>Chaque comportement porte ses propres parois, gauche, droite, haut et bas.
@@ -490,6 +518,8 @@ Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
     <tr><th>Fonction</th><th>Description</th><th>Disponible dans</th></tr>
     <tr><td><code>count(grainId)</code></td><td>Nombre de voisins de ce type (les 8 cases adjacentes).</td><td>Champs et comportements</td></tr>
     <tr><td><code>agent(x, y)</code></td><td>ID de l'agent à la position (x, y), ou <code>-1</code> si vide.</td><td>Champs et comportements</td></tr>
+    <tr><td><code>onAgent(id)</code></td><td>Vrai si <strong>au moins un des huit voisins</strong> contient un agent du grain <code>id</code> (la case centrale n'est pas comptée, comme pour <code>count()</code>).</td><td>Champs et comportements</td></tr>
+    <tr><td><code>onAgent(id, dx, dy)</code></td><td>Vrai si la <strong>case unique</strong> à l'offset (dx, dy) contient un agent du grain <code>id</code> ; la case centrale est ici <strong>incluse</strong> pour <code>(0, 0)</code>. <code>dx</code> et <code>dy</code> valent -1, 0 ou 1 (toute autre valeur est refusée par la validation).</td><td>Champs et comportements</td></tr>
     <tr><td><code>field(id)</code></td><td>Valeur du champ <code>id</code> sur la case courante.</td><td>Champs et comportements</td></tr>
     <tr><td><code>field(id, dx, dy)</code></td><td>Valeur du champ <code>id</code> à l'offset (dx, dy) depuis la case courante (ex. <code>1, 0</code> = case à l'est).</td><td>Champs et comportements</td></tr>
   </table>
@@ -569,6 +599,13 @@ Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
   <h4>Exemple 6 : condition de position</h4>
   <pre><code>x == 0 || x == 99</code></pre>
   <p>Le comportement s'applique uniquement sur les bords gauche et droit de la grille.</p>
+  <h4>Exemple 7 : présence d'un voisin précis</h4>
+  <pre><code>onAgent(1) &amp;&amp; !onAgent(2, -1, 0)</code></pre>
+  <p>
+    Le comportement s'applique si l'un des huit voisins est un agent de type 1
+    (<code>onAgent(1)</code>, la case centrale n'est pas comptée) et si le voisin immédiat à
+    l'ouest n'est pas un agent de type 2 (<code>onAgent(2, -1, 0)</code>, qui porte sur cette
+    seule case).</p>
 </section>
 
 <section id="exemples-complets">

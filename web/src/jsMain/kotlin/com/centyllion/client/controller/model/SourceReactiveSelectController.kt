@@ -2,6 +2,7 @@ package com.centyllion.client.controller.model
 
 import bulma.*
 import com.centyllion.client.page.BulmaPage
+import com.centyllion.model.ANY_AGENT
 import com.centyllion.model.Behaviour
 import com.centyllion.model.GrainModel
 import kotlin.properties.Delegates.observable
@@ -55,25 +56,25 @@ class SourceReactiveSelectController(
 
     private fun indexLabel(index: Int) = if (index >= 0) page.i18n("reactive %0", index + 1) else page.i18n("none")
 
+    /** Grain designated by reactive [index] (0 = main reactive), or [ANY_AGENT] / -1. */
+    private fun grainIdOf(index: Int) = if (index == 0)
+        context.first.mainReactiveId else
+        context.first.reaction[index - 1].reactiveId
+
+    /** A wildcard reactive has no grain: show it distinctly from an empty cell. */
     private fun indexIcon(index: Int) = when {
         index < 0 -> "times-circle"
+        grainIdOf(index) == ANY_AGENT -> "asterisk"
         else -> {
-            val grainId = if (index == 0)
-                context.first.mainReactiveId else
-                context.first.reaction[index - 1].reactiveId
-            val grain = if (grainId >= 0) context.second.grainForId(grainId) else null
+            val grain = context.second.grainForId(grainIdOf(index))
             if (grain != null) grain.icon else "times-circle"
         }
     }
 
     private fun indexColor(index: Int) = when {
         index < 0 -> ""
-        else -> {
-            val grainId = if (index == 0)
-                context.first.mainReactiveId else
-                context.first.reaction[index - 1].reactiveId
-            context.second.grainForId(grainId)?.color ?: ""
-        }
+        grainIdOf(index) == ANY_AGENT -> "#7a7a7a"
+        else -> context.second.grainForId(grainIdOf(index))?.color ?: ""
     }
 
     private fun items() = listOf(item(0)) +

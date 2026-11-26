@@ -53,7 +53,10 @@ fun Behaviour.hasNoError(model: GrainModel, locale: Locale) =
 
 fun Behaviour.diagnose(model: GrainModel, locale: Locale, result: MutableList<Problem>) {
     if (mainReactiveId < -1) {
-        result.add(Problem(this, "Main Reactive", locale.i18n("Behaviour must have a main reactive")))
+        val message = if (mainReactiveId == ANY_AGENT)
+            "Any agent is only available for the reactions of a behaviour, never for its main reactive"
+        else "Behaviour must have a main reactive"
+        result.add(Problem(this, "Main Reactive", locale.i18n(message)))
     }
 
     if (probability < 0.0 || probability > 1.0) {
@@ -115,12 +118,41 @@ fun Behaviour.diagnose(model: GrainModel, locale: Locale, result: MutableList<Pr
 }
 
 fun Reaction.diagnose(model: GrainModel, behaviour: Behaviour, index: Int, locale: Locale, result: MutableList<Problem>) {
-    if (reactiveId >= 0 && model.grainForId(reactiveId) == null) {
-        result.add(Problem(behaviour, "Reactive Id", locale.i18n("Grain with id %0 doesn't exist for reactive %1", reactiveId, index)))
+    // the reactive may be a grain id, -1 (an empty neighbour cell) or ANY_AGENT, which names
+    // any occupied neighbour whatever its grain
+    when {
+        reactiveId == ANY_AGENT -> Unit
+        reactiveId == -1 -> Unit
+        reactiveId >= 0 -> if (model.grainForId(reactiveId) == null) {
+            result.add(Problem(behaviour, "Reactive Id", locale.i18n("Grain with id %0 doesn't exist for reactive %1", reactiveId, index)))
+        }
+        else -> result.add(
+            Problem(behaviour, "Reactive Id", locale.i18n(
+                "Invalid id %0 for reactive %1: a reactive is a grain id, none (-1) or any agent (%2)",
+                reactiveId, index, ANY_AGENT
+            ))
+        )
     }
-    if (productId >= 0 && model.grainForId(productId) == null) {
-        result.add(Problem(behaviour, "Product Id", locale.i18n("Grain with id %0 doesn't exist for reactive %1", productId, index)))
+
+    // a product is always a concrete grain (or -1 for no product): "any agent" names a
+    // neighbour to replace, so it has no meaning on the product side
+    when {
+        productId == ANY_AGENT -> result.add(
+            Problem(behaviour, "Product Id", locale.i18n(
+                "Any agent can only be a reactive of a reaction, never its product (reactive %0)", index
+            ))
+        )
+        productId >= 0 -> if (model.grainForId(productId) == null) {
+            result.add(Problem(behaviour, "Product Id", locale.i18n("Grain with id %0 doesn't exist for reactive %1", productId, index)))
+        }
+        productId == -1 -> Unit
+        else -> result.add(
+            Problem(behaviour, "Product Id", locale.i18n(
+                "Invalid id %0 for the product of reactive %1: a product is a grain id or none (-1)", productId, index
+            ))
+        )
     }
+
     if (allowedDirection.isEmpty()) {
         result.add(Problem(behaviour, "Direction", locale.i18n("No direction allowed for reactive %0", index)))
     }

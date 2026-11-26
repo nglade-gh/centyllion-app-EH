@@ -206,6 +206,36 @@ Quand : #Agent_B > 3
 - La case doit être vide pour que le comportement soit applicable
 - La validation interdit les comportements sans effet (`None → None`)
 
+### 4.1bis Réactif « n'importe quel agent » (Any)
+
+Une ligne de **réaction** peut accepter n'importe quel agent comme réactif : la ligne s'applique dès
+qu'une case voisine autorisée est **occupée**, quelle que soit l'espèce de l'agent qui s'y trouve, et
+le produit remplace cet agent sur place.
+
+```
+C0 : Agent_A -> Agent_A
+Réaction : Any -> Agent_D   (toutes directions)
+```
+
+- Nouvelle sentinelle `ANY_AGENT = -3` (`core/.../model/model.kt`), utilisable **uniquement** comme
+  `reaction[].reactiveId`.
+- La valeur est `-3` parce que les trois espaces d'identifiants se recouvrent déjà : les ids de
+  grains sont `>= 0`, `-1` vaut « case vide » dans une ligne de réaction (et « aucun » pour un
+  produit), `-2` vaut « cases vides » dans les prédicats de comptage, et `-1` y vaut aussi « tous les
+  agents ». Aucune valeur négative existante n'était libre.
+- **Jamais côté produits** : un produit est toujours un agent précis (ou `-1` = aucun). Un
+  `productId = -3` est refusé par la validation avec un message explicite, et la liste déroulante
+  des produits ne propose pas « Any ».
+- Dans l'éditeur de comportement, la liste du **réactif** d'une ligne propose dans cet ordre :
+  aucun agent (case vide), **Any** (n'importe quel agent), puis les agents définis.
+- L'héritage de l'âge est inchangé : il vient du numéro de ligne de réaction (`sourceReactive`), pas
+  du type d'agent atteint ; avec Any, c'est l'âge du voisin réellement choisi.
+- Moteur : l'appariement par tri des voisins et des lignes sur `reactiveId` ne peut pas fonctionner
+  avec une sentinelle négative. Les comportements qui en contiennent sont appariés par **index de
+  ligne** (les voisins choisis sont déjà dans l'ordre des lignes) ; tous les autres gardent
+  l'appariement trié historique, donc une trajectoire identique (`ReactionTrajectoryTest`).
+
+
 ### 4.2 Comptage de voisins (prédicats structurés)
 
 ```
@@ -238,6 +268,7 @@ count(1) > 2 && (count(2) == 1 || count(3) == 0)
 ```
 
 - `count(grainId)` : nombre de voisins du type donné (les 8 cases adjacentes)
+- `onAgent(id)` : vrai si **au moins un des huit voisins** contient un agent du grain `id` (la case centrale n'est pas comptée, comme pour `count()`) ; `onAgent(id, dx, dy)` teste une **case unique** à l'offset (dx, dy), la case centrale étant **incluse** pour `(0, 0)`. `dx` et `dy` valent -1, 0 ou 1 — toute autre valeur est refusée par la validation de formule. Les deux formes renvoient un booléen, donc elles se composent avec `&&`, `||` et `!` (`onAgent(0) && !onAgent(1)`) ; les offsets sont toriques.
 - Variables : `step` (étape courante de la simulation), `age(n)` (âge du réactif `n` : 1 = agent principal, 2 à N+1 = voisins des réactions, même numérotation que la colonne « Avec l'âge de »), `x`, `y`, `z` (position)
 - Opérateurs : `&&`, `||`, `!`, comparaisons, parenthèses
 - La formule doit être un **prédicat logique** (renvoyer `true`/`false`) : `sin(step)` est refusé par la validation

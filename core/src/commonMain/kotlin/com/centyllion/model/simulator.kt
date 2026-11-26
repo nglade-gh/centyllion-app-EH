@@ -60,12 +60,27 @@ class ApplicableBehavior(
         // applies main reaction
         simulator.transform(index, index, behaviour.mainProductId, ageForSource(behaviour.sourceReactive))
 
-        // applies other reaction find each neighbour for each reaction
-        val reactives = usedNeighbours.sortedBy { it.reactiveId }
-        val reactions = behaviour.reaction.sortedBy { it.reactiveId }
+        // applies other reaction: each reaction line is paired with the neighbour it selected.
+        //
+        // Historical pairing: both lists are sorted on the neighbour grain id. It is only valid
+        // when every reactive names a grain id, which is why a behaviour using ANY_AGENT is
+        // paired by reaction index instead: the sentinel is negative, so it would sort before
+        // every grain and shift each pair (the right neighbour would be transformed by the
+        // wrong line). The chosen neighbours are already in reaction order, so index pairing
+        // is the exact pairing for a wildcard, and the sorted pairing is left untouched for
+        // every file that does not use it.
+        val pairs = if (behaviour.hasAnyReactive) {
+            // one chosen neighbour per reaction line; a shorter list cannot happen (the
+            // combination is empty, and the behaviour not applicable, when a line has no match)
+            behaviour.reaction.mapIndexedNotNull { k, reaction -> usedNeighbours.getOrNull(k)?.let { reaction to it } }
+        } else {
+            val reactives = usedNeighbours.sortedBy { it.reactiveId }
+            val reactions = behaviour.reaction.sortedBy { it.reactiveId }
+            reactions.zip(reactives)
+        }
 
         // applies reactions
-        reactions.zip(reactives).forEach { (reaction, reactive) ->
+        pairs.forEach { (reaction, reactive) ->
             val newAge = ageForSource(reaction.sourceReactive)
             simulator.transform(reactive.index, reactive.index, reaction.productId, newAge)
         }
@@ -744,10 +759,13 @@ class Simulator(
         // for each reaction, find all possible reactives
         val possibleReactions = behaviour.reaction
             .map { reaction ->
-                val bc = model.grainForId(reaction.productId)?.boundaryConditions
+                // only an empty-cell reactive places its product across a wall: the product
+                // grain's walls then decide whether the crossing is allowed. A reactive naming a
+                // grain, or ANY_AGENT, transforms an occupied neighbour in place.
+                val bc = if (reaction.reactiveId == -1) model.grainForId(reaction.productId)?.boundaryConditions else null
                 neighbours.filter { (d, a) ->
-                    reaction.reactiveId == a.reactiveId && reaction.allowedDirection.contains(d) &&
-                            (reaction.reactiveId >= 0 || bc == null || !bc.crossed(position, d, simulation.width, simulation.height))
+                    reaction.acceptsNeighbour(a.reactiveId) && reaction.allowedDirection.contains(d) &&
+                            (bc == null || !bc.crossed(position, d, simulation.width, simulation.height))
                 }
             }
 
