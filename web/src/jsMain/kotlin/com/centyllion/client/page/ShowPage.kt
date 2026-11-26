@@ -44,8 +44,9 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
 
     private var tutorialLayer: TutorialLayer<ShowPage>? = null
 
-    /** Version number of the running bundle (`version.json`), shown in the About dialog. */
-    private var versionNumber: String = ""
+    /** Commit of the running bundle (`version.json`), shown in the About dialog: the only
+     *  version that cannot drift from what is deployed. */
+    private var versionSha: String = ""
 
     /** Build date and time of the running bundle (`version.json`), shown in the About dialog. */
     private var versionDate: String = ""
@@ -279,7 +280,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
                     row(
                         "Version",
                         span(
-                            listOf(versionNumber.ifBlank { i18n("unknown") }, versionDate)
+                            listOf(versionDate, versionSha.ifBlank { i18n("unknown") })
                                 .filter { it.isNotBlank() }
                                 .joinToString(" — ")
                         )
@@ -522,7 +523,7 @@ class ShowPage(override val appContext: AppContext) : BulmaPage {
         }
 
         appContext.api.fetchVersion().then {
-            versionNumber = it.version
+            versionSha = it.sha
             versionDate = it.date
         }
 

@@ -61,7 +61,7 @@ la version web sert `web/webroot/help.html`, qui vit désormais dans le dépôt 
 ./gradlew :web:jsBrowserProductionWebpack :web:syncJs
 
 # Servir les fichiers statiques
-python3 -m http.server 8081 --directory web/webroot
+python3 serve.py                      # recommandé : en-têtes no-cache, galerie locale
 # → http://localhost:8081
 ```
 
@@ -770,7 +770,7 @@ et `Gallery/local/`. C'est un outil de développement : l'application fonctionne
 lui, et ne doit pas en dépendre.
 
 ```bash
-python3 -m http.server 8081 --directory web/webroot   # équivalent, sans persistance côté dossier
+python3 -m http.server 8081 --directory web/webroot   # sans en-têtes de cache : recharger avec Ctrl+Shift+R après un build
 ```
 
 **Serveur partagé** (cas d'usage général, par exemple l'instance de Brest) : le

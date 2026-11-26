@@ -40,6 +40,13 @@ class GalleryHandler(SimpleHTTPRequestHandler):
 
     # --- helpers ---------------------------------------------------------
 
+    # The bundle has no content hash (`index.html` loads `/js/centyllion/centyllion.js`),
+    # so a browser may keep it for hours under its heuristic freshness rules: in
+    # development every served file must be revalidated on each load.
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store, must-revalidate")
+        super().end_headers()
+
     def local_db(self) -> Path:
         return self.gallery_dir / "local-gallery.json"
 
@@ -53,7 +60,6 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 

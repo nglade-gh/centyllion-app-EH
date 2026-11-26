@@ -106,7 +106,17 @@ tasks {
             val properties = project.ext.properties
             val version =  project.version
             val build = properties["build.number"] ?: "dev"
-            val sha = properties["build.vcs.number"] ?: "dev"
+            // the commit is the only version that cannot lie: a numbered version has to be
+            // bumped by hand and drifts from what is actually deployed
+            val sha = (properties["build.vcs.number"] as String?)?.takeIf { it.isNotBlank() }
+                ?: runCatching {
+                    val process = ProcessBuilder("git", "rev-parse", "--short", "HEAD")
+                        .directory(project.rootDir)
+                        .redirectErrorStream(true)
+                        .start()
+                    process.inputStream.bufferedReader().use { it.readText().trim() }
+                        .ifBlank { "dev" }
+                }.getOrDefault("dev")
             // fixed pattern: the About dialog must show the same date whatever the
             // machine locale (previous builds produced "11/21/26, 5:45 AM")
             val date = SimpleDateFormat("dd/MM/yyyy HH:mm").format(Date())
