@@ -259,6 +259,14 @@ private fun installFormulaStyles() {
     style.textContent = """
         .field-body:has(> .field.$FORMULA_CLASS) > .field {
             flex: 0 0 auto !important;
+            /* the Help button keeps air on both sides: away from the label, away from the box */
+            margin-left: 10px !important;
+            margin-right: 10px !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        /* the label column keeps no margin of its own: the 10 px above is the whole gap */
+        .field.is-horizontal:has(> .field-body > .field.$FORMULA_CLASS) > .field-label {
             margin-right: 0 !important;
             padding-right: 0 !important;
         }
