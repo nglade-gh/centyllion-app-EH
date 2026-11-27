@@ -73,6 +73,7 @@ class EditableStringController(
         } else {
             container.body = listOfNotNull(inputControl)
             inputControl.rightIcon = if (readOnly) null else penIcon
+            scheduleStretch()
         }
     }
 
@@ -103,6 +104,7 @@ class EditableStringController(
         if (autoGrowMax > 0) {
             stretchContainer()
             growTextArea()
+            scheduleStretch()
         }
     }
 
@@ -158,6 +160,19 @@ class EditableStringController(
      * columns as there are elements, so a formula box with a Help button beside it gets half
      * the row. The siblings of the body keep their natural width, the area takes the rest.
      */
+    /**
+     * Runs [stretchContainer] on the next tick: when the controller is built, its container is
+     * not in the document yet, so it has no parent to measure. The insertion happens right after
+     * the constructor returns, hence the deferral.
+     */
+    private fun scheduleStretch() {
+        if (autoGrowMax <= 0) return
+        window.setTimeout({
+            stretchContainer()
+            growTextArea()
+        }, 0)
+    }
+
     private fun stretchContainer() {
         container.root.style.flex = "1 1 auto"
         container.root.style.minWidth = "0"
@@ -169,12 +184,20 @@ class EditableStringController(
             val child = children.item(i) as? HTMLElement ?: continue
             if (child === container.root) continue
             child.style.flex = "0 0 auto"
+            // Bulma spaces the columns of a field body: that margin is what kept the area
+            // away from the Help button on its left
+            child.style.marginRight = "0"
+            child.style.paddingRight = "0"
+            child.style.marginLeft = "0"
         }
+        container.root.style.marginLeft = "0"
     }
 
     fun enableAutoGrow(minRows: Int = 3, maxRows: Int = 6) {
         autoGrowMin = minRows
         autoGrowMax = maxRows
+        container.root.classList.add(FORMULA_CLASS)
+        installFormulaStyles()
         // a textarea defaults to 20 columns and one line: inside a horizontal field it ends up
         // as a postage stamp where a formula cannot be read
         input.root.style.width = "100%"
@@ -215,6 +238,37 @@ class EditableStringController(
             element.style.overflowY = "hidden"
         }
     }
+}
+
+/** Marks the field that holds a formula area, so the stylesheet can recognise it. */
+private const val FORMULA_CLASS = "centy-formula"
+
+/**
+ * In a horizontal field, Bulma splits the body into equal columns and spaces them: a formula
+ * box with a Help button beside it therefore got half the row and a 25 px margin. These rules
+ * give the whole remaining width to the box and drop the margins, so the area starts flush
+ * against the button on its left.
+ *
+ * A stylesheet rather than an inline adjustment: the rule applies the moment the element is
+ * inserted, whatever the order in which the layout is built.
+ */
+private fun installFormulaStyles() {
+    if (document.getElementById("centy-formula-style") != null) return
+    val style = document.createElement("style")
+    style.id = "centy-formula-style"
+    style.textContent = """
+        .field-body:has(> .field.$FORMULA_CLASS) > .field {
+            flex: 0 0 auto !important;
+            margin-right: 0 !important;
+            padding-right: 0 !important;
+        }
+        .field-body:has(> .field.$FORMULA_CLASS) > .field.$FORMULA_CLASS {
+            flex: 1 1 auto !important;
+            margin-left: 0 !important;
+            min-width: 0 !important;
+        }
+    """.trimIndent()
+    document.head?.appendChild(style)
 }
 
 /**
