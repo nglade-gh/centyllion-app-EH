@@ -5,6 +5,7 @@ import com.centyllion.client.renderMarkdown
 import com.centyllion.i18n.Locale
 import kotlinx.browser.document
 import kotlinx.browser.window
+import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLDivElement
 import kotlin.properties.Delegates.observable
 
@@ -65,7 +66,10 @@ class EditableStringController(
             container.body = listOfNotNull(inputControl, okControl, cancelControl)
             inputControl.rightIcon = null
             input.root.focus()
-            if (autoGrowMax > 0) growTextArea()
+            if (autoGrowMax > 0) {
+                stretchContainer()
+                growTextArea()
+            }
         } else {
             container.body = listOfNotNull(inputControl)
             inputControl.rightIcon = if (readOnly) null else penIcon
@@ -96,7 +100,10 @@ class EditableStringController(
     override fun refresh() {
         input.value = data
         refreshMessage()
-        if (autoGrowMax > 0) growTextArea()
+        if (autoGrowMax > 0) {
+            stretchContainer()
+            growTextArea()
+        }
     }
 
     fun refreshMessage() {
@@ -144,6 +151,27 @@ class EditableStringController(
      * is bound to the last parameter of the constructor, and adding a non-function parameter at
      * the end would break every existing call.
      */
+    /**
+     * Gives the whole remaining width of a horizontal field to the area.
+     *
+     * In `HorizontalField(label, helpButton, area)` the body is split into as many equal
+     * columns as there are elements, so a formula box with a Help button beside it gets half
+     * the row. The siblings of the body keep their natural width, the area takes the rest.
+     */
+    private fun stretchContainer() {
+        container.root.style.flex = "1 1 auto"
+        container.root.style.minWidth = "0"
+        container.root.style.width = "100%"
+        val parent = container.root.parentElement ?: return
+        if (!parent.classList.contains("field-body")) return
+        val children = parent.children
+        for (i in 0 until children.length) {
+            val child = children.item(i) as? HTMLElement ?: continue
+            if (child === container.root) continue
+            child.style.flex = "0 0 auto"
+        }
+    }
+
     fun enableAutoGrow(minRows: Int = 3, maxRows: Int = 6) {
         autoGrowMin = minRows
         autoGrowMax = maxRows
