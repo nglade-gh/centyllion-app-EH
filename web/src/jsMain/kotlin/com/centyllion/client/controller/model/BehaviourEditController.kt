@@ -2,6 +2,7 @@ package com.centyllion.client.controller.model
 
 import bulma.*
 import com.centyllion.client.controller.utils.EditableStringController
+import com.centyllion.client.controller.utils.formulaStringController
 import com.centyllion.client.controller.utils.blockTitle
 import com.centyllion.client.controller.utils.createHr
 import com.centyllion.client.controller.utils.editableDoubleController
@@ -141,20 +142,18 @@ class BehaviourEditController(
         }
     )
 
-    val formulaController = EditableStringController(
+    val formulaController = formulaStringController(
         initialData = data.formula,
         placeHolder = page.i18n("Predicate (e.g. count(1) > 2 && count(2) == 1)"),
-        columns = 40,
         isValid = { value -> if (value.isBlank()) null else validatePredicateFormula(value, context.grains.mapTo(mutableSetOf()) { it.id }) },
         onUpdate = { _, new, _ ->
             data = data.copy(formula = new)
         }
     )
 
-    val actionsController = EditableStringController(
+    val actionsController = formulaStringController(
         initialData = data.actions,
         placeHolder = page.i18n("Actions (e.g. Add(0, 1, 0), Remove(1, 0, 0))"),
-        columns = 40,
         isValid = { value -> if (value.isBlank()) null else validateActionFormula(value) },
         onUpdate = { _, new, _ ->
             data = data.copy(actions = new)

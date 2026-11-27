@@ -3,6 +3,7 @@ package com.centyllion.client.controller.model
 import bulma.*
 import bulma.extension.Switch
 import com.centyllion.client.controller.utils.EditableStringController
+import com.centyllion.client.controller.utils.formulaStringController
 import com.centyllion.client.controller.utils.editorBox
 import com.centyllion.client.page.BulmaPage
 import com.centyllion.model.*
@@ -68,11 +69,11 @@ class ModifierEditController(
         page.i18n("Active"), checked = data.enabled, rounded = true, outlined = true
     ) { _, checked -> this.data = this.data.copy(enabled = checked) }
 
-    val formulaController = EditableStringController(data.formula, page.i18n("Condition"), columns = 40) { _, new, _ ->
+    val formulaController = formulaStringController(data.formula, page.i18n("Condition")) { _, new, _ ->
         this.data = this.data.copy(formula = new)
     }
 
-    val actionsController = EditableStringController(data.actions, page.i18n("Actions"), columns = 40) { _, new, _ ->
+    val actionsController = formulaStringController(data.actions, page.i18n("Actions")) { _, new, _ ->
         this.data = this.data.copy(actions = new)
     }
 

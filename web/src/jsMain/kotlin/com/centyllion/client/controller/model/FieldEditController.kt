@@ -3,6 +3,7 @@ package com.centyllion.client.controller.model
 import bulma.*
 import bulma.extension.Switch
 import com.centyllion.client.controller.utils.EditableStringController
+import com.centyllion.client.controller.utils.formulaStringController
 import com.centyllion.client.controller.utils.editableFloatController
 import com.centyllion.client.controller.utils.editableIntController
 import com.centyllion.client.controller.utils.editorBox
@@ -93,10 +94,9 @@ class FieldEditController (
     ) { _, new, _ -> this.data = this.data.copy(opacity = new.coerceIn(0, 100)) }
 
 
-    val formulaController = EditableStringController(
+    val formulaController = formulaStringController(
         initialData = data.formula,
         placeHolder = page.i18n("Formula"),
-        columns = 40,
         isValid = { validateNumericFormula(it, context.grains.mapTo(mutableSetOf()) { grain -> grain.id }) },
         onUpdate =  { _, new, _ ->
             data = data.copy(formula = new)

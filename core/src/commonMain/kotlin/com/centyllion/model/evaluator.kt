@@ -92,6 +92,9 @@ class NetbioDynEvaluator(
     override fun evaluate(node: Expression): Value = when {
         node is FunctionCall && node.name.content in neighbourSetFunctions ->
             neighbourSet(node.name.content, node)
+        // count({0,1}): the list has no value of its own, it names types to sum
+        node is FunctionCall && node.name.content == "count" && node.arguments.singleOrNull() is ListLiteral ->
+            countOfSet(node)
         else -> super.evaluate(node)
     }
 
@@ -266,6 +269,27 @@ class NetbioDynEvaluator(
     }
 
     /**
+     * `count({0,1,3})`: number of neighbours whose grain is one of the listed types.
+     *
+     * The four `has…` predicates answer a truth value over the *set* of types present; this one
+     * sums the per-type counts, because multiplicity matters — three neighbours of type 0 and
+     * one of type 1 make four, not two. The list is deduplicated: `count({0,0})` is `count(0)`.
+     *
+     * Unlike the mask predicates there is no limit on the number of ids: no mask is built.
+     */
+    private fun countOfSet(call: FunctionCall): Value {
+        grainListError(call, limitTypes = false)?.let { throw EvaluationException(it) }
+        val list = call.arguments[0] as ListLiteral
+        val seen = mutableSetOf<Int>()
+        var total = 0
+        for (element in list.elements) {
+            val id = element.constantNumberOrNull()?.toInt() ?: continue
+            if (seen.add(id)) total += agentCounts[id] ?: 0
+        }
+        return total.v
+    }
+
+    /**
      * Offset argument of `onAgent(id, dx, dy)`: -1, 0 or 1.
      *
      * A dynamic function is never checked for arity by [Evaluator.check]: a wrong call reaches
@@ -432,8 +456,13 @@ fun Expression.neighbourSetError(): String? {
         // the single argument is a list, checked as a whole: it is not walked into again
         return neighbourSetCallError(this)
     }
+    // count({0,1}) takes a grain list too, but sums counts instead of testing a mask:
+    // no width limit applies there
+    if (this is FunctionCall && name.content == "count" && arguments.singleOrNull() is ListLiteral) {
+        return grainListError(this, limitTypes = false)
+    }
     if (this is ListLiteral) {
-        return "A list {…} may only be the argument of hasAnyOf, hasAllOf, hasOnly or hasExactly"
+        return "A list {…} may only be the argument of count, hasAnyOf, hasAllOf, hasOnly or hasExactly"
     }
     for (child in children) {
         if (child is Expression) child.neighbourSetError()?.let { return it }
@@ -441,7 +470,13 @@ fun Expression.neighbourSetError(): String? {
     return null
 }
 
-private fun neighbourSetCallError(call: FunctionCall): String? {
+private fun neighbourSetCallError(call: FunctionCall): String? = grainListError(call, limitTypes = true)
+
+/**
+ * Validates a grain list argument. [limitTypes] is false for `count({…})`, which sums counts
+ * instead of building the 30-bit mask of the `has…` predicates: there is no width limit there.
+ */
+private fun grainListError(call: FunctionCall, limitTypes: Boolean): String? {
     val name = call.name.content
     if (call.arguments.size != 1) return "$name expects one grain list, e.g. $name({0,1}), got ${call.arguments.size} arguments"
     val list = call.arguments[0] as? ListLiteral
@@ -453,8 +488,8 @@ private fun neighbourSetCallError(call: FunctionCall): String? {
             ?: return "$name: a grain list holds constant agent ids only, e.g. {0,1}"
         if (value != floor(value)) return "$name: a grain list holds whole agent ids only, got $value"
         val id = value.toInt()
-        if (id < 0) return "$name: a grain list names agent types, not the sentinels -1 (all agents) and -2 (empty cells) of count(), got $id"
-        if (id >= NEIGHBOUR_SET_MAX_TYPES) return "$name: agent id $id cannot be represented in a grain list (ids 0 to ${NEIGHBOUR_SET_MAX_TYPES - 1})"
+        if (id < 0) return "$name: a grain list names agent types, not the sentinels -1 (all agents) and -2 (empty cells); use count(-1) for all agents, got $id"
+        if (limitTypes && id >= NEIGHBOUR_SET_MAX_TYPES) return "$name: agent id $id cannot be represented in a grain list (ids 0 to ${NEIGHBOUR_SET_MAX_TYPES - 1})"
     }
     return null
 }

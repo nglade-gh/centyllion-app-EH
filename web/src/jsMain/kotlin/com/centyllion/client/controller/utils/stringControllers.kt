@@ -4,6 +4,7 @@ import bulma.*
 import com.centyllion.client.renderMarkdown
 import com.centyllion.i18n.Locale
 import kotlinx.browser.document
+import kotlinx.browser.window
 import org.w3c.dom.HTMLDivElement
 import kotlin.properties.Delegates.observable
 
@@ -82,6 +83,8 @@ class EditableStringController(
             onChange = { _, value -> message = isValid(value) }
             onFocus = { if (it) edit(true) else if (message == null) validate() else cancel() }
         }
+
+
         refreshMessage()
     }
 
@@ -125,7 +128,68 @@ class EditableStringController(
         input.value = this.data
         edit(false)
     }
+
+    /**
+     * Turns the input into a growing multi-line area: Enter inserts a line break (the default in
+     * a text area), Shift+Enter validates, and the height follows the content up to [maxRows]
+     * lines before a vertical scrollbar appears.
+     *
+     * Installed after construction rather than through a constructor parameter: a trailing lambda
+     * is bound to the last parameter of the constructor, and adding a non-function parameter at
+     * the end would break every existing call.
+     */
+    fun enableAutoGrow(maxRows: Int = 4) {
+        input.root.addEventListener("keydown", { event ->
+            val key = event.asDynamic()
+            if (key.key == "Enter" && key.shiftKey == true) {
+                key.preventDefault()
+                validate()
+            }
+        })
+        input.root.addEventListener("input", { growTextArea(maxRows) })
+        growTextArea(maxRows)
+    }
+
+    /**
+     * Height follows the content up to [maxRows] lines, then a vertical scrollbar appears.
+     * Without a cap, a long formula would push the buttons out of the dialog.
+     */
+    private fun growTextArea(maxRows: Int) {
+        val element = input.root
+        val style = window.getComputedStyle(element)
+        val lineHeight = style.lineHeight.toDoubleOrNull() ?: 20.0
+        val padding = (style.paddingTop.toDoubleOrNull() ?: 0.0) +
+                (style.paddingBottom.toDoubleOrNull() ?: 0.0)
+        element.style.height = "auto"
+        val needed = element.scrollHeight.toDouble()
+        val max = lineHeight * maxRows + padding
+        if (needed > max) {
+            element.style.height = "${max}px"
+            element.style.overflowY = "auto"
+        } else {
+            element.style.height = "${needed}px"
+            element.style.overflowY = "hidden"
+        }
+    }
 }
+
+/**
+ * Controller for the big texts of a model: behaviour predicate, actions, field formula,
+ * modifier condition and actions. Multi-line (Enter breaks the line), Shift+Enter validates,
+ * and the box grows up to [maxRows] lines before scrolling.
+ */
+fun formulaStringController(
+    initialData: String, placeHolder: String, maxRows: Int = 4,
+    isValid: (value: String) -> String? = { null },
+    onUpdate: (old: String, new: String, controller: EditableStringController) -> Unit = { _, _, _ -> }
+) = EditableStringController(
+    initialData = initialData,
+    placeHolder = placeHolder,
+    input = TextArea(value = initialData, placeholder = placeHolder, readonly = true, static = true, rows = "1"),
+    validateOnEnter = false,
+    isValid = isValid,
+    onUpdate = onUpdate
+).apply { enableAutoGrow(maxRows) }
 
 fun <T : Comparable<T>> isNumberIn(locale: Locale, placeholder: String, number: T?, min: T, max: T) = when {
     number == null -> locale.i18n("%0 must be a number", placeholder)

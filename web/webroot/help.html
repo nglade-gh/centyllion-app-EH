@@ -361,6 +361,16 @@ Actions   : AddField(0, 0, 0, 0.2), Add(1, 0, 1)</code></pre>
       <code>0</code> de 0,2 dans sa case et crée un agent <code>B</code> au-dessus de lui.
     </p>
   </div>
+  <div class="card tip">
+    <h4>Écrire un prédicat ou des actions sur plusieurs lignes</h4>
+    <p>
+      Les zones de prédicat, d'actions, de formule de champ et de condition de modificateur
+      acceptent plusieurs lignes : <code>Entrée</code> passe à la ligne,
+      <code>Maj+Entrée</code> valide, et la zone s'agrandit jusqu'à quatre lignes avant
+      d'afficher une barre de défilement. Le bouton de validation reste disponible à côté du
+      champ.
+    </p>
+  </div>
   <h3>Ordre des réactions et des actions</h3>
   <p>
     Au sein d'un même comportement, les <strong>réactions sont appliquées d'abord, puis les
@@ -516,7 +526,8 @@ Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
   <h3>Fonctions spécifiques à la simulation</h3>
   <table>
     <tr><th>Fonction</th><th>Description</th><th>Disponible dans</th></tr>
-    <tr><td><code>count(grainId)</code></td><td>Nombre de voisins de ce type (les 8 cases adjacentes).</td><td>Champs et comportements</td></tr>
+    <tr><td><code>count(grainId)</code></td><td>Nombre de voisins de ce type (les 8 cases adjacentes). <code>count(-1)</code> compte tous les agents, <code>count(-2)</code> les voisins vides.</td><td>Champs et comportements</td></tr>
+    <tr><td><code>count({ids})</code></td><td>Nombre de voisins dont le type figure dans la liste : <code>count({0,1})</code> vaut 3 pour deux voisins de type 0 et un de type 1. Les multiplicités comptent, contrairement aux quatre prédicats <code>has…</code> qui raisonnent sur l'ensemble des types présents. La liste est dédoublonnée (<code>count({0,0})</code> = <code>count(0)</code>) et n'est pas limitée à 30 types.</td><td>Champs et comportements</td></tr>
     <tr><td><code>agent(x, y)</code></td><td>ID de l'agent à la position (x, y), ou <code>-1</code> si vide.</td><td>Champs et comportements</td></tr>
     <tr><td><code>onAgent(id)</code></td><td>Vrai si <strong>au moins un des huit voisins</strong> contient un agent du grain <code>id</code> (la case centrale n'est pas comptée, comme pour <code>count()</code>).</td><td>Champs et comportements</td></tr>
     <tr><td><code>onAgent(id, dx, dy)</code></td><td>Vrai si la <strong>case unique</strong> à l'offset (dx, dy) contient un agent du grain <code>id</code> ; la case centrale est ici <strong>incluse</strong> pour <code>(0, 0)</code>. <code>dx</code> et <code>dy</code> valent -1, 0 ou 1 (toute autre valeur est refusée par la validation).</td><td>Champs et comportements</td></tr>
@@ -556,7 +567,8 @@ Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
   <div class="card tip">
     <h4>La liste <code>{…}</code> n'est pas une valeur</h4>
     <p>
-      Une liste n'est acceptée que comme argument de ces quatre fonctions : <code>{0,1}</code>
+      Une liste n'est acceptée que comme argument de <code>count({…})</code> et de ces quatre
+      fonctions : <code>{0,1}</code>
       seule, <code>count(0) + {1}</code> ou <code>field({0})</code> sont refusés par la
       validation. La liste vide <code>{}</code> est refusée elle aussi (deux conventions
       s'opposeraient : <code>hasAnyOf({})</code> toujours faux, <code>hasAllOf({})</code>
@@ -572,7 +584,8 @@ Actions           : Remove(0,0,0), Remove(1,-1,0), Add(0,0,0)</code></pre>
       peuvent pas décrire tous les types ; la formule est alors <strong>signalée par le
       diagnostic du modèle</strong> (« les prédicats d'ensemble codent au plus 30 types… »), et
       non à l'exécution, où un masque débordé répondrait un résultat faux sans aucun signe.
-      Dans ce cas, utiliser <code>count(grainId)</code>.
+      Dans ce cas, utiliser <code>count(grainId)</code> ou <code>count({ids})</code> : ce dernier
+      additionne des comptages et ne construit aucun masque, il n'est donc pas limité à 30 types.
     </p>
   </div>
 </section>

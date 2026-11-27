@@ -210,7 +210,7 @@ class NeighbourSetTest {
             "count(0) + {1}",
             "{0} == {0}",
             "field({0})",
-            "count({0}) > 1",
+            // count({0}) is no longer a list used as a value: it sums the counts (see CountSetTest)
             "hasAnyOf({0}) ? {1} : false",
         )) {
             val error = validatePredicateFormula(formula)
