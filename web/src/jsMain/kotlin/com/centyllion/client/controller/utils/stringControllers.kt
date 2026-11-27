@@ -46,6 +46,9 @@ class EditableStringController(
         if (old != new) refreshMessage()
     }
 
+    private var autoGrowMin: Int = 0
+    private var autoGrowMax: Int = 0
+
     val penIcon = Icon("pen")
 
     val inputControl = Control(this.input, expanded = true, rightIcon = if (readOnly) null else penIcon)
@@ -56,11 +59,13 @@ class EditableStringController(
 
         input.static = !start
         input.readonly = !start
+
         container.addons = start
         if (start) {
             container.body = listOfNotNull(inputControl, okControl, cancelControl)
             inputControl.rightIcon = null
             input.root.focus()
+            if (autoGrowMax > 0) growTextArea()
         } else {
             container.body = listOfNotNull(inputControl)
             inputControl.rightIcon = if (readOnly) null else penIcon
@@ -91,6 +96,7 @@ class EditableStringController(
     override fun refresh() {
         input.value = data
         refreshMessage()
+        if (autoGrowMax > 0) growTextArea()
     }
 
     fun refreshMessage() {
@@ -138,7 +144,14 @@ class EditableStringController(
      * is bound to the last parameter of the constructor, and adding a non-function parameter at
      * the end would break every existing call.
      */
-    fun enableAutoGrow(maxRows: Int = 4) {
+    fun enableAutoGrow(minRows: Int = 3, maxRows: Int = 6) {
+        autoGrowMin = minRows
+        autoGrowMax = maxRows
+        // a textarea defaults to 20 columns and one line: inside a horizontal field it ends up
+        // as a postage stamp where a formula cannot be read
+        input.root.style.width = "100%"
+        input.root.style.boxSizing = "border-box"
+        input.root.setAttribute("rows", "$minRows")
         input.root.addEventListener("keydown", { event ->
             val key = event.asDynamic()
             if (key.key == "Enter" && key.shiftKey == true) {
@@ -146,23 +159,26 @@ class EditableStringController(
                 validate()
             }
         })
-        input.root.addEventListener("input", { growTextArea(maxRows) })
-        growTextArea(maxRows)
+        input.root.addEventListener("input", { growTextArea() })
+        growTextArea()
     }
 
     /**
      * Height follows the content up to [maxRows] lines, then a vertical scrollbar appears.
      * Without a cap, a long formula would push the buttons out of the dialog.
      */
-    private fun growTextArea(maxRows: Int) {
+    private fun growTextArea() {
+        if (autoGrowMax <= 0) return
         val element = input.root
         val style = window.getComputedStyle(element)
         val lineHeight = style.lineHeight.toDoubleOrNull() ?: 20.0
         val padding = (style.paddingTop.toDoubleOrNull() ?: 0.0) +
                 (style.paddingBottom.toDoubleOrNull() ?: 0.0)
+        val min = lineHeight * autoGrowMin + padding
+        val max = lineHeight * autoGrowMax + padding
+
         element.style.height = "auto"
-        val needed = element.scrollHeight.toDouble()
-        val max = lineHeight * maxRows + padding
+        val needed = element.scrollHeight.toDouble().coerceAtLeast(min)
         if (needed > max) {
             element.style.height = "${max}px"
             element.style.overflowY = "auto"
@@ -179,7 +195,7 @@ class EditableStringController(
  * and the box grows up to [maxRows] lines before scrolling.
  */
 fun formulaStringController(
-    initialData: String, placeHolder: String, maxRows: Int = 4,
+    initialData: String, placeHolder: String, minRows: Int = 3, maxRows: Int = 6,
     isValid: (value: String) -> String? = { null },
     onUpdate: (old: String, new: String, controller: EditableStringController) -> Unit = { _, _, _ -> }
 ) = EditableStringController(
@@ -189,7 +205,7 @@ fun formulaStringController(
     validateOnEnter = false,
     isValid = isValid,
     onUpdate = onUpdate
-).apply { enableAutoGrow(maxRows) }
+).apply { enableAutoGrow(minRows, maxRows) }
 
 fun <T : Comparable<T>> isNumberIn(locale: Locale, placeholder: String, number: T?, min: T, max: T) = when {
     number == null -> locale.i18n("%0 must be a number", placeholder)
@@ -276,6 +292,9 @@ class EditableMarkdownController(
             root.innerHTML = transform(initialData)
         }
     }
+
+    private var autoGrowMin: Int = 0
+    private var autoGrowMax: Int = 0
 
     val penIcon = Icon("pen")
     val htmlControl = Control(html, rightIcon = if (readOnly) null else penIcon)
